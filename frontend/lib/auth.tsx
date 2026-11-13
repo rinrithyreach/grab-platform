@@ -39,7 +39,8 @@ export function useAuth() {
   return ctx;
 }
 
-export function errorMessage(err: unknown) {
-  if (err instanceof TypeError) return "Can't reach the server. Is the backend running on port 5000?";
-  return err instanceof Error ? err.message : "Something went wrong.";
+/** Turns an API/network error into text. Server messages come from the backend (English). */
+export function errorMessage(err: unknown, t: (key: "error.network" | "error.generic") => string) {
+  if (err instanceof TypeError) return t("error.network");
+  return err instanceof Error && err.message ? err.message : t("error.generic");
 }

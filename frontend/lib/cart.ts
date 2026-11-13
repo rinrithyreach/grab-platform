@@ -49,13 +49,16 @@ export function useShop() {
   return useSyncExternalStore(subscribe, () => { load(); return state; }, () => EMPTY);
 }
 
-/** Returns false if the cart holds items from another store and the user declined to clear it. */
-export function addToCart(storeId: string, itemId: string) {
+/**
+ * The cart holds one store at a time. If it has items from another store,
+ * `confirmReplace(otherStoreId)` decides whether to start a new cart.
+ * Returns false if the user declined.
+ */
+export function addToCart(storeId: string, itemId: string, confirmReplace: (otherStoreId: string) => boolean) {
   load();
   let { cart } = state;
   if (cart.storeId && cart.storeId !== storeId && cart.lines.length > 0) {
-    const other = getStore(cart.storeId)?.name ?? "another store";
-    if (!window.confirm(`Your cart has items from ${other}. Start a new cart?`)) return false;
+    if (!confirmReplace(cart.storeId)) return false;
     cart = { storeId: null, lines: [] };
   }
   const existing = cart.lines.find((l) => l.itemId === itemId);

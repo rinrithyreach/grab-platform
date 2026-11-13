@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode follows the data-theme attribute set from Settings (not just the OS). */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* App palette — teal primary + warm amber accent (deliberately not Grab green). */
 :root {
   --background: #f7f8f8;
@@ -11,6 +14,7 @@
   --brand-strong: #0b5f58;
   --brand-soft: #e3f3f1;
   --accent: #f59e0b;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -23,27 +27,31 @@
   --color-brand-strong: var(--brand-strong);
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-geist-sans), var(--font-khmer), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0d1413;
-    --surface: #152020;
-    --foreground: #e8eeed;
-    --muted: #93a3a1;
-    --border: #253332;
-    --brand: #2dd4bf;
-    --brand-strong: #5eead4;
-    --brand-soft: #13302d;
-    --accent: #fbbf24;
-  }
+[data-theme="dark"] {
+  --background: #0d1413;
+  --surface: #152020;
+  --foreground: #e8eeed;
+  --muted: #93a3a1;
+  --border: #253332;
+  --brand: #2dd4bf;
+  --brand-strong: #5eead4;
+  --brand-soft: #13302d;
+  --accent: #fbbf24;
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Khmer script needs more line height to fit its stacked vowels. */
+:lang(km) body {
+  line-height: 1.7;
 }
 
 /* Small shared building blocks */
@@ -64,4 +72,10 @@ body {
 }
 @utility label {
   @apply block text-sm font-medium mb-1.5;
+}
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
