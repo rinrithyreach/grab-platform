@@ -20,6 +20,17 @@ export interface Driver {
 }
 export interface Payment { id: string; rideId: string; amount: number; paymentMethod: string; status: string; createdAt: string }
 export interface Review { id: string; rideId: string; driverId: string; rating: number; comment: string | null }
+/**
+ * Home-page slideshow banner, returned by GET /api/banners (public, no login).
+ * The backend decides how many banners there are and their order.
+ */
+export interface Banner {
+  id: string;
+  imageUrl: string;      // full URL of the picture; shown full-width in the home hero, so use wide images (e.g. 1920×520). Edges may be cropped on phones.
+  title?: string;        // optional text shown on top of the picture
+  subtitle?: string;
+  linkUrl?: string;      // optional: where clicking the banner goes, e.g. "/food" or "/store/pizza-lab"
+}
 export interface ApiProblem { title?: string; detail?: string; errors?: Record<string, string[]>; traceId?: string }
 export class ApiError extends Error {
   constructor(public status: number, public problem: ApiProblem) {
@@ -62,6 +73,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     simulatePayment: (rideId: string) => request<Payment>("/api/payments", "POST", { rideId }),
     myPayments: (page = 1) => request<Payment[]>(`/api/payments/mine?page=${page}`),
     reviewRide: (rideId: string, rating: number, comment?: string) => request<Review>("/api/reviews", "POST", { rideId, rating, comment }),
+    banners: (signal?: AbortSignal) => request<Banner[]>("/api/banners", "GET", undefined, signal),
     driverReviews: (id: string, page = 1) => request<Review[]>(`/api/drivers/${encodeURIComponent(id)}/reviews?page=${page}`),
   };
 }

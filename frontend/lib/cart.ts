@@ -96,6 +96,15 @@ export function cartDetails(cart: Cart) {
   return { store, lines, subtotal, deliveryFee, total: subtotal + deliveryFee, count };
 }
 
+/**
+ * A delivery address must be at least 5 characters and contain both
+ * letters and numbers (e.g. "House 12, St. 271"). Works for Khmer letters and digits too.
+ */
+export function isValidAddress(address: string) {
+  const a = address.trim();
+  return a.length >= 5 && /\p{L}/u.test(a) && /\p{Nd}/u.test(a);
+}
+
 export function placeOrder(address: string, payment: Order["payment"], note: string) {
   load();
   const { store, lines, subtotal, deliveryFee, total } = cartDetails(state.cart);

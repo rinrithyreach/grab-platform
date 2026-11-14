@@ -4,6 +4,7 @@ import Link from "next/link";
 import { STORES } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import StoreCard from "@/components/StoreCard";
+import BannerCarousel from "@/components/BannerCarousel";
 
 const SERVICES: { href: string; emoji: string; title: MessageKey; text: MessageKey }[] = [
   { href: "/ride", emoji: "🚗", title: "nav.ride", text: "home.rideText" },
@@ -24,30 +25,12 @@ export default function Home() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-brand to-brand-strong text-white dark:text-background">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-24">
-          <div>
-            <p className="inline-block rounded-full bg-white/15 px-3 py-1 text-sm font-medium">{t("home.badge")}</p>
-            <h1 className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">
-              {t("home.title1")}<br />{t("home.title2")}
-            </h1>
-            <p className="mt-4 max-w-md text-lg opacity-90">{t("brand.tagline")}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/ride" className="btn bg-white text-brand hover:bg-white/90">🚗 {t("home.bookRide")}</Link>
-              <Link href="/food" className="btn border border-white/40 hover:bg-white/10">🍜 {t("home.orderFood")}</Link>
-            </div>
-          </div>
-          <div className="hidden grid-cols-2 gap-4 md:grid" aria-hidden>
-            {["🚗", "🍔", "🛒", "🧋"].map((e, i) => (
-              <div key={e} className={`grid aspect-square place-items-center rounded-3xl bg-white/10 text-7xl ${i % 2 ? "translate-y-6" : ""}`}>{e}</div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Hero slideshow: welcome slide + banners from the backend */}
+      <BannerCarousel />
 
       {/* Services */}
-      <section className="mx-auto -mt-8 max-w-6xl px-4">
+      {/* relative z-10: the cards overlap the bottom of the hero and must stay on top of it */}
+      <section className="relative z-10 mx-auto -mt-8 max-w-6xl px-4">
         <div className="grid gap-4 sm:grid-cols-3">
           {SERVICES.map((s) => (
             <Link key={s.href} href={s.href} className="card flex items-center gap-4 p-5 shadow-sm transition-shadow hover:shadow-lg">

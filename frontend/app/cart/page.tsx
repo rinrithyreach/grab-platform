@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { money } from "@/lib/brand";
 import { getItem } from "@/lib/catalog";
-import { cartDetails, clearCart, placeOrder, setQty, useShop, type Order } from "@/lib/cart";
+import { cartDetails, clearCart, isValidAddress, placeOrder, setQty, useShop, type Order } from "@/lib/cart";
 import { useT } from "@/lib/i18n";
+import BackButton from "@/components/BackButton";
 
 export default function CartPage() {
   const router = useRouter();
@@ -16,11 +17,13 @@ export default function CartPage() {
   const [address, setAddress] = useState("");
   const [payment, setPayment] = useState<Order["payment"]>("Cash");
   const [note, setNote] = useState("");
+  const [addressError, setAddressError] = useState(false);
 
   if (!store || !lines.length) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <p className="text-6xl">🛒</p>
+      <div className="mx-auto max-w-xl px-4 py-8 text-center">
+        <div className="text-left"><BackButton href="/" /></div>
+        <p className="mt-10 text-6xl">🛒</p>
         <h1 className="mt-4 text-2xl font-bold">{t("cart.emptyTitle")}</h1>
         <p className="mt-2 text-muted">{t("cart.emptyText")}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -33,6 +36,11 @@ export default function CartPage() {
 
   function checkout(e: React.FormEvent) {
     e.preventDefault();
+    if (!isValidAddress(address)) {
+      setAddressError(true);
+      document.getElementById("address")?.focus();
+      return;
+    }
     const order = placeOrder(address.trim(), payment, note.trim());
     if (order) router.push(`/orders?placed=${order.id}`);
   }
@@ -40,6 +48,7 @@ export default function CartPage() {
   return (
     <div className="mx-auto grid max-w-5xl gap-6 px-4 py-8 lg:grid-cols-[1fr_360px]">
       <section className="min-w-0">
+        <BackButton href={`/store/${store.id}`} />
         <div className="flex items-end justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-3xl font-bold">{t("cart.title")}</h1>
@@ -70,7 +79,25 @@ export default function CartPage() {
         <h2 className="text-lg font-bold">{t("cart.checkout")}</h2>
         <div>
           <label className="label" htmlFor="address">{t("cart.address")}</label>
-          <input id="address" className="input" required minLength={5} value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("cart.addressPh")} />
+          <input
+            id="address"
+            className={`input ${addressError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}`}
+            required
+            autoComplete="street-address"
+            value={address}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              // Clear the error as soon as the address becomes valid.
+              if (addressError && isValidAddress(e.target.value)) setAddressError(false);
+            }}
+            onBlur={() => address.trim() && setAddressError(!isValidAddress(address))}
+            aria-invalid={addressError}
+            aria-describedby={addressError ? "address-error" : undefined}
+            placeholder={t("cart.addressPh")}
+          />
+          {addressError && (
+            <p id="address-error" role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">{t("cart.addressInvalid")}</p>
+          )}
         </div>
         <div>
           <span className="label">{t("cart.payment")}</span>

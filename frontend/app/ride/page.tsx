@@ -9,6 +9,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { PLACES, distanceKm } from "@/lib/places";
 import LoginRequired from "@/components/LoginRequired";
 import Select from "@/components/Select";
+import BackButton from "@/components/BackButton";
 
 const VEHICLES: { id: string; emoji: string; name: MessageKey; seats: number }[] = [
   { id: "bike", emoji: "🛵", name: "ride.moto", seats: 1 },
@@ -53,6 +54,7 @@ export default function RidePage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      <BackButton href="/" />
       <h1 className="text-3xl font-bold">{t("ride.title")}</h1>
       <p className="mt-1 text-muted">{t("ride.subtitle")}</p>
 

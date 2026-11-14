@@ -7,6 +7,7 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
 import LoginRequired from "@/components/LoginRequired";
+import BackButton from "@/components/BackButton";
 
 const BADGE: Record<RideStatus, string> = {
   Pending: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -48,6 +49,7 @@ export default function MyRidesPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
+      <BackButton href="/" />
       <div className="flex items-end justify-between">
         <h1 className="text-3xl font-bold">{t("rides.title")}</h1>
         {user && <button onClick={() => refresh()} className="text-sm font-semibold text-brand">{t("rides.refresh")}</button>}

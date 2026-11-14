@@ -34,7 +34,7 @@ export default function MenuItemCard({ storeId, item }: { storeId: string; item:
           +
         </button>
       ) : (
-        <div className="flex shrink-0 flex-col-reverse items-center gap-1 sm:flex-row sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button onClick={() => setQty(item.id, qty - 1)} aria-label={t("store.decrease")} className="grid h-8 w-8 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">−</button>
           <span className="w-5 text-center font-semibold">{qty}</span>
           <button onClick={() => setQty(item.id, qty + 1)} aria-label={t("store.increase")} className="grid h-8 w-8 place-items-center rounded-full bg-brand font-bold text-white dark:text-background hover:bg-brand-strong">+</button>

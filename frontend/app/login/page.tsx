@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import BackButton from "@/components/BackButton";
 import { BRAND } from "@/lib/brand";
 
 export default function LoginPage() {
@@ -30,7 +31,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
+    <div className="mx-auto max-w-md px-4 py-8">
+      <BackButton href="/" />
       <form onSubmit={submit} className="card space-y-4 p-6 sm:p-8">
         <div>
           <h1 className="text-2xl font-bold">{t("login.title")}</h1>
