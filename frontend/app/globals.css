@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
+/* Dark mode follows the data-theme attribute set from Settings (not just the OS). */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* App palette — teal primary + warm amber accent (deliberately not Grab green). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f8f8;
+  --surface: #ffffff;
+  --foreground: #14201f;
+  --muted: #5d6b6a;
+  --border: #e2e7e6;
+  --brand: #0f766e;
+  --brand-strong: #0b5f58;
+  --brand-soft: #e3f3f1;
+  --accent: #f59e0b;
+  color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans), var(--font-khmer), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="dark"] {
+  --background: #0d1413;
+  --surface: #152020;
+  --foreground: #e8eeed;
+  --muted: #93a3a1;
+  --border: #253332;
+  --brand: #2dd4bf;
+  --brand-strong: #5eead4;
+  --brand-soft: #13302d;
+  --accent: #fbbf24;
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Khmer script needs more line height to fit its stacked vowels. */
+:lang(km) body {
+  line-height: 1.7;
+}
+
+/* Small shared building blocks */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+@utility btn-primary {
+  @apply btn bg-brand text-white hover:bg-brand-strong dark:text-background;
+}
+@utility btn-outline {
+  @apply btn border border-border bg-surface hover:bg-brand-soft;
+}
+@utility card {
+  @apply rounded-2xl border border-border bg-surface;
+}
+@utility input {
+  @apply w-full h-11 rounded-xl border border-border bg-surface px-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+}
+@utility label {
+  @apply block text-sm font-medium mb-1.5;
+}
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

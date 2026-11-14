@@ -1,69 +1,73 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import { STORES } from "@/lib/catalog";
+import { useT, type MessageKey } from "@/lib/i18n";
+import StoreCard from "@/components/StoreCard";
+import BannerCarousel from "@/components/BannerCarousel";
+
+const SERVICES: { href: string; emoji: string; title: MessageKey; text: MessageKey }[] = [
+  { href: "/ride", emoji: "🚗", title: "nav.ride", text: "home.rideText" },
+  { href: "/food", emoji: "🍜", title: "nav.food", text: "home.foodText" },
+  { href: "/mart", emoji: "🛒", title: "nav.mart", text: "home.martText" },
+];
+
+const STEPS: { emoji: string; title: MessageKey; text: MessageKey }[] = [
+  { emoji: "📱", title: "home.step1", text: "home.step1Text" },
+  { emoji: "📍", title: "home.step2", text: "home.step2Text" },
+  { emoji: "⚡", title: "home.step3", text: "home.step3Text" },
+];
+
+const FEATURED = STORES.filter((s) => s.kind === "food").sort((a, b) => b.rating - a.rating).slice(0, 3);
 
 export default function Home() {
+  const { t } = useT();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      {/* Hero slideshow: welcome slide + banners from the backend */}
+      <BannerCarousel />
+
+      {/* Services */}
+      {/* relative z-10: the cards overlap the bottom of the hero and must stay on top of it */}
+      <section className="relative z-10 mx-auto -mt-8 max-w-6xl px-4">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {SERVICES.map((s) => (
+            <Link key={s.href} href={s.href} className="card flex items-center gap-4 p-5 shadow-sm transition-shadow hover:shadow-lg">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-soft text-3xl">{s.emoji}</span>
+              <span className="min-w-0">
+                <span className="block text-lg font-bold">{t(s.title)}</span>
+                <span className="text-sm text-muted">{t(s.text)}</span>
+              </span>
+            </Link>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Featured */}
+      <section className="mx-auto mt-16 max-w-6xl px-4">
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="text-2xl font-bold">{t("home.topRated")}</h2>
+          <Link href="/food" className="shrink-0 text-sm font-semibold text-brand">{t("home.seeAll")}</Link>
         </div>
-      </main>
-    </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURED.map((s) => <StoreCard key={s.id} store={s} />)}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="mx-auto mt-16 max-w-6xl px-4">
+        <h2 className="text-2xl font-bold">{t("home.howItWorks")}</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          {STEPS.map((s, i) => (
+            <div key={s.title} className="card p-6">
+              <p className="text-3xl">{s.emoji}</p>
+              <p className="mt-3 font-bold">{i + 1}. {t(s.title)}</p>
+              <p className="mt-1 text-sm text-muted">{t(s.text)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }

@@ -1,0 +1,119 @@
+"use client";
+
+/**
+ * Cart + order history, saved in the browser (localStorage).
+ * A tiny external store read with useSyncExternalStore so the server render
+ * (empty cart) and the first client render always match.
+ */
+import { useSyncExternalStore } from "react";
+import { DELIVERY_FEE } from "./brand";
+import { getItem, getStore } from "./catalog";
+
+export interface CartLine { itemId: string; qty: number }
+export interface Cart { storeId: string | null; lines: CartLine[] }
+export interface OrderLine { itemId: string; name: string; price: number; qty: number }
+export interface Order {
+  id: string; storeId: string; storeName: string; lines: OrderLine[];
+  subtotal: number; deliveryFee: number; total: number;
+  address: string; payment: "Cash" | "Card"; note: string; createdAt: string;
+}
+interface State { cart: Cart; orders: Order[] }
+
+const KEY = "grab-shop-v1";
+const EMPTY: State = { cart: { storeId: null, lines: [] }, orders: [] };
+let state: State = EMPTY;
+let loaded = false;
+const listeners = new Set<() => void>();
+
+function load() {
+  if (loaded || typeof window === "undefined") return;
+  loaded = true;
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (raw) state = { ...EMPTY, ...JSON.parse(raw) };
+  } catch { /* storage blocked or corrupt — start empty */ }
+}
+
+function set(next: State) {
+  state = next;
+  try { window.localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function useShop() {
+  return useSyncExternalStore(subscribe, () => { load(); return state; }, () => EMPTY);
+}
+
+/**
+ * The cart holds one store at a time. If it has items from another store,
+ * `confirmReplace(otherStoreId)` decides whether to start a new cart.
+ * Returns false if the user declined.
+ */
+export function addToCart(storeId: string, itemId: string, confirmReplace: (otherStoreId: string) => boolean) {
+  load();
+  let { cart } = state;
+  if (cart.storeId && cart.storeId !== storeId && cart.lines.length > 0) {
+    if (!confirmReplace(cart.storeId)) return false;
+    cart = { storeId: null, lines: [] };
+  }
+  const existing = cart.lines.find((l) => l.itemId === itemId);
+  const lines = existing
+    ? cart.lines.map((l) => (l.itemId === itemId ? { ...l, qty: l.qty + 1 } : l))
+    : [...cart.lines, { itemId, qty: 1 }];
+  set({ ...state, cart: { storeId, lines } });
+  return true;
+}
+
+export function setQty(itemId: string, qty: number) {
+  load();
+  const lines = state.cart.lines
+    .map((l) => (l.itemId === itemId ? { ...l, qty } : l))
+    .filter((l) => l.qty > 0);
+  set({ ...state, cart: { storeId: lines.length ? state.cart.storeId : null, lines } });
+}
+
+export function clearCart() {
+  load();
+  set({ ...state, cart: { storeId: null, lines: [] } });
+}
+
+export function cartDetails(cart: Cart) {
+  const store = cart.storeId ? getStore(cart.storeId) : undefined;
+  const lines: OrderLine[] = store
+    ? cart.lines.flatMap((l) => {
+        const item = getItem(store.id, l.itemId);
+        return item ? [{ itemId: item.id, name: item.name, price: item.price, qty: l.qty }] : [];
+      })
+    : [];
+  const subtotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0);
+  const deliveryFee = lines.length ? DELIVERY_FEE : 0;
+  const count = lines.reduce((sum, l) => sum + l.qty, 0);
+  return { store, lines, subtotal, deliveryFee, total: subtotal + deliveryFee, count };
+}
+
+/**
+ * A delivery address must be at least 5 characters and contain both
+ * letters and numbers (e.g. "House 12, St. 271"). Works for Khmer letters and digits too.
+ */
+export function isValidAddress(address: string) {
+  const a = address.trim();
+  return a.length >= 5 && /\p{L}/u.test(a) && /\p{Nd}/u.test(a);
+}
+
+export function placeOrder(address: string, payment: Order["payment"], note: string) {
+  load();
+  const { store, lines, subtotal, deliveryFee, total } = cartDetails(state.cart);
+  if (!store || !lines.length) return null;
+  const order: Order = {
+    id: `ORD-${Date.now().toString(36).toUpperCase()}`,
+    storeId: store.id, storeName: store.name, lines, subtotal, deliveryFee, total,
+    address, payment, note, createdAt: new Date().toISOString(),
+  };
+  set({ cart: { storeId: null, lines: [] }, orders: [order, ...state.orders] });
+  return order;
+}
