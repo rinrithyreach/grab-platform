@@ -5,6 +5,7 @@ import { STORES } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import StoreCard from "@/components/StoreCard";
 import BannerCarousel from "@/components/BannerCarousel";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const SERVICES: { href: string; emoji: string; title: MessageKey; text: MessageKey }[] = [
   { href: "/ride", emoji: "🚗", title: "nav.ride", text: "home.rideText" },
@@ -43,6 +44,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Search everything */}
+      <GlobalSearch />
 
       {/* Featured */}
       <section className="mx-auto mt-16 max-w-6xl px-4">

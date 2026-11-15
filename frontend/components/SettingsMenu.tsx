@@ -4,17 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { updateSettings, useSettings, type Lang, type Theme } from "@/lib/settings";
 
-const LANGS: { value: Lang; label: string }[] = [
+export const LANGS: { value: Lang; label: string }[] = [
   { value: "en", label: "English" },
   { value: "km", label: "ខ្មែរ" },
 ];
-const THEMES: { value: Theme; icon: string }[] = [
+export const THEMES: { value: Theme; icon: string }[] = [
   { value: "light", icon: "☀️" },
   { value: "dark", icon: "🌙" },
   { value: "system", icon: "💻" },
 ];
 
-function Segmented<V extends string>({ label, value, options, onChange }: {
+export function Segmented<V extends string>({ label, value, options, onChange }: {
   label: string; value: V; options: { value: V; label: string }[]; onChange: (v: V) => void;
 }) {
   return (

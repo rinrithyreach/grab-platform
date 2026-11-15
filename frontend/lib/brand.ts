@@ -12,16 +12,17 @@ export const PROJECT = {
 
 /**
  * Social media links shown in the footer.
- * TODO: replace "#" with your group's real page links.
+ * These open each platform's home page. When the group creates its own accounts,
+ * replace the link with the page address, e.g. "https://t.me/your_group".
  * To hide one, delete its line.
  */
 export const SOCIAL_LINKS = [
-  { network: "telegram", label: "Telegram", href: "#" },
-  { network: "facebook", label: "Facebook", href: "#" },
-  { network: "x", label: "X (Twitter)", href: "#" },
-  { network: "instagram", label: "Instagram", href: "#" },
-  { network: "tiktok", label: "TikTok", href: "#" },
-  { network: "youtube", label: "YouTube", href: "#" },
+  { network: "telegram", label: "Telegram", href: "https://telegram.org" },
+  { network: "facebook", label: "Facebook", href: "https://www.facebook.com" },
+  { network: "x", label: "X (Twitter)", href: "https://x.com" },
+  { network: "instagram", label: "Instagram", href: "https://www.instagram.com" },
+  { network: "tiktok", label: "TikTok", href: "https://www.tiktok.com" },
+  { network: "youtube", label: "YouTube", href: "https://www.youtube.com" },
 ] as const;
 
 export const DELIVERY_FEE = 1.5;

@@ -16,6 +16,18 @@ export interface MenuItem {
   km?: { name: string; description: string };
 }
 
+/**
+ * A store's promotion rule, applied automatically at checkout (see lib/cart.ts).
+ * `promo` on the store is just the label shown to users; this is the actual rule.
+ */
+export type Deal =
+  | { type: "freeDelivery" }
+  | { type: "percentOff"; percent: number; minSubtotal?: number; firstOrderOnly?: boolean }
+  | { type: "buyGetFree"; buy: number; free: number }; // e.g. buy 2 get 1: every 3rd unit of an item is free
+
+/** A store photo and its credit. Photos must be free to use; every one is listed on /credits. */
+export interface Photo { src: string; author: string; license: string; source: string }
+
 export interface Store {
   id: string;
   kind: StoreKind;
@@ -26,6 +38,9 @@ export interface Store {
   etaMinutes: number;
   priceLevel: 1 | 2 | 3;
   promo?: string;
+  deal?: Deal;
+  /** Optional cover photo; stores without one show their emoji. */
+  photo?: Photo;
   /** Khmer text for cuisine/promo; store names stay as brand names. */
   km?: { cuisine: string; promo?: string };
   items: MenuItem[];
@@ -34,7 +49,8 @@ export interface Store {
 export const STORES: Store[] = [
   {
     id: "golden-noodle", kind: "food", name: "Golden Noodle House", cuisine: "Noodles", emoji: "🍜",
-    rating: 4.7, etaMinutes: 25, priceLevel: 1, promo: "20% off first order",
+    photo: { src: "/images/stores/golden-noodle.jpg", author: "Peachyeung316", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:A_Bowl_of_Beef_Noodle_Soup_from_The_Modern_Shanghai.jpg" },
+    rating: 4.7, etaMinutes: 25, priceLevel: 1, promo: "20% off first order", deal: { type: "percentOff", percent: 20, firstOrderOnly: true },
     km: { cuisine: "មី និងគុយទាវ", promo: "បញ្ចុះ ២០% លើការបញ្ជាទិញដំបូង" },
     items: [
       { id: "beef-noodle", name: "Beef Noodle Soup", description: "Slow-cooked broth, rice noodles, herbs", price: 3.5, emoji: "🍜", popular: true, km: { name: "គុយទាវសាច់គោ", description: "ទឹកស៊ុបរំងាស់យូរ គុយទាវ និងជីរ" } },
@@ -45,6 +61,7 @@ export const STORES: Store[] = [
   },
   {
     id: "burger-yard", kind: "food", name: "Burger Yard", cuisine: "Burgers", emoji: "🍔",
+    photo: { src: "/images/stores/burger-yard.jpg", author: "Acabashi", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Cheeseburger_with_onions_at_Hatfield_Heath_Festival_2017.jpg" },
     rating: 4.5, etaMinutes: 30, priceLevel: 2,
     km: { cuisine: "ប៊ឺហ្គឺ" },
     items: [
@@ -56,7 +73,8 @@ export const STORES: Store[] = [
   },
   {
     id: "rice-bowl", kind: "food", name: "Rice & Co.", cuisine: "Rice dishes", emoji: "🍛",
-    rating: 4.6, etaMinutes: 20, priceLevel: 1, promo: "Free delivery",
+    photo: { src: "/images/stores/rice-bowl.jpg", author: "Vee Satayamas from Bangkok, Thailand", license: "CC BY 2.0", source: "https://commons.wikimedia.org/wiki/File:Fried_rice_with_chicken_(17234644521).jpg" },
+    rating: 4.6, etaMinutes: 20, priceLevel: 1, promo: "Free delivery", deal: { type: "freeDelivery" },
     km: { cuisine: "មុខម្ហូបបាយ", promo: "ដឹកជូនឥតគិតថ្លៃ" },
     items: [
       { id: "pork-rice", name: "Grilled Pork Rice", description: "Charcoal pork, pickles, egg", price: 2.5, emoji: "🍖", popular: true, km: { name: "បាយសាច់ជ្រូក", description: "សាច់ជ្រូកអាំងធ្យូង ជ្រក់ និងពង" } },
@@ -67,6 +85,7 @@ export const STORES: Store[] = [
   },
   {
     id: "pizza-lab", kind: "food", name: "Pizza Lab", cuisine: "Pizza", emoji: "🍕",
+    photo: { src: "/images/stores/pizza-lab.jpg", author: "Mario56", license: "CC BY-SA 3.0", source: "https://commons.wikimedia.org/wiki/File:Margherita_Originale.JPG" },
     rating: 4.3, etaMinutes: 35, priceLevel: 2,
     km: { cuisine: "ភីហ្សា" },
     items: [
@@ -77,7 +96,8 @@ export const STORES: Store[] = [
   },
   {
     id: "sweet-spot", kind: "food", name: "The Sweet Spot", cuisine: "Desserts & Drinks", emoji: "🧁",
-    rating: 4.8, etaMinutes: 15, priceLevel: 1, promo: "Buy 2 get 1",
+    photo: { src: "/images/stores/sweet-spot.jpg", author: "Battlesnake1", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Pearl_Milk_Tea_in_Chun_Shui_Tang.jpg" },
+    rating: 4.8, etaMinutes: 15, priceLevel: 1, promo: "Buy 2 get 1", deal: { type: "buyGetFree", buy: 2, free: 1 },
     km: { cuisine: "បង្អែម និងភេសជ្ជៈ", promo: "ទិញ ២ ថែម ១" },
     items: [
       { id: "bubble-tea", name: "Brown Sugar Bubble Tea", description: "Fresh milk, tapioca pearls", price: 2.5, emoji: "🧋", popular: true, km: { name: "តែទឹកដោះគោស្ករត្នោត", description: "ទឹកដោះគោស្រស់ និងគ្រាប់ត្ងៃ" } },
@@ -87,6 +107,7 @@ export const STORES: Store[] = [
   },
   {
     id: "green-bowl", kind: "food", name: "Green Bowl", cuisine: "Healthy", emoji: "🥗",
+    photo: { src: "/images/stores/green-bowl.jpg", author: "Andy Li", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Caesar_Salad_-_Purezza_2023-11-22.jpg" },
     rating: 4.4, etaMinutes: 25, priceLevel: 2,
     km: { cuisine: "អាហារសុខភាព" },
     items: [
@@ -109,7 +130,7 @@ export const STORES: Store[] = [
   },
   {
     id: "home-plus", kind: "mart", name: "Home Plus", cuisine: "Household", emoji: "🧴",
-    rating: 4.2, etaMinutes: 40, priceLevel: 2, promo: "10% off over $20",
+    rating: 4.2, etaMinutes: 40, priceLevel: 2, promo: "10% off over $20", deal: { type: "percentOff", percent: 10, minSubtotal: 20 },
     km: { cuisine: "របស់ប្រើប្រាស់ក្នុងផ្ទះ", promo: "បញ្ចុះ ១០% ពេលទិញលើស $20" },
     items: [
       { id: "tissue", name: "Tissue Box (3)", description: "Soft 2-ply", price: 2.0, emoji: "🧻", km: { name: "ក្រដាសអនាម័យ (៣ប្រអប់)", description: "ទន់ ២ស្រទាប់" } },

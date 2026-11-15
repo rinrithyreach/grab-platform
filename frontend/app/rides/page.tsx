@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { Ride, RideStatus } from "@/lib/api";
+import type { RideStatus } from "@/lib/api";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
-import { useT } from "@/lib/i18n";
+import { useT, type MessageKey } from "@/lib/i18n";
+import { PLACES } from "@/lib/places";
+import { useRideService, type RideView } from "@/lib/rides";
+import { toast } from "@/lib/toast";
 import LoginRequired from "@/components/LoginRequired";
 import BackButton from "@/components/BackButton";
+import DemoModeNotice from "@/components/DemoModeNotice";
 
 const BADGE: Record<RideStatus, string> = {
   Pending: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -16,35 +20,67 @@ const BADGE: Record<RideStatus, string> = {
   Completed: "bg-brand-soft text-brand",
   Cancelled: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
 };
+const VEHICLE: Record<string, { emoji: string; name: MessageKey }> = {
+  bike: { emoji: "🛵", name: "ride.moto" },
+  tuk: { emoji: "🛺", name: "ride.tuktuk" },
+  car: { emoji: "🚗", name: "ride.car" },
+};
+const ACTIVE: RideStatus[] = ["Pending", "Accepted", "InProgress"];
+
+/** Skeleton cards shown while rides load. */
+function RideSkeletons() {
+  return (
+    <div className="space-y-4" aria-busy>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="card animate-pulse p-5">
+          <div className="flex justify-between gap-4">
+            <div className="flex-1 space-y-2"><div className="h-4 w-2/3 rounded bg-border" /><div className="h-3 w-1/3 rounded bg-border" /></div>
+            <div className="h-6 w-20 rounded-full bg-border" />
+          </div>
+          <div className="mt-4 h-9 w-28 rounded-full bg-border" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function MyRidesPage() {
-  const { api, user } = useAuth();
-  const { t, dateLocale } = useT();
-  const [rides, setRides] = useState<Ride[] | null>(null);
+  const { user, ready } = useAuth();
+  const service = useRideService();
+  const { t, pick, dateLocale } = useT();
+  const [rides, setRides] = useState<RideView[] | null>(null);
   const [paid, setPaid] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [reviewing, setReviewing] = useState<string | null>(null);
+  const canLoad = !!service && ready && (service.mode === "demo" || !!user);
 
-  const load = useCallback((signal?: AbortSignal) =>
-    Promise.all([api.myRides(1, signal), api.myPayments()]).then(([r, p]) => {
+  // Backend place names are English; show the Khmer name when we know the place.
+  const placeName = (name: string) => { const p = PLACES.find((x) => x.name === name); return p ? pick(p.name, p.km) : name; };
+
+  const load = useCallback((signal?: AbortSignal) => {
+    if (!service) return Promise.resolve();
+    return Promise.all([service.myRides(signal), service.myPayments()]).then(([r, p]) => {
       setRides(r);
       setPaid(new Set(p.map((x) => x.rideId)));
+      setError("");
     }).catch((err) => {
       if (!signal?.aborted) setError(errorMessage(err, t));
-    }), [api, t]);
-  const refresh = () => { setError(""); return load(); };
+    });
+  }, [service, t]);
 
+  // Load now, then refresh every 5 seconds while a ride is still active (live tracking).
+  const hasActive = !!rides?.some((r) => ACTIVE.includes(r.status));
   useEffect(() => {
-    if (!user) return;
+    if (!canLoad) return;
     const ctrl = new AbortController();
     load(ctrl.signal);
-    return () => ctrl.abort();
-  }, [user, load]);
+    const id = hasActive ? setInterval(() => load(ctrl.signal), 5000) : undefined;
+    return () => { ctrl.abort(); clearInterval(id); };
+  }, [canLoad, load, hasActive]);
 
   async function act(fn: () => Promise<unknown>, done: string) {
-    setNotice(""); setError("");
-    try { await fn(); setNotice(done); await refresh(); } catch (err) { setError(errorMessage(err, t)); }
+    setError("");
+    try { await fn(); toast(done); await load(); } catch (err) { setError(errorMessage(err, t)); }
   }
 
   return (
@@ -52,17 +88,17 @@ export default function MyRidesPage() {
       <BackButton href="/" />
       <div className="flex items-end justify-between">
         <h1 className="text-3xl font-bold">{t("rides.title")}</h1>
-        {user && <button onClick={() => refresh()} className="text-sm font-semibold text-brand">{t("rides.refresh")}</button>}
+        {canLoad && <button onClick={() => load()} className="text-sm font-semibold text-brand">{t("rides.refresh")}</button>}
       </div>
+      {service?.mode === "demo" && <DemoModeNotice />}
 
-      {!user ? <LoginRequired what="loginRequired.seeRides" /> : (
+      {!service || !ready ? <div className="mt-6"><RideSkeletons /></div> : !canLoad ? <LoginRequired what="loginRequired.seeRides" /> : (
         <div className="mt-6 space-y-4">
-          {notice && <p className="rounded-xl bg-brand-soft p-3 text-sm font-medium text-brand">{notice}</p>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-          {rides === null && !error && <p className="text-muted">{t("common.loading")}</p>}
+          {rides === null && !error && <RideSkeletons />}
           {rides?.length === 0 && (
             <div className="card p-10 text-center">
-              <p className="text-5xl">🚗</p>
+              <p className="text-5xl" aria-hidden>🚗</p>
               <p className="mt-3 font-semibold">{t("rides.empty")}</p>
               <Link href="/ride" className="btn-primary mt-5">{t("rides.bookFirst")}</Link>
             </div>
@@ -71,39 +107,49 @@ export default function MyRidesPage() {
           {rides?.map((r) => (
             <article key={r.id} className="card p-5">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{r.pickupLocation} → {r.destination}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold">{placeName(r.pickupLocation)} → {placeName(r.destination)}</p>
                   <p className="text-sm text-muted">{new Date(r.createdAt).toLocaleString(dateLocale)}</p>
+                  {(r.vehicle || (r.driverName && r.status !== "Pending")) && (
+                    <p className="mt-1 text-sm text-muted">
+                      {r.vehicle && <>{VEHICLE[r.vehicle].emoji} {t(VEHICLE[r.vehicle].name)}</>}
+                      {r.driverName && r.status !== "Pending" && <> · {t("rides.driver", { name: r.driverName })}</>}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BADGE[r.status]}`}>{t(`rides.${r.status}`)}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${BADGE[r.status]}`}>
+                    {ACTIVE.includes(r.status) && <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current align-middle" aria-hidden />}
+                    {t(`rides.${r.status}`)}
+                  </span>
                   <p className="mt-1 font-bold">{money(r.fare)}</p>
                 </div>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {(r.status === "Pending" || r.status === "Accepted") && (
-                  <button className="btn-outline h-9 text-sm" onClick={() => act(() => api.updateRideStatus(r.id, "Cancelled"), t("rides.cancelled"))}>
+                  <button className="btn-outline h-9 text-sm" onClick={() => act(() => service!.cancel(r.id), t("rides.cancelled"))}>
                     {t("rides.cancel")}
                   </button>
                 )}
                 {r.status === "Completed" && (paid.has(r.id) ? (
                   <span className="rounded-full bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand">{t("rides.paid")}</span>
                 ) : (
-                  <button className="btn-primary h-9 text-sm" onClick={() => act(() => api.simulatePayment(r.id), t("rides.paySuccess"))}>
+                  <button className="btn-primary h-9 text-sm" onClick={() => act(() => service!.pay(r.id), t("rides.paySuccess"))}>
                     {t("rides.pay", { amount: money(r.fare) })}
                   </button>
                 ))}
-                {r.status === "Completed" && r.driverId && reviewing !== r.id && (
+                {r.status === "Completed" && r.driverId && !r.reviewed && reviewing !== r.id && (
                   <button className="btn-outline h-9 text-sm" onClick={() => setReviewing(r.id)}>{t("rides.rate")}</button>
                 )}
+                {r.reviewed && <span className="rounded-full bg-background px-3 py-1.5 text-sm text-muted">{t("rides.reviewed")}</span>}
               </div>
 
               {reviewing === r.id && (
                 <ReviewForm
                   onCancel={() => setReviewing(null)}
                   onSubmit={(rating, comment) => act(async () => {
-                    await api.reviewRide(r.id, rating, comment || undefined);
+                    await service!.review(r.id, rating, comment || undefined);
                     setReviewing(null);
                   }, t("rides.thanks"))}
                 />
@@ -134,7 +180,7 @@ function ReviewForm({ onSubmit, onCancel }: { onSubmit: (rating: number, comment
           >⭐</button>
         ))}
       </div>
-      <input className="input" maxLength={1000} placeholder={t("rides.reviewPh")} value={comment} onChange={(e) => setComment(e.target.value)} />
+      <input className="input" maxLength={1000} aria-label={t("rides.reviewPh")} placeholder={t("rides.reviewPh")} value={comment} onChange={(e) => setComment(e.target.value)} />
       <div className="flex gap-2">
         <button className="btn-primary h-9 text-sm">{t("rides.submitReview")}</button>
         <button type="button" className="btn-outline h-9 text-sm" onClick={onCancel}>{t("common.cancel")}</button>

@@ -56,3 +56,19 @@ test("401 clears the token and empty error bodies are handled", async () => {
     assert.equal(finalHeaders.Authorization, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test("restoreSession reuses a saved, unexpired login and rejects an expired one", async () => {
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => { calls.push({ url, ...options }); return Response.json([]); };
+  try {
+    const api = createApiClient("http://localhost:5000");
+    const user = { id: "user-1" };
+    assert.equal(api.restoreSession({ accessToken: "old", expiresAt: new Date(Date.now() - 1000).toISOString(), user }), false);
+    assert.equal(api.getSession(), null);
+    assert.equal(api.restoreSession({ accessToken: "saved-token", expiresAt: new Date(Date.now() + 60000).toISOString(), user }), true);
+    await api.myRides();
+    assert.equal(calls[0].headers.Authorization, "Bearer saved-token");
+    assert.equal(api.getSession().accessToken, "saved-token");
+  } finally { globalThis.fetch = originalFetch; }
+});

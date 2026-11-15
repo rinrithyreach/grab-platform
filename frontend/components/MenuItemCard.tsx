@@ -4,6 +4,7 @@ import { money } from "@/lib/brand";
 import { getStore, type MenuItem } from "@/lib/catalog";
 import { addToCart, setQty, useShop } from "@/lib/cart";
 import { useT } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 
 export default function MenuItemCard({ storeId, item }: { storeId: string; item: MenuItem }) {
   const { t, pick } = useT();
@@ -12,8 +13,9 @@ export default function MenuItemCard({ storeId, item }: { storeId: string; item:
   const name = pick(item.name, item.km?.name);
 
   function add() {
-    addToCart(storeId, item.id, (otherId) =>
+    const added = addToCart(storeId, item.id, (otherId) =>
       window.confirm(t("cart.replace", { store: getStore(otherId)?.name ?? "" })));
+    if (added) toast(t("store.added", { name }));
   }
 
   return (

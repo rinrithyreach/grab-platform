@@ -1,4 +1,5 @@
-/** Browser API client. Access tokens live only in memory; re-login after reload.
+/** Browser API client. The client itself keeps the access token in memory; lib/auth.tsx
+ * saves it to sessionStorage (cleared when the tab closes) so a page refresh keeps you logged in.
  * Never put a JWT signing key in NEXT_PUBLIC_ variables.
  */
 export type Role = "Customer" | "Driver" | "Admin";
@@ -62,6 +63,18 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
     login: (email: string, password: string) => authenticate("/api/auth/login", { email, password }),
     logout: () => { session = null; },
+    /** Current login (token + user), or null. Used by lib/auth.tsx to survive page refreshes. */
+    getSession: () => session,
+    /** Put back a saved login. Ignored if it has already expired. */
+    restoreSession: (saved: AuthResponse) => {
+      session = Date.parse(saved.expiresAt) > Date.now() ? saved : null;
+      return session !== null;
+    },
+    /** True if the backend answers at all (used to switch the ride pages to demo mode). */
+    isOnline: async () => {
+      try { await fetch(`${baseUrl.replace(/\/$/, "")}/health`, { cache: "no-store", credentials: "omit", mode: "no-cors" }); return true; }
+      catch { return false; }
+    },
     me: (signal?: AbortSignal) => request<User>("/api/auth/me", "GET", undefined, signal),
     rides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides?page=${page}`, "GET", undefined, signal),
     myRides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides/mine?page=${page}`, "GET", undefined, signal),

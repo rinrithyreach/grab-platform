@@ -3,9 +3,11 @@ import { Geist, Geist_Mono, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
-import { SETTINGS_SCRIPT } from "@/lib/settings-script";
+import SettingsScript from "@/components/SettingsScript";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Toaster from "@/components/Toaster";
+import SkipLink from "@/components/SkipLink";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,14 +39,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${notoKhmer.variable} h-full antialiased`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: SETTINGS_SCRIPT }} />
-      </head>
       <body className="min-h-full flex flex-col font-sans">
+        <SettingsScript />
         <AuthProvider>
+          <SkipLink />
           <Navbar />
-          <main className="flex-1">{children}</main>
+          <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Footer />
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

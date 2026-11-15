@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import BackButton from "./BackButton";
 import type { Store } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
@@ -16,8 +17,13 @@ export default function StoreView({ store }: { store: Store }) {
     <div className="mx-auto max-w-4xl px-4 py-6 pb-32">
       <BackButton href={isMart ? "/mart" : "/food"} />
 
+      {store.photo && (
+        <div className="relative mb-4 h-44 overflow-hidden rounded-2xl sm:h-56">
+          <Image src={store.photo.src} alt="" fill priority sizes="(min-width: 896px) 896px, 100vw" className="object-cover" />
+        </div>
+      )}
       <section className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6">
-        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft text-5xl sm:h-24 sm:w-24">{store.emoji}</div>
+        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft text-5xl sm:h-24 sm:w-24" aria-hidden>{store.emoji}</div>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold sm:text-3xl">{store.name}</h1>
           <p className="mt-1 text-muted">{pick(store.cuisine, store.km?.cuisine)} · {"$".repeat(store.priceLevel)}</p>

@@ -49,6 +49,25 @@ body {
   color: var(--foreground);
 }
 
+/* Keyboard users can always see where they are (mouse clicks don't show the outline). */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Toast pop-in */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.toast-in { animation: toast-in 0.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .toast-in { animation: none; } }
+
+/* Ride map: dim the bright map tiles in dark mode */
+[data-theme="dark"] .ride-map .leaflet-tile {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+}
+
 /* Khmer script needs more line height to fit its stacked vowels. */
 :lang(km) body {
   line-height: 1.7;
