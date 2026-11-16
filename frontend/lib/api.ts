@@ -1,4 +1,5 @@
-/** Browser API client. Access tokens live only in memory; re-login after reload.
+/** Browser API client. The client itself keeps the access token in memory; lib/auth.tsx
+ * saves it to sessionStorage (cleared when the tab closes) so a page refresh keeps you logged in.
  * Never put a JWT signing key in NEXT_PUBLIC_ variables.
  */
 export type Role = "Customer" | "Driver" | "Admin";
@@ -20,6 +21,17 @@ export interface Driver {
 }
 export interface Payment { id: string; rideId: string; amount: number; paymentMethod: string; status: string; createdAt: string }
 export interface Review { id: string; rideId: string; driverId: string; rating: number; comment: string | null }
+/**
+ * Home-page slideshow banner, returned by GET /api/banners (public, no login).
+ * The backend decides how many banners there are and their order.
+ */
+export interface Banner {
+  id: string;
+  imageUrl: string;      // full URL of the picture; shown full-width in the home hero, so use wide images (e.g. 1920×520). Edges may be cropped on phones.
+  title?: string;        // optional text shown on top of the picture
+  subtitle?: string;
+  linkUrl?: string;      // optional: where clicking the banner goes, e.g. "/food" or "/store/pizza-lab"
+}
 export interface ApiProblem { title?: string; detail?: string; errors?: Record<string, string[]>; traceId?: string }
 export class ApiError extends Error {
   constructor(public status: number, public problem: ApiProblem) {
@@ -51,6 +63,18 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
     login: (email: string, password: string) => authenticate("/api/auth/login", { email, password }),
     logout: () => { session = null; },
+    /** Current login (token + user), or null. Used by lib/auth.tsx to survive page refreshes. */
+    getSession: () => session,
+    /** Put back a saved login. Ignored if it has already expired. */
+    restoreSession: (saved: AuthResponse) => {
+      session = Date.parse(saved.expiresAt) > Date.now() ? saved : null;
+      return session !== null;
+    },
+    /** True if the backend answers at all (used to switch the ride pages to demo mode). */
+    isOnline: async () => {
+      try { await fetch(`${baseUrl.replace(/\/$/, "")}/health`, { cache: "no-store", credentials: "omit", mode: "no-cors", signal: AbortSignal.timeout(4000) }); return true; }
+      catch { return false; }
+    },
     me: (signal?: AbortSignal) => request<User>("/api/auth/me", "GET", undefined, signal),
     rides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides?page=${page}`, "GET", undefined, signal),
     myRides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides/mine?page=${page}`, "GET", undefined, signal),
@@ -62,6 +86,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     simulatePayment: (rideId: string) => request<Payment>("/api/payments", "POST", { rideId }),
     myPayments: (page = 1) => request<Payment[]>(`/api/payments/mine?page=${page}`),
     reviewRide: (rideId: string, rating: number, comment?: string) => request<Review>("/api/reviews", "POST", { rideId, rating, comment }),
+    banners: (signal?: AbortSignal) => request<Banner[]>("/api/banners", "GET", undefined, signal),
     driverReviews: (id: string, page = 1) => request<Review[]>(`/api/drivers/${encodeURIComponent(id)}/reviews?page=${page}`),
   };
 }
