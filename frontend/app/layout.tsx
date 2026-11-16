@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
@@ -28,20 +29,20 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: `${BRAND.name} — Rides, Food & Mart`, template: `%s · ${BRAND.name}` },
+  title: { default: `${BRAND.name} — Rides, Food & Express`, template: `%s · ${BRAND.name}` },
   description: BRAND.tagline,
   // Link previews on Telegram, Facebook, X... (the image comes from app/opengraph-image.tsx)
   openGraph: {
     type: "website",
     siteName: BRAND.name,
-    title: `${BRAND.name} — Rides, Food & Mart`,
+    title: `${BRAND.name} — Rides, Food & Express`,
     description: BRAND.tagline,
     locale: "en_US",
     alternateLocale: ["km_KH"],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${BRAND.name} — Rides, Food & Mart`,
+    title: `${BRAND.name} — Rides, Food & Express`,
     description: BRAND.tagline,
   },
 };
@@ -59,9 +60,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SettingsScript />
         <AuthProvider>
           <SkipLink />
-          <Navbar />
+          <Suspense fallback={<div className="h-16 border-b border-border bg-surface" aria-busy="true" />}><Navbar /></Suspense>
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
-          <Footer />
+          <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
           <Toaster />
         </AuthProvider>
       </body>

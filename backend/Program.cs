@@ -27,6 +27,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRideService, RideService>();
 builder.Services.AddScoped<IDriverService, DriverService>();
 builder.Services.AddScoped<ICommerceService, CommerceService>();
+builder.Services.AddScoped<MerchantService>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
@@ -68,7 +69,12 @@ builder.Services.AddSwaggerGen(o =>
 });
 var app = builder.Build();
 app.UseExceptionHandler();
-if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();
+}
 else app.UseHttpsRedirection();
 app.UseCors("frontend");
 app.UseRateLimiter();
@@ -81,13 +87,13 @@ if (args.Contains("--bootstrap-admin"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<GrabDbContext>();
-    var email = builder.Configuration["Bootstrap:Email"]?.Trim().ToLowerInvariant();
+    var phone = PhoneNumbers.Normalize(builder.Configuration["Bootstrap:PhoneNumber"]);
     var password = builder.Configuration["Bootstrap:Password"];
-    if (string.IsNullOrWhiteSpace(email) || password is null || password.Length < 12)
-        throw new InvalidOperationException("Set Bootstrap:Email and Bootstrap:Password (12+ chars) via User Secrets first.");
+    if (phone is null || password is null || password.Length is < 12 or > 128)
+        throw new InvalidOperationException("Set Bootstrap:PhoneNumber and Bootstrap:Password (12–128 chars) via User Secrets first.");
     if (await db.Users.AnyAsync(x => x.Role == Role.Admin)) throw new InvalidOperationException("An admin already exists. Bootstrap is disabled.");
-    if (await db.Users.AnyAsync(x => x.Email == email)) throw new InvalidOperationException("Use a new email for the initial admin.");
-    var admin = new User { Email = email, FullName = "Platform Administrator", Role = Role.Admin };
+    if (await db.Users.AnyAsync(x => x.PhoneNumber == phone)) throw new InvalidOperationException("Use a new phone number for the initial admin.");
+    var admin = new User { PhoneNumber = phone, FullName = "Platform Administrator", Role = Role.Admin };
     admin.PasswordHash = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>().HashPassword(admin, password);
     db.Users.Add(admin);
     await db.SaveChangesAsync();

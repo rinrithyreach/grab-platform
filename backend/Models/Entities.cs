@@ -1,13 +1,14 @@
 namespace Grab.Api.Models;
 
-public enum Role { Customer, Driver, Admin }
+public enum Role { Customer, Driver, Admin, Merchant }
 public enum RideStatus { Pending, Accepted, InProgress, Completed, Cancelled }
 
 public class User
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string FullName { get; set; } = "";
-    public string Email { get; set; } = "";
+    // Retained for existing records; new phone-only accounts do not need an email.
+    public string? Email { get; set; }
     public string PasswordHash { get; set; } = "";
     public string PhoneNumber { get; set; } = "";
     public Role Role { get; set; } = Role.Customer;

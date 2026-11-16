@@ -1,5 +1,23 @@
 # Executed verification
 
+## Simplified GrabRide registration — 16 November 2026
+
+- GrabRide registration renders exactly five data inputs: name, phone number, password, motorcycle license plate and location. Render checks confirm no extra business fields or password confirmation; Food/Express retain their business forms.
+- Frontend: 38 tests passed; lint and production build/TypeScript passed.
+- Backend: 16 SQL-backed integration tests passed. The additional test registers using only the five requested values, validates missing/invalid plates, updates and reloads rider details, verifies SQL persistence and confirms plates are omitted from public listings. Food/Express still reject incomplete business profiles.
+- Applied `20261116135523_RideMerchantDetails` to the selected local SQL instance. It adds a nullable plate column and preserves existing accounts.
+
+## Merchant publishing verification — 16 November 2026
+
+- `dotnet build backend`: passed with zero warnings/errors (.NET SDK 10.0.404).
+- Generated and applied `20261116133813_MerchantPublishing` on the selected `DESKTOP-DCDNJIN\MSSQLSERVER01` / GrabPlatformDB instance. The migration adds merchant profiles, images and listings.
+- `GRAB_TEST_SQL_SERVER=DESKTOP-DCDNJIN\MSSQLSERVER01 dotnet test tests/Grab.Api.Tests`: 15 passed, 0 failed/skipped, using isolated SQL databases. New cases cover registration for all three services, merchant login and role restrictions, profile validation, hashed passwords, image signatures/size, USD price validation, image/listing ownership, persistence across login, draft/published visibility, filtering after service changes, slideshow links, public-data privacy, unpublishing and Swagger generation.
+- Frontend: 35 tests passed; production build/TypeScript and lint passed. New client tests cover merchant sessions, multipart/bearer uploads, listing updates and API-relative image URLs.
+- Production HTTP smoke verification: 22 pages, including merchant registration/portal and a runtime partner route; existing redirects/not-found handling and six raw/optimized store photos passed.
+- No browser surface was connected, so no interactive or visual browser QA was performed. No sample merchant accounts/listings were added to the development database; integration fixtures create and remove their own databases.
+
+The earlier baseline results below describe the original API verification before the subsequent phone-authentication and merchant updates.
+
 Date: 13 November 2026 (Asia/Bangkok).
 
 Environment: Windows, .NET SDK 10.0.403, net10.0, EF Core/JWT packages 10.0.15, SQL Server Developer Edition at localhost with Windows Authentication, Next.js 16.4.6.

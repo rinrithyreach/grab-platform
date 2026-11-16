@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Redirect retired storefront URLs before streaming/caching any page content.
+  redirects() {
+    return ["/mart", "/store/daily-mart", "/store/home-plus"].map((source) => ({ source, destination: "/express", permanent: false }));
+  },
   experimental: {
     agentFeedback: true,
   },

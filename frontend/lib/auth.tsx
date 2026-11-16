@@ -25,8 +25,9 @@ interface AuthValue {
   online: boolean | null;
   /** Ask whether the backend is up (only checks once per page load). */
   checkOnline: () => void;
-  login: (email: string, password: string) => Promise<User>;
+  login: (phoneNumber: string, password: string) => Promise<User>;
   register: (body: RegisterRequest) => Promise<User>;
+  updateProfile: (fullName: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -50,24 +51,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
 
+  // A 401 or token expiry must also update the navbar and saved browser session.
+  useEffect(() => api.subscribeSession((session) => {
+    saveSession(session);
+    setUser(session?.user ?? null);
+  }), [api]);
+
+  useEffect(() => {
+    const session = api.getSession();
+    if (!session) return;
+    const timer = setTimeout(() => api.logout(), Math.max(0, Date.parse(session.expiresAt) - Date.now()));
+    return () => clearTimeout(timer);
+  }, [api, user]);
+
   // On first load: restore a saved login. The backend is only contacted if there is one.
   useEffect(() => {
     let cancelled = false;
+    const ctrl = new AbortController();
     const saved = readSession();
     const restored = saved ? api.restoreSession(saved) : false;
     if (saved && !restored) saveSession(null); // expired
 
     const restore = restored && saved
-      ? api.me().then(
-          (u) => { if (!cancelled) { setUser(u); setOnline(true); } },
+      ? api.me(ctrl.signal).then(
+          (u) => { if (!cancelled && api.getSession()?.accessToken === saved.accessToken) { setUser(u); setOnline(true); } },
           (err) => {
             if (cancelled) return;
-            if (err instanceof ApiError && err.status === 401) { api.logout(); saveSession(null); setOnline(true); }
-            else { setUser(saved.user); if (err instanceof TypeError) setOnline(false); } // offline: trust the saved login for display
+            if (err instanceof ApiError && err.status === 401) { if (!api.getSession()) saveSession(null); setOnline(true); }
+            else if (api.getSession()?.accessToken === saved.accessToken) { setUser(saved.user); if (err instanceof TypeError || (err instanceof DOMException && err.name === "TimeoutError")) setOnline(false); } // offline: trust the saved login for display
           })
       : Promise.resolve();
     restore.then(() => { if (!cancelled) setReady(true); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; ctrl.abort(); };
   }, [api]);
 
   // Checked at most once, and only when a page asks (see useRideService).
@@ -84,18 +99,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ready,
     online,
     checkOnline,
-    login: async (email, password) => {
-      const u = await api.login(email, password);
+    login: async (phoneNumber, password) => {
+      const u = await api.login(phoneNumber, password);
       saveSession(api.getSession());
       setUser(u);
+      setOnline(true);
       return u;
     },
     register: async (body) => {
       const u = await api.register(body);
       saveSession(api.getSession());
       setUser(u);
+      setOnline(true);
       return u;
     },
+    updateProfile: (fullName) => api.updateProfile({ fullName }),
     logout: () => { api.logout(); saveSession(null); setUser(null); },
   }), [api, user, ready, online, checkOnline]);
 
@@ -110,6 +128,6 @@ export function useAuth() {
 
 /** Turns an API/network error into text. Server messages come from the backend (English). */
 export function errorMessage(err: unknown, t: (key: "error.network" | "error.generic") => string) {
-  if (err instanceof TypeError) return t("error.network");
+  if (err instanceof TypeError || (err instanceof DOMException && err.name === "TimeoutError")) return t("error.network");
   return err instanceof Error && err.message ? err.message : t("error.generic");
 }

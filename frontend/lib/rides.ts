@@ -20,7 +20,7 @@ export interface RideService {
   mode: "live" | "demo";
   bookRide(body: BookRideRequest, vehicle: VehicleId, distanceKm: number): Promise<RideView>;
   myRides(signal?: AbortSignal): Promise<RideView[]>;
-  myPayments(): Promise<Payment[]>;
+  myPayments(signal?: AbortSignal): Promise<Payment[]>;
   cancel(id: string): Promise<unknown>;
   pay(id: string): Promise<unknown>;
   review(id: string, rating: number, comment?: string): Promise<unknown>;
@@ -99,12 +99,22 @@ const demoService: RideService = {
 
 // ---------- live ----------
 
+async function allPages<T>(fetchPage: (page: number) => Promise<T[]>, signal?: AbortSignal): Promise<T[]> {
+  const results: T[] = [];
+  for (let page = 1; ; page++) {
+    signal?.throwIfAborted();
+    const rows = await fetchPage(page);
+    results.push(...rows);
+    if (rows.length < 50) return results;
+  }
+}
+
 function liveService(api: ReturnType<typeof useAuth>["api"]): RideService {
   return {
     mode: "live",
     bookRide: (body) => api.bookRide(body), // the backend sets the fare; it doesn't take a vehicle type yet
-    myRides: (signal) => api.myRides(1, signal),
-    myPayments: () => api.myPayments(),
+    myRides: (signal) => allPages((page) => api.myRides(page, signal), signal),
+    myPayments: (signal) => allPages((page) => api.myPayments(page, signal), signal),
     cancel: (id) => api.updateRideStatus(id, "Cancelled"),
     pay: (id) => api.simulatePayment(id),
     review: (id, rating, comment) => api.reviewRide(id, rating, comment),

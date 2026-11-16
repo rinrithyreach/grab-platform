@@ -13,23 +13,28 @@ import SettingsMenu from "./SettingsMenu";
 const LINKS: { href: string; key: MessageKey }[] = [
   { href: "/ride", key: "nav.ride" },
   { href: "/food", key: "nav.food" },
-  { href: "/mart", key: "nav.mart" },
+  { href: "/express", key: "nav.express" },
+  { href: "/merchant", key: "nav.merchant" },
   { href: "/rides", key: "nav.myRides" },
   { href: "/orders", key: "nav.myOrders" },
+  { href: "/deliveries", key: "nav.deliveries" },
 ];
 
-/** Food and Mart open with + / − in the mobile drawer to list their stores. */
-const EXPANDABLE: Partial<Record<string, StoreKind>> = { "/food": "food", "/mart": "mart" };
+/** Food opens with + / − in the mobile drawer to list their stores. */
+const EXPANDABLE: Partial<Record<string, StoreKind>> = { "/food": "food" };
 
 export default function Navbar() {
   const pathname = usePathname();
   const { t } = useT();
   const { user, logout } = useAuth();
+  const savedName = user?.fullName.trim();
+  const greetingName = savedName && savedName !== "Customer" ? savedName : user?.phoneNumber ?? "";
   const { cart } = useShop();
   const { count } = cartDetails(cart);
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -41,12 +46,24 @@ export default function Navbar() {
     if (!open) return;
     closeButton.current?.focus();
     const opener = menuButton.current;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Tab") return;
+      const items = drawer.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      if (!items?.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const onResize = () => { if (desktop.matches) setOpen(false); };
+    desktop.addEventListener("change", onResize);
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
+      desktop.removeEventListener("change", onResize);
       document.body.style.overflow = prevOverflow;
       opener?.focus();
     };
@@ -57,18 +74,19 @@ export default function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
+        <nav className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
           <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-brand">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand text-base text-white dark:text-background">{BRAND.name[0]}</span>
             {BRAND.name}
           </Link>
 
-          <ul className="ml-6 hidden gap-1 lg:flex">
+          <ul className="ml-3 hidden gap-0.5 xl:flex">
             {LINKS.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors hover:bg-brand-soft ${
+                  aria-current={isActive(l.href) ? "page" : undefined}
+                  className={`whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition-colors hover:bg-brand-soft ${
                     isActive(l.href) ? "bg-brand-soft text-brand" : "text-muted"
                   }`}
                 >
@@ -93,7 +111,7 @@ export default function Navbar() {
             </Link>
             {user ? (
               <div className="ml-1 hidden items-center gap-2 sm:flex">
-                <span className="text-sm text-muted">{t("nav.hi", { name: user.fullName.split(" ")[0] })}</span>
+                <span className="max-w-40 truncate text-sm text-muted">{t("nav.hi", { name: greetingName })}</span>
                 <button onClick={logout} className="btn-outline h-9 px-4 text-sm">{t("nav.logout")}</button>
               </div>
             ) : (
@@ -101,7 +119,7 @@ export default function Navbar() {
             )}
             <button
               ref={menuButton}
-              className="grid h-10 w-10 place-items-center rounded-full text-lg hover:bg-brand-soft lg:hidden"
+              className="grid h-10 w-10 place-items-center rounded-full text-lg hover:bg-brand-soft xl:hidden"
               aria-label={t("nav.menu")}
               aria-expanded={open}
               aria-controls="mobile-menu"
@@ -114,7 +132,7 @@ export default function Navbar() {
       </header>
 
       {/* Mobile drawer. Lives outside <header>: the header's blur would trap a fixed element inside it. */}
-      <div className={`fixed inset-0 z-50 lg:hidden ${open ? "" : "pointer-events-none"}`} inert={!open}>
+      <div className={`fixed inset-0 z-50 xl:hidden ${open ? "" : "pointer-events-none"}`} inert={!open}>
         {/* Dimmed page on the left; tap it to close */}
         <div
           aria-hidden
@@ -122,7 +140,10 @@ export default function Navbar() {
           className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
         />
         <aside
+          ref={drawer}
           id="mobile-menu"
+          role="dialog"
+          aria-modal={open || undefined}
           aria-label={t("nav.menu")}
           onClick={(e) => { if ((e.target as HTMLElement).closest("a")) close(); }}
           className={`absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col bg-surface shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
@@ -132,7 +153,7 @@ export default function Navbar() {
           {/* Top bar: greeting (or brand) + close */}
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <span className="min-w-0 truncate text-sm text-muted">
-              {user ? <><span className="text-brand">●</span> {t("nav.hi", { name: user.fullName })}</> : BRAND.name}
+              {user ? <><span className="text-brand">●</span> {t("nav.hi", { name: greetingName })}</> : BRAND.name}
             </span>
             <button ref={closeButton} onClick={close} aria-label={t("nav.close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl text-accent hover:bg-brand-soft">✕</button>
           </div>

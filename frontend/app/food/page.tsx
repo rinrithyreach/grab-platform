@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { T } from "@/lib/i18n";
 import StoreBrowser from "@/components/StoreBrowser";
 import BackButton from "@/components/BackButton";
+import MerchantOffers from "@/components/MerchantOffers";
 
 export const metadata: Metadata = { title: "Food delivery" };
 
@@ -12,6 +13,7 @@ export default function FoodPage() {
       <h1 className="text-3xl font-bold"><T k="food.title" /></h1>
       <p className="mt-1 text-muted"><T k="food.subtitle" /></p>
       <div className="mt-6"><StoreBrowser kind="food" /></div>
+      <MerchantOffers service="GrabFood" />
     </div>
   );
 }

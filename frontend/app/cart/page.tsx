@@ -51,7 +51,7 @@ export default function CartPage() {
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
 
-  if (!store || !lines.length) {
+  if (!store || store.kind !== "food" || !lines.length) {
     return (
       <div className="mx-auto max-w-xl px-4 py-8 text-center">
         <div className="text-left"><BackButton href="/" /></div>
@@ -60,8 +60,9 @@ export default function CartPage() {
         <p className="mt-2 text-muted">{t("cart.emptyText")}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/food" className="btn-primary">{t("cart.browseFood")}</Link>
-          <Link href="/mart" className="btn-outline">{t("cart.goMart")}</Link>
+          <Link href="/express" className="btn-outline">{t("express.submit")}</Link>
         </div>
+        {cart.lines.length > 0 && <button onClick={clearCart} className="mt-4 text-sm text-muted underline">{t("cart.clear")}</button>}
       </div>
     );
   }
@@ -81,6 +82,7 @@ export default function CartPage() {
 
   function checkout(e: React.FormEvent) {
     e.preventDefault();
+    if (storeClosed) return;
     if (!isValidAddress(address)) {
       setAddressError(true);
       document.getElementById("address")?.focus();
@@ -176,6 +178,7 @@ export default function CartPage() {
             id="address"
             className={`input ${addressError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}`}
             required
+            maxLength={300}
             autoComplete="street-address"
             value={address}
             onChange={(e) => {
@@ -221,7 +224,7 @@ export default function CartPage() {
         </div>
         <div>
           <label className="label" htmlFor="note">{t("cart.note")}</label>
-          <input id="note" className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("cart.notePh")} />
+          <input id="note" maxLength={500} className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("cart.notePh")} />
         </div>
         <div>
           <span className="label">{t("cart.tip")}</span>

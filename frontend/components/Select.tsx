@@ -25,6 +25,10 @@ export default function Select<V extends string | number>({ value, options, onCh
   const current = options.find((o) => o.value === value);
 
   useEffect(() => {
+    if (open) document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, active, listId]);
+
+  useEffect(() => {
     if (!open) return;
     const close = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("pointerdown", close);
@@ -32,6 +36,7 @@ export default function Select<V extends string | number>({ value, options, onCh
   }, [open]);
 
   function openList() {
+    if (!options.length) return;
     setActive(Math.max(0, options.findIndex((o) => o.value === value)));
     setOpen(true);
   }
@@ -46,7 +51,9 @@ export default function Select<V extends string | number>({ value, options, onCh
     if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
     else if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(options.length - 1, a + 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
-    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(options[active].value); }
+    else if (e.key === "Home") { e.preventDefault(); setActive(0); }
+    else if (e.key === "End") { e.preventDefault(); setActive(options.length - 1); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (options[active]) choose(options[active].value); }
     else if (e.key === "Tab") setOpen(false);
   }
 
@@ -59,6 +66,7 @@ export default function Select<V extends string | number>({ value, options, onCh
         aria-label={label}
         aria-expanded={open}
         aria-controls={listId}
+        aria-activedescendant={open ? `${listId}-${active}` : undefined}
         aria-haspopup="listbox"
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKeyDown}
@@ -72,6 +80,7 @@ export default function Select<V extends string | number>({ value, options, onCh
           {options.map((o, i) => (
             <li
               key={o.value}
+              id={`${listId}-${i}`}
               role="option"
               aria-selected={o.value === value}
               onPointerEnter={() => setActive(i)}

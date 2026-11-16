@@ -1,6 +1,6 @@
 "use client";
 
-/** Home-page search across every store, dish and product (food + mart), in English or Khmer. */
+/** Home-page search across restaurants and dishes, in English or Khmer. */
 import Link from "next/link";
 import { useId, useState } from "react";
 import { money } from "@/lib/brand";
@@ -17,9 +17,9 @@ export default function GlobalSearch() {
   const resultsId = useId();
   const query = q.trim();
 
-  const stores = query ? STORES.filter((s) => matchesSearch(query, s.name, s.cuisine, s.km?.cuisine)).slice(0, MAX_STORES) : [];
+  const stores = query ? STORES.filter((s) => s.kind === "food" && matchesSearch(query, s.name, s.cuisine, s.km?.cuisine)).slice(0, MAX_STORES) : [];
   const items = query
-    ? STORES.flatMap((s) => s.items.filter((i) => matchesSearch(query, i.name, i.km?.name)).map((i) => ({ store: s, item: i }))).slice(0, MAX_ITEMS)
+    ? STORES.filter((s) => s.kind === "food").flatMap((s) => s.items.filter((i) => matchesSearch(query, i.name, i.km?.name)).map((i) => ({ store: s, item: i }))).slice(0, MAX_ITEMS)
     : [];
 
   return (

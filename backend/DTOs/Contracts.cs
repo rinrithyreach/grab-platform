@@ -5,12 +5,11 @@ using Grab.Api.Models;
 namespace Grab.Api.DTOs;
 
 public record RegisterRequest(
-    [Required, StringLength(120, MinimumLength = 2)] string FullName,
-    [Required, EmailAddress, StringLength(254)] string Email,
-    [Required, StringLength(128, MinimumLength = 12)] string Password,
-    [Required, Phone, StringLength(30)] string PhoneNumber);
-public record LoginRequest([Required, EmailAddress] string Email, [Required, StringLength(128)] string Password);
-public record UserDto(Guid Id, string FullName, string Email, string PhoneNumber, Role Role);
+    [Required, StringLength(30)] string PhoneNumber,
+    [Required, StringLength(128, MinimumLength = 12)] string Password);
+public record LoginRequest([Required, StringLength(30)] string PhoneNumber, [Required, StringLength(128)] string Password);
+public record UpdateProfileRequest([Required, StringLength(120, MinimumLength = 2)] string FullName);
+public record UserDto(Guid Id, string FullName, string PhoneNumber, Role Role);
 public record AuthResponse(string AccessToken, DateTimeOffset ExpiresAt, UserDto User);
 public record BookRideRequest(
     [Required, StringLength(300, MinimumLength = 2)] string PickupLocation,
@@ -35,7 +34,7 @@ public record ReviewDto(Guid Id, Guid RideId, Guid DriverId, int Rating, string?
 
 public static class Mapping
 {
-    public static UserDto Dto(this User u) => new(u.Id, u.FullName, u.Email, u.PhoneNumber, u.Role);
+    public static UserDto Dto(this User u) => new(u.Id, u.FullName, u.PhoneNumber, u.Role);
     public static RideDto Dto(this Ride r) => new(r.Id, r.CustomerId, r.DriverId, r.PickupLocation, r.Destination,
         r.PickupLatitude, r.PickupLongitude, r.DestinationLatitude, r.DestinationLongitude,
         r.Fare, "DevelopmentMockFlatFareUSD", r.Status, r.CreatedAt, r.CompletedAt);

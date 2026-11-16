@@ -1,37 +1,24 @@
-# Frontend analysis and implementation scope
+# Frontend-to-backend mapping
 
-Inspected all application source, configuration, manifests, and public assets before backend implementation on 13 November 2026.
+Updated 16 November 2026. The frontend is now a customer application for **Ride, Food and Express**; it is no longer the create-next-app starter. This document supersedes the earlier starter-page analysis.
 
-The existing frontend is the create-next-app starter. `app/page.tsx` renders static Next.js and Vercel links/images. `app/layout.tsx` provides fonts and metadata; `app/globals.css` provides Tailwind and theme styles. There are no login/register/booking forms, domain components, API routes, application interfaces, mock API responses, ride records, or payment screens. Static starter text is not domain mock data.
+See [frontend audit](../frontend/AUDIT.md) for the route inventory, changes, verification and limits. See [implementation plan](IMPLEMENTATION_PLAN.md) for proposed Food/Express/account endpoints and EF entities.
 
-The user explicitly chose to keep **all pages unchanged** and receive API integration functions only. Therefore there is no browser booking flow to wire up. The typed `frontend/lib/api.ts` client implements the assignment's requested API contracts for future components; Swagger demonstrates the backend now. Payment/review APIs are assignment scaffolding, not evidence of existing UI functionality.
+## Existing integration
 
-## Frontend-to-backend mapping
+| Frontend | Existing API | State |
+|---|---|---|
+| Phone/password login/register, profile name, AuthProvider | `POST /api/auth/login`, `POST /api/auth/register`, `GET/PATCH /api/auth/me` | Connected; greeting uses saved name or phone fallback, name editable in profile settings |
+| Ride booking | `POST /api/rides` | Connected; current API has a flat development fare and no vehicle selection |
+| My rides | `GET /api/rides/mine`, `PATCH /api/rides/{id}/status` | Connected; cancellation exposed to customers |
+| Ride payments/reviews | `GET /api/payments/mine`, `POST /api/payments`, `POST /api/reviews` | Connected; payments simulated; durable reviewed flag missing from RideDto |
+| Merchant portal and registration | `POST /api/merchants/register`, `POST /api/merchants/login`, `GET/PATCH /api/merchants/me`, image/listing endpoints | SQL-backed merchant profiles, photo upload, drafts, publishing and editing for all three services |
+| Merchant customer listings/storefronts | `GET /api/merchants/offers`, `GET /api/merchants/{id}` | Published offers on the home/service pages and `/partners/{id}`; contact merchant directly |
+| Home carousel | `GET /api/banners` | SQL-backed latest 12 published featured merchant listings; service slides are the fallback |
+| Food menu/cart/orders/store reviews | None | Local catalogue/browser demo; backend phase required |
+| Express booking/history/cancellation | None | Separate browser demo; backend phase required |
+| Addresses/favourites/wallet | None | Browser demo; backend phase required |
 
-All routes below are on `http://localhost:5000`. C = Customer, D = Driver, A = Admin. None = anonymous. Definitions and examples are in API_DOCUMENTATION.md. P1 = auth/core, P2 = ride lifecycle, P3 = simulated commerce.
+`frontend/lib/api.ts` sends camel-case JSON with bearer authorization and preserves API status/ProblemDetails. `frontend/lib/auth.tsx` owns the shared client and tab session. Live ride history loads all 50-record pages. Food/Express must receive their own adapters and endpoints rather than being sent through ride endpoints.
 
-| Existing page/component or integration function | Functionality | Method | Endpoint | Request body | Response | Auth | Priority |
-|---|---|---|---|---|---|---|---|
-| `app/page.tsx` | Static starter links | — | No backend needed | — | — | None | Preserve |
-| `api.register` (no form exists) | Create customer | POST | `/api/auth/register` | fullName, email, password, phoneNumber | AuthResponse | None | P1 |
-| `api.login` (no form exists) | Sign in | POST | `/api/auth/login` | email, password | AuthResponse | None | P1 |
-| `api.me` | Profile | GET | `/api/auth/me` | — | User | C/D/A | P1 |
-| `api.bookRide` (no form exists) | Persist booking | POST | `/api/rides` | locations and coordinates | Ride | C | P2 |
-| `api.rides` | Scoped rides / driver pending queue | GET | `/api/rides?page=1` | — | Ride[] | C/D/A | P2 |
-| `api.myRides` | Own history | GET | `/api/rides/mine?page=1` | — | Ride[] | C/D/A | P2 |
-| `api.ride` | Own/assigned ride | GET | `/api/rides/{id}` | — | Ride | Owner/assigned D/A | P2 |
-| `api.updateRideStatus` | Accept/start/complete/cancel | PATCH | `/api/rides/{id}/status` | status | Ride | Rules per API docs | P2 |
-| `api.availableDrivers` | Available driver profiles | GET | `/api/drivers/available` | — | Driver[] | C/D/A | P2 |
-| `api.createDriver` | Onboard dedicated account | POST | `/api/drivers` | userId, vehicleType, vehiclePlate | Driver | A | P2 |
-| `api.simulatePayment` | Simulate completed ride payment | POST | `/api/payments` | rideId | Payment | Owner C | P3 |
-| `api.myPayments` | Own payments | GET | `/api/payments/mine?page=1` | — | Payment[] | C | P3 |
-| `api.reviewRide` | Review completed own ride | POST | `/api/reviews` | rideId, rating, comment? | Review | Owner C | P3 |
-| `api.driverReviews` | Driver reviews | GET | `/api/drivers/{id}/reviews?page=1` | — | Review[] | C/D/A | P3 |
-
-## Database and implementation plan
-
-Users have unique normalized emails, hashed passwords, and server-controlled roles. Drivers have a unique UserId and vehicle plate. Rides reference a customer and an optional driver; payments and reviews each have a unique RideId. Explicit restricted deletes avoid SQL Server multiple cascade paths. Ride/driver SQL rowversions protect acceptance and availability updates in the same SaveChanges transaction. Reviews enforce rating 1–5 in SQL.
-
-Implementation order: audit frontend → define DTO/entity contracts → configure SQL/JWT/CORS → implement Controller → Service → EF architecture → generate/apply migrations → add typed client without page edits → run SQL-backed API and client tests → document setup and limitations.
-
-Folder structure: Controllers, Models, DTOs, Data, Services, Interfaces, Middleware, Migrations, Configuration, Properties; Program.cs composes dependencies. Tests live in `tests/Grab.Api.Tests` outside the API project.
+The existing API includes admin driver onboarding and driver status transitions; the frontend does not yet provide driver/admin dashboards. Merchant publishing is implemented separately from driver dispatch and order fulfillment. GrabRide merchant registration requires only name, phone, password, motorcycle plate and location; Food/Express keep their business forms. The current frontend and backend build, 38 frontend tests pass, and 16 backend tests pass. Visual browser QA remains outstanding because browser control was unavailable during this audit.

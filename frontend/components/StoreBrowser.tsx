@@ -31,6 +31,7 @@ export default function StoreBrowser({ kind }: { kind: StoreKind }) {
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
           type="search"
+          aria-label={t(kind === "food" ? "browse.searchFood" : "browse.searchMart")}
           className="input sm:max-w-sm"
           placeholder={t(kind === "food" ? "browse.searchFood" : "browse.searchMart")}
           value={query}
@@ -54,6 +55,7 @@ export default function StoreBrowser({ kind }: { kind: StoreKind }) {
           <button
             key={value}
             onClick={() => setCategory(value)}
+            aria-pressed={category === value}
             className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
               category === value ? "border-brand bg-brand text-white dark:text-background" : "border-border bg-surface hover:bg-brand-soft"
             }`}

@@ -140,10 +140,11 @@ export default function OrderHistory() {
   const reviewed = useReviewedOrders();
   // Which extra panel is open on which order: receipt, tracking map or rating form.
   const [panel, setPanel] = useState<{ id: string; kind: "receipt" | "track" | "rate" } | null>(null);
-  // Shared clock (lib/clock.ts): fresh when this page appears, then every 30s, so the tracker moves by itself.
+  // Shared clock (lib/clock.ts) keeps demo status and tracking fresh while this page is open.
   const now = useNow();
 
   function orderAgain(o: Order) {
+    if (getStore(o.storeId)?.kind === "mart") { router.push("/express"); return; }
     const ok = reorder(o, (otherId) => window.confirm(t("cart.replace", { store: getStore(otherId)?.name ?? "" })));
     if (ok) { toast(t("orders.reordered")); router.push("/cart"); }
   }
@@ -213,7 +214,7 @@ export default function OrderHistory() {
                 <button onClick={() => toggle(o.id, "rate")} className="btn-outline h-9 text-sm">⭐ {t("reviews.rateOrder")}</button>
               )}
               {reviewed.has(o.id) && <span className="rounded-full bg-background px-3 py-1.5 text-sm text-muted">{t("rides.reviewed")}</span>}
-              <button onClick={() => orderAgain(o)} className={`${p.step === 1 ? "btn-outline" : "btn-primary"} h-9 text-sm`}>↻ {t("orders.orderAgain")}</button>
+              <button onClick={() => orderAgain(o)} className={`${p.step === 1 ? "btn-outline" : "btn-primary"} h-9 text-sm`}>↻ {t(getStore(o.storeId)?.kind === "mart" ? "express.submit" : "orders.orderAgain")}</button>
             </div>
           </article>
         );

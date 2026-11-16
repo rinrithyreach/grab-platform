@@ -82,7 +82,8 @@ export function isValidAddress(address: string) {
 }
 
 /** True when the wallet has enough money for this total. */
-export const canPayWithWallet = (balance: number, total: number) => round(balance) >= round(total);
+export const canPayWithWallet = (balance: number, total: number) =>
+  Number.isFinite(balance) && Number.isFinite(total) && balance >= 0 && total >= 0 && round(balance) >= round(total);
 
 /**
  * Works out the cart totals: item options, the store's deal, a promo code, delivery and tip.

@@ -67,6 +67,153 @@ namespace Grab.Api.Migrations
                     b.ToTable("Drivers");
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.Merchant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ContactPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1500)
+                        .HasColumnType("nvarchar(1500)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("MotorcycleLicensePlate")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("OpeningHours")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OwnerName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Merchants");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.MerchantImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MerchantId");
+
+                    b.ToTable("MerchantImages");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.MerchantListing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1500)
+                        .HasColumnType("nvarchar(1500)");
+
+                    b.Property<Guid>("ImageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<bool>("ShowInSlideshow")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImageId");
+
+                    b.HasIndex("MerchantId");
+
+                    b.HasIndex("IsPublished", "UpdatedAt");
+
+                    b.ToTable("MerchantListings", t =>
+                        {
+                            t.HasCheckConstraint("CK_MerchantListings_Price", "[Price] > 0");
+                        });
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -210,7 +357,6 @@ namespace Grab.Api.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasMaxLength(254)
                         .HasColumnType("nvarchar(254)");
 
@@ -236,6 +382,10 @@ namespace Grab.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
+                        .IsUnique()
+                        .HasFilter("[Email] IS NOT NULL");
+
+                    b.HasIndex("PhoneNumber")
                         .IsUnique();
 
                     b.ToTable("Users");
@@ -248,6 +398,41 @@ namespace Grab.Api.Migrations
                         .HasForeignKey("Grab.Api.Models.Driver", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.Merchant", b =>
+                {
+                    b.HasOne("Grab.Api.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("Grab.Api.Models.Merchant", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.MerchantImage", b =>
+                {
+                    b.HasOne("Grab.Api.Models.Merchant", null)
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.MerchantListing", b =>
+                {
+                    b.HasOne("Grab.Api.Models.MerchantImage", null)
+                        .WithMany()
+                        .HasForeignKey("ImageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Grab.Api.Models.Merchant", "Merchant")
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Merchant");
                 });
 
             modelBuilder.Entity("Grab.Api.Models.Payment", b =>

@@ -2,11 +2,29 @@
  * saves it to sessionStorage (cleared when the tab closes) so a page refresh keeps you logged in.
  * Never put a JWT signing key in NEXT_PUBLIC_ variables.
  */
-export type Role = "Customer" | "Driver" | "Admin";
+export type Role = "Customer" | "Driver" | "Admin" | "Merchant";
 export type RideStatus = "Pending" | "Accepted" | "InProgress" | "Completed" | "Cancelled";
-export interface User { id: string; fullName: string; email: string; phoneNumber: string; role: Role }
+export interface User { id: string; fullName: string; phoneNumber: string; role: Role }
 export interface AuthResponse { accessToken: string; expiresAt: string; user: User }
-export interface RegisterRequest { fullName: string; email: string; password: string; phoneNumber: string }
+export interface RegisterRequest { phoneNumber: string; password: string }
+export type MerchantServiceKind = "GrabRide" | "GrabFood" | "GrabExpress";
+export interface MerchantProfileRequest {
+  service: MerchantServiceKind; businessName: string; ownerName: string; contactPhone: string;
+  email: string | null; address: string; city: string; category: string; description: string; openingHours: string;
+  motorcycleLicensePlate?: string | null;
+}
+export interface RideMerchantRegistrationProfile {
+  service: "GrabRide"; ownerName: string; address: string; motorcycleLicensePlate: string;
+}
+export interface MerchantProfile extends MerchantProfileRequest { id: string }
+export type MerchantPublic = Omit<MerchantProfile, "ownerName" | "motorcycleLicensePlate">;
+export interface MerchantListingRequest {
+  title: string; description: string; price: number; imageId: string; isPublished: boolean; showInSlideshow: boolean;
+}
+export interface MerchantListing extends MerchantListingRequest { id: string; imageUrl: string; updatedAt: string }
+export interface MerchantOffer { id: string; title: string; description: string; price: number; imageUrl: string; merchant: MerchantPublic }
+export interface MerchantDashboard { profile: MerchantProfile; listings: MerchantListing[] }
+export interface MerchantStorefront { merchant: MerchantPublic; listings: MerchantOffer[] }
 export interface BookRideRequest {
   pickupLocation: string; destination: string; pickupLatitude: number; pickupLongitude: number;
   destinationLatitude: number; destinationLongitude: number;
@@ -39,43 +57,98 @@ export class ApiError extends Error {
   }
 }
 export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000") {
+  const origin = baseUrl.replace(/\/$/, "");
+  const assetUrl = (url: string) => url.startsWith("/") ? `${origin}${url}` : url;
+  const withImage = <T extends { imageUrl: string }>(value: T): T => ({ ...value, imageUrl: assetUrl(value.imageUrl) });
   let session: AuthResponse | null = null;
+  const listeners = new Set<(session: AuthResponse | null) => void>();
+  function setSession(next: AuthResponse | null) {
+    session = next;
+    listeners.forEach((listener) => listener(next));
+  }
   async function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
-    if (session && Date.parse(session.expiresAt) <= Date.now()) session = null;
+    if (session && Date.parse(session.expiresAt) <= Date.now()) setSession(null);
+    const requestToken = session?.accessToken;
+    const timeout = AbortSignal.timeout(12000);
+    const multipart = typeof FormData !== "undefined" && body instanceof FormData;
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
-      method, signal, cache: "no-store", credentials: "omit",
-      headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      method, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, cache: "no-store", credentials: "omit",
+      headers: { ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }),
         ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : multipart ? body as FormData : JSON.stringify(body),
     });
     if (!response.ok) {
-      if (response.status === 401) session = null;
-      const problem = await response.json().catch(() => ({ title: response.statusText })) as ApiProblem;
+      if (response.status === 401 && session?.accessToken === requestToken) setSession(null);
+      const payload: unknown = await response.json().catch(() => null);
+      const problem = payload && typeof payload === "object" ? payload as ApiProblem : { title: response.statusText };
       throw new ApiError(response.status, problem);
     }
     return response.json() as Promise<T>;
   }
   async function authenticate(path: string, body: unknown) {
-    session = await request<AuthResponse>(path, "POST", body);
-    return session.user;
+    const result = await request<AuthResponse>(path, "POST", body);
+    setSession(result);
+    return result.user;
   }
   return {
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
-    login: (email: string, password: string) => authenticate("/api/auth/login", { email, password }),
-    logout: () => { session = null; },
+    login: (phoneNumber: string, password: string) => authenticate("/api/auth/login", { phoneNumber, password }),
+    merchantRegister: (body: RegisterRequest & { profile: MerchantProfileRequest | RideMerchantRegistrationProfile }) => authenticate("/api/merchants/register", body),
+    merchantLogin: (phoneNumber: string, password: string) => authenticate("/api/merchants/login", { phoneNumber, password }),
+    merchantDashboard: async (signal?: AbortSignal) => {
+      const data = await request<MerchantDashboard>("/api/merchants/me", "GET", undefined, signal);
+      return { ...data, listings: data.listings.map(withImage) };
+    },
+    updateMerchantProfile: (body: MerchantProfileRequest) => request<MerchantProfile>("/api/merchants/me", "PATCH", body),
+    uploadMerchantImage: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return withImage(await request<{ id: string; imageUrl: string }>("/api/merchants/images", "POST", form));
+    },
+    saveMerchantListing: async (body: MerchantListingRequest, id?: string) => withImage(await request<MerchantListing>(
+      id ? `/api/merchants/listings/${encodeURIComponent(id)}` : "/api/merchants/listings", id ? "PATCH" : "POST", body)),
+    merchantOffers: async (service?: MerchantServiceKind, page = 1, signal?: AbortSignal) =>
+      (await request<MerchantOffer[]>(`/api/merchants/offers?page=${page}${service ? `&service=${encodeURIComponent(service)}` : ""}`, "GET", undefined, signal)).map(withImage),
+    merchantStorefront: async (id: string, signal?: AbortSignal) => {
+      const data = await request<MerchantStorefront>(`/api/merchants/${encodeURIComponent(id)}`, "GET", undefined, signal);
+      return { ...data, listings: data.listings.map(withImage) };
+    },
+    logout: () => { setSession(null); },
+    subscribeSession: (listener: (session: AuthResponse | null) => void) => {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
     /** Current login (token + user), or null. Used by lib/auth.tsx to survive page refreshes. */
     getSession: () => session,
     /** Put back a saved login. Ignored if it has already expired. */
-    restoreSession: (saved: AuthResponse) => {
-      session = Date.parse(saved.expiresAt) > Date.now() ? saved : null;
+    restoreSession: (saved: unknown) => {
+      const value = saved as Partial<AuthResponse> | null;
+      const valid = value && typeof value.accessToken === "string" && value.accessToken.length > 0
+        && typeof value.expiresAt === "string" && Date.parse(value.expiresAt) > Date.now()
+        && value.user && typeof value.user.id === "string" && typeof value.user.fullName === "string"
+        && typeof value.user.phoneNumber === "string"
+        && ["Customer", "Driver", "Admin", "Merchant"].includes(value.user.role);
+      setSession(valid ? value as AuthResponse : null);
       return session !== null;
     },
-    /** True if the backend answers at all (used to switch the ride pages to demo mode). */
+    /** A readable, successful health response from this API, including CORS. */
     isOnline: async () => {
-      try { await fetch(`${baseUrl.replace(/\/$/, "")}/health`, { cache: "no-store", credentials: "omit", mode: "no-cors", signal: AbortSignal.timeout(4000) }); return true; }
+      try {
+        const response = await fetch(`${baseUrl.replace(/\/$/, "")}/health`, { cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(4000) });
+        if (!response.ok) return false;
+        const health = await response.json();
+        return health?.status === "ok";
+      }
       catch { return false; }
     },
     me: (signal?: AbortSignal) => request<User>("/api/auth/me", "GET", undefined, signal),
+    updateProfile: async (body: { fullName: string }) => {
+      const token = session?.accessToken;
+      const user = await request<User>("/api/auth/me", "PATCH", body);
+      // An outstanding save must not restore a session after logout/account switching.
+      if (session && session.accessToken === token && session.user.id === user.id) setSession({ ...session, user });
+      return user;
+    },
     rides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides?page=${page}`, "GET", undefined, signal),
     myRides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides/mine?page=${page}`, "GET", undefined, signal),
     ride: (id: string) => request<Ride>(`/api/rides/${encodeURIComponent(id)}`),
@@ -84,9 +157,9 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     availableDrivers: () => request<Driver[]>("/api/drivers/available"),
     createDriver: (body: { userId: string; vehicleType: string; vehiclePlate: string }) => request<Driver>("/api/drivers", "POST", body),
     simulatePayment: (rideId: string) => request<Payment>("/api/payments", "POST", { rideId }),
-    myPayments: (page = 1) => request<Payment[]>(`/api/payments/mine?page=${page}`),
+    myPayments: (page = 1, signal?: AbortSignal) => request<Payment[]>(`/api/payments/mine?page=${page}`, "GET", undefined, signal),
     reviewRide: (rideId: string, rating: number, comment?: string) => request<Review>("/api/reviews", "POST", { rideId, rating, comment }),
-    banners: (signal?: AbortSignal) => request<Banner[]>("/api/banners", "GET", undefined, signal),
+    banners: async (signal?: AbortSignal) => (await request<Banner[]>("/api/banners", "GET", undefined, signal)).map(withImage),
     driverReviews: (id: string, page = 1) => request<Review[]>(`/api/drivers/${encodeURIComponent(id)}/reviews?page=${page}`),
   };
 }

@@ -1,7 +1,7 @@
 /** Change the app's name/tagline in one place. */
 export const BRAND = {
   name: "Grab",
-  tagline: "Rides, food and groceries — one tap away.",
+  tagline: "Rides, food and parcels — one tap away.",
 };
 
 /** Footer credits. */

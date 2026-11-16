@@ -48,6 +48,7 @@ export default function RideMap({ from, to, label, rider }: Props) {
   useEffect(() => {
     let cancelled = false;
     let observer: ResizeObserver | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     import("leaflet").then((L) => {
       if (cancelled || !el.current || map.current) return;
@@ -61,16 +62,23 @@ export default function RideMap({ from, to, label, rider }: Props) {
       let loadedAny = false;
       let errors = 0;
       const switchToSource = (i: number) => {
+        clearTimeout(timeout);
         tiles?.remove();
         errors = 0;
         tiles = L.tileLayer(TILE_SOURCES[i].url, { maxZoom: 19, subdomains: "abcd", attribution: TILE_SOURCES[i].attribution });
-        tiles.on("tileload", () => { if (!loadedAny) { loadedAny = true; if (!cancelled) setStatus("ready"); } });
+        const fallback = () => {
+          if (cancelled || loadedAny || source !== i) return;
+          clearTimeout(timeout);
+          if (source + 1 < TILE_SOURCES.length) switchToSource(++source);
+          else setStatus("failed");
+        };
+        tiles.on("tileload", () => { if (!loadedAny) { loadedAny = true; clearTimeout(timeout); if (!cancelled) setStatus("ready"); } });
         tiles.on("tileerror", () => {
           errors += 1;
           if (loadedAny || errors < 3) return;
-          if (source + 1 < TILE_SOURCES.length) switchToSource(++source);
-          else if (!cancelled) setStatus("failed");
+          fallback();
         });
+        timeout = setTimeout(fallback, 6000);
         tiles.addTo(m);
       };
       switchToSource(0);
@@ -83,6 +91,7 @@ export default function RideMap({ from, to, label, rider }: Props) {
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
       observer?.disconnect();
       map.current?.remove();
       map.current = null;
@@ -110,7 +119,7 @@ export default function RideMap({ from, to, label, rider }: Props) {
         }
         if (from.name === to.name) map.current.setView(a, 15);
         else map.current.fitBounds([a, b], { padding: [40, 40], maxZoom: 16 });
-      });
+      }).catch(() => { if (!cancelled) setStatus("failed"); });
     }
     draw();
     node?.addEventListener("map-ready", draw);
@@ -118,7 +127,7 @@ export default function RideMap({ from, to, label, rider }: Props) {
   }, [from, to, attempt, rider]);
 
   return (
-    <div className="relative">
+    <div className="relative isolate">
       <div key={attempt} ref={el} role="img" aria-label={label} className="ride-map h-64 w-full overflow-hidden rounded-xl border border-border bg-background sm:h-72" />
       {status !== "ready" && (
         <div className="absolute inset-0 z-[1100] grid place-items-center rounded-xl bg-background/85 p-6 text-center text-sm" aria-live="polite">

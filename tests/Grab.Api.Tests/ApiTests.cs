@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Grab.Api.Tests;
@@ -26,14 +28,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate=True");
     }
     protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.UseEnvironment("Development");
-    public async Task InitializeDatabase()
+    public async Task InitializeDatabase(string? targetMigration = null)
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GrabDbContext>();
-        await db.Database.MigrateAsync();
+        if (targetMigration is null) await db.Database.MigrateAsync();
+        else await db.GetService<IMigrator>().MigrateAsync(targetMigration);
         if (!await db.Users.AnyAsync(x => x.Role == Role.Admin))
         {
-            var admin = new User { FullName = "Test Admin", Email = "admin@example.test", Role = Role.Admin };
+            var admin = new User { FullName = "Test Admin", PhoneNumber = "+85510000001", Email = "admin@example.test", Role = Role.Admin };
             admin.PasswordHash = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>().HashPassword(admin, Password);
             db.Users.Add(admin);
             await db.SaveChangesAsync();
@@ -53,14 +56,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     }
 }
 
-public class ApiTests
+public partial class ApiTests
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
     private static async Task<T> Read<T>(HttpResponseMessage response) => (await response.Content.ReadFromJsonAsync<T>(Json))!;
     private static void SignIn(HttpClient c, AuthResponse a) => c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", a.AccessToken);
     private static async Task<AuthResponse> Register(HttpClient c, string password)
     {
-        var response = await c.PostAsJsonAsync("/api/auth/register", new RegisterRequest("Test Customer", $"{Guid.NewGuid():N}@example.test", password, "+85512345678"));
+        var response = await c.PostAsJsonAsync("/api/auth/register", new RegisterRequest($"+855{RandomNumberGenerator.GetInt32(20000000, 99999999)}", password));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var auth = await Read<AuthResponse>(response);
         SignIn(c, auth);
@@ -72,7 +75,7 @@ public class ApiTests
         var account = await Register(driver, f.Password);
         var created = await admin.PostAsJsonAsync("/api/drivers", new DriverRequest(account.User.Id, "Car", Guid.NewGuid().ToString("N")[..10]));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var login = await driver.PostAsJsonAsync("/api/auth/login", new LoginRequest(account.User.Email, f.Password));
+        var login = await driver.PostAsJsonAsync("/api/auth/login", new LoginRequest(account.User.PhoneNumber, f.Password));
         var auth = await Read<AuthResponse>(login);
         SignIn(driver, auth);
         return auth;
@@ -80,7 +83,7 @@ public class ApiTests
     private static async Task<HttpClient> Admin(ApiFactory f)
     {
         var client = f.CreateClient();
-        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin@example.test", f.Password));
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest("+85510000001", f.Password));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         SignIn(client, await Read<AuthResponse>(login));
         return client;
@@ -97,7 +100,7 @@ public class ApiTests
         using var admin = await Admin(f);
         var account = await Register(customer, f.Password);
         Assert.Equal(HttpStatusCode.OK, (await customer.GetAsync("/api/auth/me")).StatusCode);
-        var login = await customer.PostAsJsonAsync("/api/auth/login", new LoginRequest(account.User.Email, f.Password));
+        var login = await customer.PostAsJsonAsync("/api/auth/login", new LoginRequest(account.User.PhoneNumber, f.Password));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         await Register(stranger, f.Password);
         await Driver(f, admin, driver);
@@ -136,10 +139,10 @@ public class ApiTests
         await f.InitializeDatabase();
         using var c = f.CreateClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/rides")).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync("/api/auth/register", new RegisterRequest("A", "bad", "short", "x"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync("/api/auth/register", new RegisterRequest("bad-phone", "short"))).StatusCode);
         var account = await Register(c, f.Password);
-        Assert.Equal(HttpStatusCode.Conflict, (await c.PostAsJsonAsync("/api/auth/register", new RegisterRequest("Duplicate", account.User.Email.ToUpperInvariant(), f.Password, "+85512345678"))).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await c.PostAsJsonAsync("/api/auth/login", new LoginRequest(account.User.Email, "incorrect-password"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await c.PostAsJsonAsync("/api/auth/register", new RegisterRequest(account.User.PhoneNumber, f.Password))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await c.PostAsJsonAsync("/api/auth/login", new LoginRequest(account.User.PhoneNumber, "incorrect-password"))).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await c.PostAsJsonAsync("/api/drivers", new DriverRequest(account.User.Id, "Car", "ABC"))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync("/api/rides", Booking() with { PickupLatitude = 100 })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync("/api/rides", new { pickupLocation = "University", destination = "Market" })).StatusCode);

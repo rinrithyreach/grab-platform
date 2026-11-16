@@ -37,12 +37,13 @@ function add(kind: WalletTxn["kind"], amount: number, description: string) {
 }
 
 export function topUp(amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0) return;
   add("topup", amount, "Top up");
 }
 
 /** Returns false (and charges nothing) if the balance is too low. */
 export function payFromWallet(amount: number, description: string) {
-  if (!canPayWithWallet(store.get().balance, amount)) return false;
+  if (amount <= 0 || !canPayWithWallet(store.get().balance, amount)) return false;
   add("payment", -amount, description);
   return true;
 }

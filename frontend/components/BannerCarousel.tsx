@@ -5,7 +5,7 @@
  * Slide 1 is always the welcome slide. After it come the banners from the backend
  * (GET /api/banners — see `Banner` in lib/api.ts), in the order the backend returns them.
  * Until the backend returns at least one banner, placeholder slides are shown instead.
- * Adding, removing or reordering banners is done entirely in the backend.
+ * Merchants publish featured listings in /merchant; the API returns the latest 12.
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -39,7 +39,7 @@ function WelcomeSlide() {
           </div>
         </div>
         <div className="hidden grid-cols-2 gap-4 md:grid" aria-hidden>
-          {["🚗", "🍔", "🛒", "🧋"].map((e, i) => (
+          {["🚗", "🍔", "📦", "🧋"].map((e, i) => (
             <div key={e} className={`grid aspect-square max-h-44 place-items-center rounded-3xl bg-white/10 text-6xl ${i % 2 ? "translate-y-6" : ""}`}>{e}</div>
           ))}
         </div>
@@ -64,21 +64,23 @@ function BannerSlide({ banner }: { banner: Banner }) {
       )}
     </>
   );
-  if (!banner.linkUrl) return <div className={FRAME}>{content}</div>;
-  return banner.linkUrl.startsWith("/")
-    ? <Link href={banner.linkUrl} className={FRAME}>{content}</Link>
-    : <a href={banner.linkUrl} target="_blank" rel="noopener noreferrer" className={FRAME}>{content}</a>;
+  const href = banner.linkUrl;
+  if (!href || (!/^\/(?!\/)/.test(href) && !/^https?:\/\//i.test(href))) return <div className={FRAME}>{content}</div>;
+  return href.startsWith("/")
+    ? <Link href={href} className={FRAME}>{content}</Link>
+    : <a href={href} target="_blank" rel="noopener noreferrer" className={FRAME}>{content}</a>;
 }
 
 function PlaceholderSlide({ n }: { n: number }) {
   const { t } = useT();
   return (
-    <div className={`${FRAME} bg-gradient-to-br ${PLACEHOLDER_STYLES[(n - 1) % PLACEHOLDER_STYLES.length]} text-white`}>
+    <Link href={n === 1 ? "/express" : "/food"} className={`${FRAME} bg-gradient-to-br ${PLACEHOLDER_STYLES[(n - 1) % PLACEHOLDER_STYLES.length]} text-white`}>
       <div className={`${INNER} items-center text-center`}>
-        <p className="text-4xl font-extrabold sm:text-5xl">{t("carousel.placeholderTitle", { n })}</p>
-        <p className="mt-3 text-lg opacity-90">{t("carousel.placeholderText")}</p>
+        <p className="mb-4 text-6xl" aria-hidden>{n === 1 ? "📦" : "🍜"}</p>
+        <p className="text-4xl font-extrabold sm:text-5xl">{t(n === 1 ? "express.title" : "food.title")}</p>
+        <p className="mt-3 text-lg opacity-90">{t(n === 1 ? "home.expressText" : "food.subtitle")}</p>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -91,7 +93,7 @@ export default function BannerCarousel() {
     const ctrl = new AbortController();
     api.banners(ctrl.signal)
       .then((list) => setBanners(Array.isArray(list) ? list.filter((b) => b?.imageUrl) : []))
-      .catch(() => { /* backend not running or no /api/banners yet: keep placeholders */ });
+      .catch(() => { /* backend unavailable: keep placeholders */ });
     return () => ctrl.abort();
   }, [api]);
 

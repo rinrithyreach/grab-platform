@@ -2,6 +2,13 @@
 
 University group project (Group 6). We research the Grab super-app and build a small working demo of it: a Next.js front end that talks to a back-end API.
 
+Services: **GrabRide, GrabFood and GrabExpress** (Express replaces Mart).
+
+- [Run the frontend](frontend/README.md)
+- [Frontend audit and verification](frontend/AUDIT.md)
+- [Run the ASP.NET Core / Entity Framework API](backend/README.md)
+- [Next backend integration phase](backend/IMPLEMENTATION_PLAN.md)
+
 ## Research outline
 
 The book and the slides follow these twelve sections:

@@ -5,13 +5,14 @@ import { STORES } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import StoreCard from "@/components/StoreCard";
 import BannerCarousel from "@/components/BannerCarousel";
+import MerchantOffers from "@/components/MerchantOffers";
 import GlobalSearch from "@/components/GlobalSearch";
 import { useFavorites } from "@/lib/favorites";
 
 const SERVICES: { href: string; emoji: string; title: MessageKey; text: MessageKey }[] = [
   { href: "/ride", emoji: "🚗", title: "nav.ride", text: "home.rideText" },
   { href: "/food", emoji: "🍜", title: "nav.food", text: "home.foodText" },
-  { href: "/mart", emoji: "🛒", title: "nav.mart", text: "home.martText" },
+  { href: "/express", emoji: "📦", title: "nav.express", text: "home.expressText" },
 ];
 
 const STEPS: { emoji: string; title: MessageKey; text: MessageKey }[] = [
@@ -25,7 +26,7 @@ const FEATURED = STORES.filter((s) => s.kind === "food").sort((a, b) => b.rating
 export default function Home() {
   const { t } = useT();
   const favIds = useFavorites();
-  const favourites = favIds.flatMap((id) => STORES.filter((s) => s.id === id));
+  const favourites = favIds.flatMap((id) => STORES.filter((s) => s.id === id && s.kind === "food"));
 
   return (
     <>
@@ -50,6 +51,7 @@ export default function Home() {
 
       {/* Search everything */}
       <GlobalSearch />
+      <div className="mx-auto max-w-6xl px-4"><MerchantOffers /></div>
 
       {/* Favourites (only when the user has hearted a store) */}
       {favourites.length > 0 && (

@@ -4,8 +4,10 @@ namespace Grab.Api.Interfaces;
 public interface IAuthService
 {
     Task<AuthResponse> Register(RegisterRequest request, CancellationToken ct);
+    Task<AuthResponse> RegisterMerchant(MerchantRegisterRequest request, CancellationToken ct);
     Task<AuthResponse> Login(LoginRequest request, CancellationToken ct);
     Task<UserDto> Me(Guid userId, CancellationToken ct);
+    Task<UserDto> UpdateProfile(Guid userId, UpdateProfileRequest request, CancellationToken ct);
 }
 public interface IRideService
 {

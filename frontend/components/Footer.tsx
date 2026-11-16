@@ -46,7 +46,7 @@ export default function Footer() {
           links={[
             { href: "/ride", label: t("footer.bookRide") },
             { href: "/food", label: t("footer.foodDelivery") },
-            { href: "/mart", label: t("nav.mart") },
+            { href: "/express", label: t("nav.express") },
           ]}
         />
 
@@ -55,9 +55,11 @@ export default function Footer() {
           links={[
             { href: "/rides", label: t("nav.myRides") },
             { href: "/orders", label: t("nav.myOrders") },
+            { href: "/deliveries", label: t("nav.deliveries") },
             { href: "/cart", label: t("nav.cart") },
             { href: "/wallet", label: t("nav.wallet") },
             { href: "/profile", label: t("nav.profile") },
+            { href: "/merchant", label: t("nav.merchant") },
             ...(user ? [] : [
               { href: "/login", label: t("nav.login") },
               { href: "/register", label: t("footer.signUp") },

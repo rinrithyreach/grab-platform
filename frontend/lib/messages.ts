@@ -2,7 +2,12 @@
  * UI text in English and Khmer. Add a key to `en` first — TypeScript will then
  * require the same key in `km`. Use {name} placeholders for values.
  */
+import { enExpress, kmExpress } from "./express-messages";
+import { enMerchant, kmMerchant } from "./merchant-messages";
+
 export const en = {
+  ...enExpress,
+  ...enMerchant,
   // Navigation & settings
   "nav.ride": "Ride",
   "nav.food": "Food",
@@ -26,7 +31,7 @@ export const en = {
   "settings.system": "System",
 
   // Brand & footer
-  "brand.tagline": "Rides, food and groceries — one tap away.",
+  "brand.tagline": "Rides, food and parcels — one tap away.",
   "footer.services": "Services",
   "footer.bookRide": "Book a ride",
   "footer.foodDelivery": "Food delivery",
@@ -57,7 +62,7 @@ export const en = {
   "carousel.placeholderTitle": "Banner {n}",
   "carousel.placeholderText": "Promotions from the backend will appear here.",
   "home.step1": "Pick a service",
-  "home.step1Text": "Ride, food or mart — all in one app.",
+  "home.step1Text": "Ride, food or express — all in one app.",
   "home.step2": "Set your location",
   "home.step2Text": "Tell us where to pick up or deliver.",
   "home.step3": "Sit back",
@@ -88,7 +93,7 @@ export const en = {
 
   // Cart
   "cart.emptyTitle": "Your cart is empty",
-  "cart.emptyText": "Find something tasty or pick up your groceries.",
+  "cart.emptyText": "Find something tasty from your favourite restaurants.",
   "cart.browseFood": "Browse food",
   "cart.goMart": "Go to Mart",
   "cart.title": "Your cart",
@@ -133,7 +138,13 @@ export const en = {
 
   // Auth
   "login.title": "Welcome back",
-  "login.subtitle": "Log in to {brand} to book rides.",
+  "login.subtitle": "Sign in to {brand} with your phone number and password.",
+  "auth.phone": "Phone number",
+  "auth.phoneInvalid": "Enter a valid phone number, such as 012345678 or +85512345678.",
+  "auth.show": "Show",
+  "auth.hide": "Hide",
+  "auth.showPassword": "Show password",
+  "auth.hidePassword": "Hide password",
   "auth.email": "Email",
   "auth.password": "Password",
   "login.busy": "Logging in…",
@@ -141,7 +152,7 @@ export const en = {
   "login.newHere": "New here?",
   "login.createAccount": "Create an account",
   "register.title": "Create your account",
-  "register.subtitle": "One account for rides, food and mart.",
+  "register.subtitle": "Just your phone number and a password to get started.",
   "register.fullName": "Full name",
   "register.phone": "Phone number",
   "register.passwordHint": "At least 12 characters.",
@@ -224,6 +235,10 @@ export const en = {
   "orders.orderAgain": "Order again",
   "orders.reordered": "Items added to your cart",
   "profile.title": "My profile",
+  "profile.name": "Name",
+  "profile.saving": "Saving…",
+  "profile.nameSaved": "Name updated",
+  "profile.nameInvalid": "Enter a name between 2 and 120 characters.",
   "profile.guest": "Guest",
   "profile.guestText": "Log in to book rides with your account.",
   "profile.addresses": "Saved addresses",
@@ -254,8 +269,8 @@ export const en = {
   "wallet.empty": "No transactions yet.",
   "wallet.insufficient": "Not enough money in your wallet ({balance}). Top up or choose another payment.",
   "wallet.demo": "Demo wallet: no real money is used.",
-  "search.label": "Search food and groceries",
-  "search.placeholder": "Search dishes, stores or groceries…",
+  "search.label": "Search restaurants and dishes",
+  "search.placeholder": "Search restaurants or dishes…",
   "search.stores": "Stores",
   "search.items": "Dishes & products",
   "search.none": "No results for “{q}”",
@@ -317,6 +332,8 @@ export const en = {
 export type MessageKey = keyof typeof en;
 
 export const km: Record<MessageKey, string> = {
+  ...kmExpress,
+  ...kmMerchant,
   "nav.ride": "ជិះ",
   "nav.food": "អាហារ",
   "nav.mart": "ផ្សារទំនើប",
@@ -338,7 +355,7 @@ export const km: Record<MessageKey, string> = {
   "settings.dark": "ងងឹត",
   "settings.system": "តាមប្រព័ន្ធ",
 
-  "brand.tagline": "ការធ្វើដំណើរ អាហារ និងទំនិញប្រចាំថ្ងៃ — ត្រឹមតែចុចម្ដង។",
+  "brand.tagline": "ការជិះ អាហារ និងការដឹកកញ្ចប់ — ងាយស្រួលក្នុងកម្មវិធីតែមួយ។",
   "footer.services": "សេវាកម្ម",
   "footer.bookRide": "កក់ការជិះ",
   "footer.foodDelivery": "ដឹកជញ្ជូនអាហារ",
@@ -368,7 +385,7 @@ export const km: Record<MessageKey, string> = {
   "carousel.placeholderTitle": "បដាទី {n}",
   "carousel.placeholderText": "ប្រូម៉ូសិនពី backend នឹងបង្ហាញនៅទីនេះ។",
   "home.step1": "ជ្រើសរើសសេវាកម្ម",
-  "home.step1Text": "ការជិះ អាហារ ឬទំនិញ — ទាំងអស់ក្នុងកម្មវិធីតែមួយ។",
+  "home.step1Text": "ការជិះ អាហារ ឬការដឹកកញ្ចប់ — ទាំងអស់ក្នុងកម្មវិធីតែមួយ។",
   "home.step2": "កំណត់ទីតាំងរបស់អ្នក",
   "home.step2Text": "ប្រាប់យើងពីកន្លែងទទួល ឬកន្លែងដឹកជូន។",
   "home.step3": "សម្រាកចាំ",
@@ -397,7 +414,7 @@ export const km: Record<MessageKey, string> = {
   "store.viewCart": "មើលកន្ត្រក",
 
   "cart.emptyTitle": "កន្ត្រករបស់អ្នកនៅទទេ",
-  "cart.emptyText": "ស្វែងរកអ្វីដែលឆ្ងាញ់ ឬទិញទំនិញប្រចាំថ្ងៃ។",
+  "cart.emptyText": "ស្វែងរកអាហារឆ្ងាញ់ពីភោជនីយដ្ឋានដែលអ្នកចូលចិត្ត។",
   "cart.browseFood": "មើលអាហារ",
   "cart.goMart": "ទៅផ្សារទំនើប",
   "cart.title": "កន្ត្រករបស់អ្នក",
@@ -440,7 +457,13 @@ export const km: Record<MessageKey, string> = {
   "common.back": "← ត្រឡប់ក្រោយ",
 
   "login.title": "សូមស្វាគមន៍ការត្រឡប់មកវិញ",
-  "login.subtitle": "ចូលគណនី {brand} ដើម្បីកក់ការជិះ។",
+  "login.subtitle": "ចូលគណនី {brand} ដោយប្រើលេខទូរស័ព្ទ និងពាក្យសម្ងាត់។",
+  "auth.phone": "លេខទូរស័ព្ទ",
+  "auth.phoneInvalid": "សូមបញ្ចូលលេខទូរស័ព្ទត្រឹមត្រូវ ដូចជា 012345678 ឬ +85512345678។",
+  "auth.show": "បង្ហាញ",
+  "auth.hide": "លាក់",
+  "auth.showPassword": "បង្ហាញពាក្យសម្ងាត់",
+  "auth.hidePassword": "លាក់ពាក្យសម្ងាត់",
   "auth.email": "អ៊ីមែល",
   "auth.password": "ពាក្យសម្ងាត់",
   "login.busy": "កំពុងចូល…",
@@ -448,7 +471,7 @@ export const km: Record<MessageKey, string> = {
   "login.newHere": "ទើបមកថ្មីមែនទេ?",
   "login.createAccount": "បង្កើតគណនី",
   "register.title": "បង្កើតគណនីរបស់អ្នក",
-  "register.subtitle": "គណនីតែមួយសម្រាប់ការជិះ អាហារ និងទំនិញ។",
+  "register.subtitle": "ប្រើតែលេខទូរស័ព្ទ និងពាក្យសម្ងាត់ ដើម្បីបង្កើតគណនី។",
   "register.fullName": "ឈ្មោះពេញ",
   "register.phone": "លេខទូរស័ព្ទ",
   "register.passwordHint": "យ៉ាងហោចណាស់ ១២ តួអក្សរ។",
@@ -528,6 +551,10 @@ export const km: Record<MessageKey, string> = {
   "orders.orderAgain": "បញ្ជាទិញម្ដងទៀត",
   "orders.reordered": "បានបន្ថែមទំនិញទៅកន្ត្រក",
   "profile.title": "ប្រវត្តិរូបរបស់ខ្ញុំ",
+  "profile.name": "ឈ្មោះ",
+  "profile.saving": "កំពុងរក្សាទុក…",
+  "profile.nameSaved": "បានកែប្រែឈ្មោះ",
+  "profile.nameInvalid": "សូមបញ្ចូលឈ្មោះចន្លោះពី ២ ដល់ ១២០ តួអក្សរ។",
   "profile.guest": "ភ្ញៀវ",
   "profile.guestText": "ចូលគណនី ដើម្បីកក់ការជិះជាមួយគណនីរបស់អ្នក។",
   "profile.addresses": "អាសយដ្ឋានដែលបានរក្សាទុក",
@@ -558,8 +585,8 @@ export const km: Record<MessageKey, string> = {
   "wallet.empty": "មិនទាន់មានប្រតិបត្តិការនៅឡើយទេ។",
   "wallet.insufficient": "លុយក្នុងកាបូបមិនគ្រប់គ្រាន់ ({balance})។ សូមបញ្ចូលលុយ ឬជ្រើសរើសវិធីបង់ប្រាក់ផ្សេង។",
   "wallet.demo": "កាបូបសាកល្បង៖ មិនប្រើលុយពិតប្រាកដទេ។",
-  "search.label": "ស្វែងរកអាហារ និងទំនិញ",
-  "search.placeholder": "ស្វែងរកមុខម្ហូប ហាង ឬទំនិញ…",
+  "search.label": "ស្វែងរកភោជនីយដ្ឋាន និងម្ហូប",
+  "search.placeholder": "ស្វែងរកភោជនីយដ្ឋាន ឬម្ហូប…",
   "search.stores": "ហាង",
   "search.items": "មុខម្ហូប និងផលិតផល",
   "search.none": "រកមិនឃើញលទ្ធផលសម្រាប់ “{q}”",

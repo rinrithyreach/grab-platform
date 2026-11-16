@@ -13,4 +13,6 @@ public class AuthController(IAuthService auth) : ApiControllerBase
     public Task<AuthResponse> Login(LoginRequest r, CancellationToken ct) => auth.Login(r, ct);
     [Authorize, HttpGet("me")]
     public Task<UserDto> Me(CancellationToken ct) => auth.Me(UserId, ct);
+    [Authorize, HttpPatch("me")]
+    public Task<UserDto> UpdateProfile(UpdateProfileRequest r, CancellationToken ct) => auth.UpdateProfile(UserId, r, ct);
 }

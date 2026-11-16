@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useAuth } from "@/lib/auth";
+import { errorMessage, useAuth } from "@/lib/auth";
+import type { User } from "@/lib/api";
 import { money } from "@/lib/brand";
 import { isValidAddress, useShop } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
@@ -65,9 +66,42 @@ function AddressRow({ label, icon, saved }: { label: AddressLabel; icon: string;
   );
 }
 
+function NameEditor({ user }: { user: User }) {
+  const { t } = useT();
+  const { updateProfile } = useAuth();
+  const [name, setName] = useState(user.fullName);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    const fullName = name.trim();
+    if (fullName.length < 2 || fullName.length > 120 || /\p{Cc}/u.test(fullName)) { setError(t("profile.nameInvalid")); return; }
+    setBusy(true); setError("");
+    try {
+      const updated = await updateProfile(fullName);
+      setName(updated.fullName);
+      toast(t("profile.nameSaved"));
+    } catch (err) { setError(errorMessage(err, t)); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <form onSubmit={save} className="border-b border-border pb-4">
+      <label htmlFor="profile-full-name" className="label">{t("profile.name")}</label>
+      <div className="flex gap-2">
+        <input id="profile-full-name" name="fullName" className="input min-w-0 flex-1" autoComplete="name" required minLength={2} maxLength={120} value={name} disabled={busy} onChange={(e) => { setName(e.target.value); setError(""); }} aria-invalid={!!error} aria-describedby={error ? "profile-name-error" : undefined} />
+        <button className="btn-primary shrink-0" disabled={busy || name.trim() === user.fullName}>{t(busy ? "profile.saving" : "profile.save")}</button>
+      </div>
+      {error && <p id="profile-name-error" role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+    </form>
+  );
+}
+
 export default function ProfilePage() {
   const { t } = useT();
-  const { user, logout } = useAuth();
+  const { user, ready, logout } = useAuth();
   const { addresses } = useProfile();
   const { orders } = useShop();
   const { balance } = useWallet();
@@ -76,6 +110,7 @@ export default function ProfilePage() {
   const shortcuts: { href: string; label: MessageKey; value: string }[] = [
     { href: "/orders", label: "nav.myOrders", value: String(orders.length) },
     { href: "/rides", label: "nav.myRides", value: "→" },
+    { href: "/deliveries", label: "nav.deliveries", value: "📦" },
     { href: "/wallet", label: "wallet.name", value: money(balance) },
   ];
 
@@ -93,7 +128,7 @@ export default function ProfilePage() {
           {user ? (
             <>
               <p className="text-lg font-bold">{user.fullName}</p>
-              <p className="truncate text-sm text-muted">{user.email} · {user.phoneNumber}</p>
+              <p className="truncate text-sm text-muted">{user.phoneNumber}</p>
             </>
           ) : (
             <>
@@ -108,7 +143,7 @@ export default function ProfilePage() {
       </section>
 
       {/* Shortcuts */}
-      <section className="mt-4 grid grid-cols-3 gap-3">
+      <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {shortcuts.map((s) => (
           <Link key={s.href} href={s.href} className="card p-4 text-center transition-shadow hover:shadow-md">
             <p className="text-lg font-bold text-brand">{s.value}</p>
@@ -135,6 +170,7 @@ export default function ProfilePage() {
       {/* Settings */}
       <section className="card mt-4 space-y-4 p-5">
         <h2 className="text-lg font-bold">{t("settings.title")}</h2>
+        {ready && user && <NameEditor key={user.id} user={user} />}
         <Segmented label={t("settings.language")} value={settings.lang} options={LANGS} onChange={(lang) => updateSettings({ lang })} />
         <Segmented
           label={t("settings.theme")}

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { STORES, getStore } from "@/lib/catalog";
 import StoreView from "@/components/StoreView";
 
 export function generateStaticParams() {
-  return STORES.map((s) => ({ id: s.id }));
+  return STORES.filter((s) => s.kind === "food").map((s) => ({ id: s.id }));
 }
 
 export async function generateMetadata(props: PageProps<"/store/[id]">): Promise<Metadata> {
@@ -27,6 +27,7 @@ async function StoreContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const store = getStore(id);
   if (!store) notFound();
+  if (store.kind === "mart") redirect("/express");
   return <StoreView store={store} />;
 }
 

@@ -13,6 +13,7 @@ import Select from "@/components/Select";
 import BackButton from "@/components/BackButton";
 import RideMap from "@/components/RideMap";
 import DemoModeNotice from "@/components/DemoModeNotice";
+import MerchantOffers from "@/components/MerchantOffers";
 
 const VEHICLES: { id: VehicleId; emoji: string; name: MessageKey; seats: number }[] = [
   { id: "bike", emoji: "🛵", name: "ride.moto", seats: 1 },
@@ -105,7 +106,7 @@ export default function RidePage() {
               >⇅</button>
             </div>
 
-            <div>
+            {demo ? <div>
               <span className="label">{t("ride.vehicle")}</span>
               <div className="grid grid-cols-3 gap-2">
                 {VEHICLES.map((v) => (
@@ -121,10 +122,12 @@ export default function RidePage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div> : <p className="rounded-xl bg-brand-soft p-3 text-sm text-brand">{t("ride.liveVehicle")}</p>}
+
+            {!demo && user?.role !== "Customer" && <p role="alert" className="text-sm text-muted">{t("ride.customerOnly")}</p>}
 
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-            <button className="btn-primary w-full" disabled={busy || pickup === dropoff}>
+            <button className="btn-primary w-full" disabled={busy || pickup === dropoff || (!demo && user?.role !== "Customer")}>
               {busy ? t("ride.busy") : demo ? `${t("ride.submit")} · ${money(demoFare(vehicle, km))}` : t("ride.submit")}
             </button>
           </form>
@@ -146,6 +149,7 @@ export default function RidePage() {
           </aside>
         </div>
       )}
+      <MerchantOffers service="GrabRide" />
     </div>
   );
 }

@@ -2,11 +2,11 @@
 
 .NET 10 controller API with EF Core SQL Server, Windows Authentication, PasswordHasher, JWT roles, Swagger, and SQL-backed integration tests. Read [frontend analysis/API mapping](FRONTEND_ANALYSIS.md), [API contracts](API_DOCUMENTATION.md), and [database ERD](DATABASE_ERD.md).
 
-The existing frontend contains only the Next.js starter page. Per the user's instruction, all pages/layouts/styles remain unchanged. `frontend/lib/api.ts` supplies typed API functions; there are no browser login/booking controls. Use Swagger for the university demonstration.
+The frontend now provides Ride, Food and Express customer pages (Express replaces Mart). Authentication and live rides use this API. Food/Express and account extras remain browser demos pending backend endpoints. See the [frontend audit](../frontend/AUDIT.md) and [next implementation phase](IMPLEMENTATION_PLAN.md).
 
 ## Local setup in Windows PowerShell
 
-Run commands from the repository root. Install .NET 10 SDK and SQL Server Express (Database Engine Services, named instance SQLEXPRESS) plus SSMS if setting up another computer. This computer already has .NET 10.0.403 and SQL Server **Developer Edition at localhost**, not SQLEXPRESS. A Windows-authenticated connection override and random JWT key have already been stored locally in .NET User Secrets, and GrabPlatformDB has been migrated on localhost. No credentials/signing keys are committed.
+Run commands from the repository root. This computer uses the SQL Server named instance **DESKTOP-DCDNJIN\MSSQLSERVER01** with Windows Authentication and the database **GrabPlatformDB**. Install the .NET 10 SDK, SQL Server Database Engine and SSMS on a new computer. Both appsettings.json and the local User Secrets connection override point to this selected instance. The JWT signing key stays in User Secrets; no credentials/signing keys are committed.
 
 Restore the committed dependency versions and EF tool:
 ```powershell
@@ -28,12 +28,9 @@ $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 $rng.GetBytes($keyBytes)
 $rng.Dispose()
 dotnet user-secrets set 'Jwt:SigningKey' ([Convert]::ToBase64String($keyBytes)) --project backend
-dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=.\SQLEXPRESS;Database=GrabPlatformDB;Trusted_Connection=True;TrustServerCertificate=True' --project backend
+dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=DESKTOP-DCDNJIN\MSSQLSERVER01;Database=GrabPlatformDB;Trusted_Connection=True;TrustServerCertificate=True' --project backend
 ```
-For **this computer's installed instance**, use instead:
-```powershell
-dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=localhost;Database=GrabPlatformDB;Trusted_Connection=True;TrustServerCertificate=True' --project backend
-```
+On another computer, change the `Server` value to the SQL Server instance shown in that computer's SSMS connection.
 `UserSecretsId` is already initialized in the csproj. Changing the signing key invalidates existing tokens. User Secrets are for local development; deployed environments should provide `Jwt__SigningKey` and `ConnectionStrings__DefaultConnection` through a secret store/environment. Production must use a trusted SQL certificate, HTTPS, an appropriate AllowedHosts value, and explicit frontend CORS origins.
 
 Apply the **committed** initial migration (creates the database if absent):
@@ -51,7 +48,9 @@ Run API:
 ```powershell
 dotnet run --project backend --launch-profile http
 ```
-Open `http://localhost:5000/swagger`. `/health` checks process liveness only.
+Open `http://localhost:5000/swagger`. During development, opening `http://localhost:5000` redirects to Swagger. The customer website runs separately at `http://localhost:3000`. Keep the API terminal running; closing it stops the backend. `/health` checks process liveness only.
+
+Run only one backend instance at a time. Stop the existing API with **Ctrl+C in its terminal** before running `dotnet run` again. An `MSB3021`/`MSB3027` error saying `Grab.Api.exe` is locked by `Grab.Api` means another copy is still running; it is not a database migration error. If that terminal was closed while the process stayed alive, stop the specific `Grab.Api` process for this project in Task Manager, then run the command again.
 
 In another terminal, run the existing frontend:
 ```powershell
@@ -60,19 +59,43 @@ Copy-Item .env.example .env.local
 npm ci
 npm run dev
 ```
-Open `http://localhost:3000`. The unchanged welcome page is expected. NEXT_PUBLIC_API_URL is a public URL, never a secret.
+Open `http://localhost:3000` for the customer application. NEXT_PUBLIC_API_URL is a public URL, never a secret.
+
+## Merchant publishing
+
+The navbar's **Merchant** link opens `http://localhost:3000/merchant`. Choose **GrabRide** to register using only name, phone number, password, motorcycle license plate and location. The name is the public rider name, and the phone is used for both sign-in and customer contact. License plates are stored privately and omitted from public feeds/storefronts. No store name, email, city, category, description, opening hours or password confirmation is requested for GrabRide. The rider profile editor also uses the shorter set of details.
+
+GrabFood/GrabExpress registration collects the business name, private owner name, public contact phone, optional business email, selling address, city, specialty, description, opening hours, sign-in phone and password. A separate phone is required if already registered as a customer. Merchant registration always assigns the Merchant role; customer registration still always assigns Customer. Merchants cannot use customer-only live ride endpoints.
+
+Apply the committed `MerchantPublishing` migration with `dotnet ef database update --project backend` on another computer. It adds Merchants, MerchantImages and MerchantListings without modifying existing accounts/bookings. This migration has been applied to this computer's selected SQL instance.
+
+The subsequent `RideMerchantDetails` migration adds a nullable `MotorcycleLicensePlate` column without altering existing records. It has also been applied here. New GrabRide registrations and profile saves require a 2–30 character motorcycle plate; existing accounts can add it when editing their profile.
+
+Merchant profiles, photos and listings persist in SQL Server. Photos accept JPG/PNG/WebP up to 2 MB, with content types inferred from file signatures. Ownership is checked on profile/listing updates and image attachment. The dashboard supports creating/editing listings, drafts, publishing and selecting homepage slideshow placement. Public feeds and business pages include published listings only; private owner/sign-in/password information is omitted. Uploaded image URLs are public, including draft images, so photos should be suitable for public viewing. Limits: 100 listings and 200 uploaded images per merchant, 24 offers per public feed page, and the 12 latest updated featured listings in the homepage slideshow.
+
+Published offers appear in the matching customer service section and `/partners/{id}`; selected offers also populate `GET /api/banners`. Customers contact merchants directly. Merchant listings do not enter the existing local food cart or assign live ride/Express bookings. Merchant role does not grant Driver/Admin permissions. See [API contracts](API_DOCUMENTATION.md#merchant-profiles-and-publishing).
+
+## Customer phone sign-in
+
+Both customer sign-in and account creation require only a phone number and password. Email and full name are not requested. Passwords remain 12–128 characters and are hashed; sign-out clears the browser tab session in one click.
+
+The navigation greeting uses the saved profile name on desktop and mobile, falling back to the phone number for accounts with no personal name. An optional name can be edited under **Profile → Settings → Name → Save**. `PATCH /api/auth/me` persists the name to SQL Server and updates the browser session; the greeting updates to the saved name immediately. No additional database migration is needed for profile names.
+
+Cambodian numbers can be entered as `012345678`, `12345678`, or `+85512345678`; the server stores a canonical unique number. Explicit international numbers are accepted with a country code. The `PhoneNumberAuthentication` migration preserves existing account IDs, names, password hashes and relationships, normalizes phone numbers and adds a unique phone index. It stops and rolls back if legacy phones are invalid or collide. The legacy Email column remains nullable so existing email values are preserved; it is no longer used to sign in or returned in user JSON.
+
+Apply the committed migration with `dotnet ef database update --project backend` before running the updated API. This update has already been applied on this computer's selected `DESKTOP-DCDNJIN\MSSQLSERVER01` instance.
 
 ## Provision the first Admin and a Driver
 
-Before starting the API, choose initial admin credentials through local prompts:
+Authentication uses a phone number and password. Before starting the API, choose initial admin credentials through local prompts:
 ```powershell
-dotnet user-secrets set 'Bootstrap:Email' (Read-Host 'Admin email') --project backend
+dotnet user-secrets set 'Bootstrap:PhoneNumber' (Read-Host 'Admin phone number') --project backend
 $adminPassword = [System.Net.NetworkCredential]::new('', (Read-Host 'Admin password (12+ chars)' -AsSecureString)).Password
 dotnet user-secrets set 'Bootstrap:Password' $adminPassword --project backend
 Remove-Variable adminPassword
 dotnet run --project backend --launch-profile http -- --bootstrap-admin
 dotnet user-secrets remove 'Bootstrap:Password' --project backend
-dotnet user-secrets remove 'Bootstrap:Email' --project backend
+dotnet user-secrets remove 'Bootstrap:PhoneNumber' --project backend
 ```
 Bootstrap creates a new Admin and exits. It refuses to run if any Admin already exists. It does not promote an existing customer. Public registration always assigns Customer; a supplied role cannot elevate privileges.
 
@@ -88,15 +111,15 @@ Postman uses Authorization → Bearer Token. See API_DOCUMENTATION.md for exact 
 
 ## Frontend integration strategy
 
-Create one client instance in a future client-side provider/component using `createApiClient()` from `@/lib/api`. Keep that instance across renders (for example, useState initializer). Do **not** share an authenticated client as a server-side global between users. Login/register establish an in-memory session; every request uses the Authorization Bearer header. The token is never written to localStorage, sessionStorage, URLs, or cookies. Reload requires login; logout clears memory. A 401 clears the token. This avoids persistent browser token storage and ambient-cookie CSRF. It does not remove the need to prevent XSS. There is no refresh-token flow or remote logout revocation.
+The frontend already creates one `createApiClient()` inside `AuthProvider`. Login/register send only `phoneNumber` and `password` as JSON and establish a bearer session; the provider persists that session in sessionStorage so refresh keeps the login, while closing the tab ends it. Logout, expiry and a 401 clear both the client and displayed user. Do not share an authenticated client as a server-side global. Session storage is a demo trade-off; production session hardening is separate work. There is no refresh-token flow or remote logout revocation.
 
-Methods throw ApiError with status and validation fields; network/abort failures retain native fetch errors. Paged methods return [] when empty. Future components should set loading before await, display success/empty/error states, and clear loading in finally; they are intentionally not added to the existing UI.
+The client throws ApiError with status and validation details, aborts requests after a timeout, and checks a readable `/health` response before selecting the live ride service. Frontend Food/Express/wallet data is still local. See [current API mapping](FRONTEND_ANALYSIS.md) and [implementation plan](IMPLEMENTATION_PLAN.md).
 
 ## Tests
 
 Tests require a real SQL Server reachable with Windows Authentication and permission to create/drop isolated test databases:
 ```powershell
-$env:GRAB_TEST_SQL_SERVER = 'localhost' # or '.\SQLEXPRESS'
+$env:GRAB_TEST_SQL_SERVER = 'DESKTOP-DCDNJIN\MSSQLSERVER01'
 dotnet test tests/Grab.Api.Tests --nologo
 cd frontend
 npm test
@@ -107,7 +130,11 @@ Each API test creates/migrates a unique GrabPlatformTest_UUID database, exercise
 
 ## SSMS inspection
 
-Connect using Database Engine → `localhost` on this computer (or `.\SQLEXPRESS` on Express) → Windows Authentication; trust the local server certificate if prompted. Refresh Databases → GrabPlatformDB → Tables. Inspect dbo.Users, Drivers, Rides, Payments, Reviews and __EFMigrationsHistory. Do not publish PasswordHash values. Use Select Top 1000 Rows on Rides/Payments to show persisted bookings and simulated transactions.
+Connect using **Database Engine → Server name: `DESKTOP-DCDNJIN\MSSQLSERVER01` → Windows Authentication**. Refresh **Databases → GrabPlatformDB → Tables**. The same instance can also be reached as `localhost\MSSQLSERVER01`.
+
+Inspect dbo.Users, Drivers, Rides, Payments, Reviews and __EFMigrationsHistory. Do not publish PasswordHash values. Use Select Top 1000 Rows on Rides/Payments to show persisted bookings and simulated transactions.
+
+On 16 November 2026, the project connection was switched from the default local SQL instance to this named instance at the user's request. The previous database had no application records. The existing initial EF migration creates the schema on the selected instance; the old database remains on the default instance. Application accounts and bookings created from now on are stored in the selected named instance.
 
 ## Completion and limits
 
@@ -115,6 +142,6 @@ Implemented: secure customer authentication, admin-only driver onboarding, scope
 
 Mocked deliberately: configurable flat USD development fare (default $5); no real route distance, geocoding, ETA, or transport pricing. Payments immediately create SimulatedSucceeded records; no money moves and no card details are collected.
 
-Not implemented: frontend forms/pages (explicit user preference), real payment/maps providers, live driver GPS updates, password reset/email verification, refresh tokens/revocation, production deployment. Existing UI offers no domain functionality to preserve or connect beyond the supplied API functions.
+Not implemented in the backend: Food/Express order fulfillment/deliveries, addresses, favourites, wallet and store reviews. The merchant catalogue and homepage banners now use SQL-backed publishing; the original demo Food catalogue/cart and Express booking data remain local. Also pending: durable ride reviewed state, vehicle-based pricing, real routing/payment providers, live GPS updates, password reset/email verification, refresh tokens/revocation, and production deployment. The existing frontend does contain customer forms and pages; see the updated frontend analysis.
 
 Implementation references: [Microsoft JWT validation](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication?view=aspnetcore-10.0), [EF concurrency](https://learn.microsoft.com/en-us/ef/core/saving/concurrency), [EF migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying).
