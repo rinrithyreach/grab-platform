@@ -6,6 +6,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import StoreCard from "@/components/StoreCard";
 import BannerCarousel from "@/components/BannerCarousel";
 import GlobalSearch from "@/components/GlobalSearch";
+import { useFavorites } from "@/lib/favorites";
 
 const SERVICES: { href: string; emoji: string; title: MessageKey; text: MessageKey }[] = [
   { href: "/ride", emoji: "🚗", title: "nav.ride", text: "home.rideText" },
@@ -23,6 +24,8 @@ const FEATURED = STORES.filter((s) => s.kind === "food").sort((a, b) => b.rating
 
 export default function Home() {
   const { t } = useT();
+  const favIds = useFavorites();
+  const favourites = favIds.flatMap((id) => STORES.filter((s) => s.id === id));
 
   return (
     <>
@@ -47,6 +50,16 @@ export default function Home() {
 
       {/* Search everything */}
       <GlobalSearch />
+
+      {/* Favourites (only when the user has hearted a store) */}
+      {favourites.length > 0 && (
+        <section className="mx-auto mt-12 max-w-6xl px-4">
+          <h2 className="text-2xl font-bold">❤️ {t("fav.title")}</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {favourites.map((s) => <StoreCard key={s.id} store={s} />)}
+          </div>
+        </section>
+      )}
 
       {/* Featured */}
       <section className="mx-auto mt-16 max-w-6xl px-4">

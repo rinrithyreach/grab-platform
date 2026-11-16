@@ -6,10 +6,13 @@ import { useState } from "react";
 import { money } from "@/lib/brand";
 import { getItem } from "@/lib/catalog";
 import {
-  applyPromoCode, cartDetails, clearCart, isValidAddress, placeOrder, removePromoCode, setQty, useShop,
-  type PaymentMethod,
+  applyPromoCode, cartDetails, clearCart, isValidAddress, placeOrder, removePromoCode, setQty, setTip, useShop,
+  TIP_OPTIONS, type PaymentMethod,
 } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { useNow } from "@/lib/clock";
+import { formatTime, isOpenAt } from "@/lib/hours";
+import { canPayWithWallet, chosenOptions } from "@/lib/pricing";
 import { useProfile } from "@/lib/profile";
 import { toast } from "@/lib/toast";
 import { useWallet } from "@/lib/wallet";
@@ -24,14 +27,18 @@ const ADDRESS_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
 
 export default function CartPage() {
   const router = useRouter();
-  const { t, pick } = useT();
+  const { t, pick, dateLocale } = useT();
   const { cart, orders } = useShop();
   const { addresses } = useProfile();
   const { balance } = useWallet();
   const {
     store, lines, subtotal, discount, normalFee, deliveryFee, total, deal, amountToUnlock,
-    promoCode, codeDiscount, codeValid,
+    promoCode, codeDiscount, codeValid, tip,
   } = cartDetails(cart, orders);
+  const now = useNow();
+  // The clock is 0 until the page is in the browser; treat the store as open until then.
+  const storeClosed = !!store && now > 0 && !isOpenAt(store.hours, new Date(now));
+  const walletShort = !canPayWithWallet(balance, total);
   const promoLabel = store?.promo ? pick(store.promo, store.km?.promo) : "";
   // For "buy X get Y": how many more of one item until the next free one.
   const buyGetGap = deal?.type === "buyGetFree" && !discount
@@ -43,7 +50,6 @@ export default function CartPage() {
   const [addressError, setAddressError] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
-  const [payError, setPayError] = useState("");
 
   if (!store || !lines.length) {
     return (
@@ -82,7 +88,7 @@ export default function CartPage() {
     }
     const result = placeOrder(address.trim(), payment, note.trim());
     if ("error" in result) {
-      if (result.error === "insufficient") setPayError(t("wallet.insufficient", { balance: money(balance) }));
+      if (result.error === "insufficient") toast(t("wallet.insufficient", { balance: money(balance) }), "error");
       return;
     }
     router.push(`/orders?placed=${result.order.id}`);
@@ -101,20 +107,25 @@ export default function CartPage() {
         </div>
 
         <ul className="card mt-4 divide-y divide-border">
-          {lines.map((l) => (
-            <li key={l.itemId} className="flex items-center gap-3 p-4">
+          {lines.map((l) => {
+            const item = getItem(store.id, l.itemId);
+            const optionText = item ? chosenOptions(item, l.optionIds).map((o) => pick(o.choice.name, o.choice.km)).join(" · ") : "";
+            return (
+            <li key={l.key} className="flex items-center gap-3 p-4">
               <div className="min-w-0 flex-1">
-                <p className="font-medium">{pick(l.name, getItem(store.id, l.itemId)?.km?.name)}</p>
+                <p className="font-medium">{pick(l.name, item?.km?.name)}</p>
+                {optionText && <p className="text-sm text-muted">{optionText}</p>}
                 <p className="text-sm text-muted">{t("cart.each", { price: money(l.price) })}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <button onClick={() => setQty(l.itemId, l.qty - 1)} aria-label={t("store.decrease")} className="grid h-8 w-8 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">−</button>
+                <button onClick={() => setQty(l.key, l.qty - 1)} aria-label={t("store.decrease")} className="grid h-8 w-8 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">−</button>
                 <span className="w-5 text-center font-semibold">{l.qty}</span>
-                <button onClick={() => setQty(l.itemId, l.qty + 1)} aria-label={t("store.increase")} className="grid h-8 w-8 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">+</button>
+                <button onClick={() => setQty(l.key, l.qty + 1)} aria-label={t("store.increase")} className="grid h-8 w-8 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">+</button>
               </div>
               <p className="w-14 shrink-0 text-right font-semibold">{money(l.price * l.qty)}</p>
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         {/* Promo code */}
@@ -189,25 +200,48 @@ export default function CartPage() {
           <div className="grid grid-cols-3 gap-2">
             {PAYMENTS.map((p) => (
               <button
-                type="button" key={p.value} onClick={() => { setPayment(p.value); setPayError(""); }} aria-pressed={payment === p.value}
+                type="button" key={p.value} onClick={() => setPayment(p.value)} aria-pressed={payment === p.value}
                 className={`rounded-xl border px-2 py-2.5 text-sm font-medium ${payment === p.value ? "border-brand bg-brand-soft text-brand" : "border-border"}`}
               >
                 <span aria-hidden>{p.icon}</span> {t(p.label)}
               </button>
             ))}
           </div>
+          {/* Checked live against the current total, so it updates as soon as the cart or balance changes. */}
           {payment === "Wallet" && (
-            <p className={`mt-1.5 text-sm ${balance < total ? "text-red-600 dark:text-red-400" : "text-muted"}`}>
-              {t("wallet.balanceLine", { balance: money(balance) })}{" "}
-              {balance < total && <Link href="/wallet" className="font-semibold underline">{t("wallet.topUp")}</Link>}
-            </p>
+            walletShort ? (
+              <p role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">
+                {t("wallet.insufficient", { balance: money(balance) })}{" "}
+                <Link href="/wallet" className="font-semibold underline">{t("wallet.topUp")}</Link>
+              </p>
+            ) : (
+              <p className="mt-1.5 text-sm text-muted">{t("wallet.balanceLine", { balance: money(balance) })}</p>
+            )
           )}
-          {payError && <p role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">{payError}</p>}
         </div>
         <div>
           <label className="label" htmlFor="note">{t("cart.note")}</label>
           <input id="note" className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("cart.notePh")} />
         </div>
+        <div>
+          <span className="label">{t("cart.tip")}</span>
+          <div className="grid grid-cols-4 gap-2" role="group" aria-label={t("cart.tip")}>
+            {TIP_OPTIONS.map((amount) => (
+              <button
+                type="button" key={amount} onClick={() => setTip(amount)} aria-pressed={tip === amount}
+                className={`rounded-xl border py-2 text-sm font-medium ${tip === amount ? "border-brand bg-brand-soft text-brand" : "border-border"}`}
+              >
+                {amount === 0 ? t("cart.noTip") : money(amount)}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-muted">{t("cart.tipNote")}</p>
+        </div>
+        {storeClosed && store.hours && (
+          <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            {t("hours.closedCheckout", { store: store.name, time: formatTime(store.hours.open, dateLocale) })}
+          </p>
+        )}
         {amountToUnlock > 0 && (
           <p className="rounded-xl bg-accent/15 px-3 py-2 text-sm">{t("cart.promoUnlock", { amount: money(amountToUnlock), promo: promoLabel })}</p>
         )}
@@ -234,9 +268,12 @@ export default function CartPage() {
               ) : money(deliveryFee)}
             </dd>
           </div>
+          {tip > 0 && (
+            <div className="flex justify-between"><dt className="text-muted">{t("cart.tipLine")}</dt><dd>{money(tip)}</dd></div>
+          )}
           <div className="flex justify-between pt-1 text-base font-bold"><dt>{t("cart.total")}</dt><dd>{money(total)}</dd></div>
         </dl>
-        <button type="submit" className="btn-primary w-full">{t("cart.placeOrder", { total: money(total) })}</button>
+        <button type="submit" className="btn-primary w-full" disabled={storeClosed || (payment === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
         <p className="text-center text-xs text-muted">{t("cart.demo")}</p>
       </form>
     </div>

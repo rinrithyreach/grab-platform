@@ -28,7 +28,7 @@
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans), var(--font-khmer), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 [data-theme="dark"] {
@@ -66,6 +66,23 @@ body {
 /* Ride map: dim the bright map tiles in dark mode */
 [data-theme="dark"] .ride-map .leaflet-tile {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+}
+
+/* Delivery tracking: the moving rider on the map */
+.rider-icon {
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  line-height: 1;
+  background: none;
+  border: none;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.35));
+  transition: transform 1s linear;
+}
+
+/* Item options pop-up */
+.item-dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
 }
 
 /* Khmer script needs more line height to fit its stacked vowels. */

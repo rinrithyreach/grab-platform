@@ -3,7 +3,17 @@
  * The backend has no food/mart endpoints yet; when it does, replace these
  * constants with calls in lib/api.ts and keep the same shapes.
  */
+import type { Hours } from "./hours";
+
 export type StoreKind = "food" | "mart";
+
+/** A choice on a dish, e.g. "Large (+$1.00)". */
+export interface OptionChoice { id: string; name: string; km?: string; price: number }
+/**
+ * A group of choices: "single" = pick one (radio), "multi" = pick any (checkboxes).
+ * Required single groups start on their first choice.
+ */
+export interface OptionGroup { id: string; name: string; km?: string; type: "single" | "multi"; required?: boolean; choices: OptionChoice[] }
 
 export interface MenuItem {
   id: string;
@@ -12,6 +22,8 @@ export interface MenuItem {
   price: number;
   emoji: string;
   popular?: boolean;
+  /** Optional choices shown before adding to cart (size, spice, extras...). */
+  options?: OptionGroup[];
   /** Khmer translation (optional — falls back to English). */
   km?: { name: string; description: string };
 }
@@ -41,6 +53,10 @@ export interface Store {
   deal?: Deal;
   /** Optional cover photo; stores without one show their emoji. */
   photo?: Photo;
+  /** Opening hours (local time); missing = always open. */
+  hours?: Hours;
+  /** Where the store is (for the delivery map). */
+  location?: { lat: number; lng: number };
   /** Khmer text for cuisine/promo; store names stay as brand names. */
   km?: { cuisine: string; promo?: string };
   items: MenuItem[];
@@ -147,3 +163,114 @@ export function getStore(id: string) {
 export function getItem(storeId: string, itemId: string) {
   return getStore(storeId)?.items.find((i) => i.id === itemId);
 }
+
+// ---------- Item options (size, spice, extras) ----------
+// Kept separate so the menu above stays easy to read. Keys are "storeId/itemId".
+
+const SPICE: OptionGroup = {
+  id: "spice", name: "Spice level", km: "កម្រិតហឹរ", type: "single", required: true,
+  choices: [
+    { id: "none", name: "Not spicy", km: "មិនហឹរ", price: 0 },
+    { id: "mild", name: "Mild", km: "ហឹរតិច", price: 0 },
+    { id: "hot", name: "Hot 🌶️", km: "ហឹរខ្លាំង 🌶️", price: 0 },
+  ],
+};
+const EGG = { id: "egg", name: "Fried egg", km: "ពងមាន់ចៀន", price: 0.5 };
+
+const ITEM_OPTIONS: Record<string, OptionGroup[]> = {
+  "golden-noodle/beef-noodle": [
+    { id: "size", name: "Size", km: "ទំហំ", type: "single", required: true, choices: [
+      { id: "regular", name: "Regular", km: "ធម្មតា", price: 0 },
+      { id: "large", name: "Large", km: "ធំ", price: 1 },
+    ] },
+    SPICE,
+    { id: "extras", name: "Extras", km: "បន្ថែម", type: "multi", choices: [
+      { id: "beef", name: "Extra beef", km: "សាច់គោបន្ថែម", price: 1.5 },
+      { id: "egg", name: "Soft-boiled egg", km: "ពងមាន់ស្ងោរ", price: 0.5 },
+    ] },
+  ],
+  "golden-noodle/fried-noodle": [SPICE, { id: "extras", name: "Extras", km: "បន្ថែម", type: "multi", choices: [EGG] }],
+  "burger-yard/classic": [
+    { id: "extras", name: "Extras", km: "បន្ថែម", type: "multi", choices: [
+      { id: "cheese", name: "Extra cheese", km: "ឈីសបន្ថែម", price: 0.75 },
+      { id: "bacon", name: "Bacon", km: "សាច់ជ្រូកបីជាន់ក្រៀម", price: 1 },
+      { id: "nopickle", name: "No pickles", km: "មិនដាក់ត្រសក់ជ្រក់", price: 0 },
+    ] },
+  ],
+  "rice-bowl/pork-rice": [
+    { id: "extras", name: "Extras", km: "បន្ថែម", type: "multi", choices: [
+      EGG,
+      { id: "pork", name: "Extra pork", km: "សាច់ជ្រូកបន្ថែម", price: 1 },
+    ] },
+  ],
+  "rice-bowl/fried-rice": [SPICE],
+  "pizza-lab/margherita": [
+    { id: "size", name: "Size", km: "ទំហំ", type: "single", required: true, choices: [
+      { id: "10", name: "10 inch", km: "១០ អ៊ីញ", price: 0 },
+      { id: "12", name: "12 inch", km: "១២ អ៊ីញ", price: 2 },
+      { id: "14", name: "14 inch", km: "១៤ អ៊ីញ", price: 4 },
+    ] },
+  ],
+  "pizza-lab/pepperoni": [
+    { id: "size", name: "Size", km: "ទំហំ", type: "single", required: true, choices: [
+      { id: "10", name: "10 inch", km: "១០ អ៊ីញ", price: 0 },
+      { id: "12", name: "12 inch", km: "១២ អ៊ីញ", price: 2 },
+      { id: "14", name: "14 inch", km: "១៤ អ៊ីញ", price: 4 },
+    ] },
+  ],
+  "sweet-spot/bubble-tea": [
+    { id: "size", name: "Size", km: "ទំហំ", type: "single", required: true, choices: [
+      { id: "m", name: "Medium", km: "មធ្យម", price: 0 },
+      { id: "l", name: "Large", km: "ធំ", price: 0.5 },
+    ] },
+    { id: "sugar", name: "Sugar", km: "ស្ករ", type: "single", required: true, choices: [
+      { id: "100", name: "100% sugar", km: "ស្ករ ១០០%", price: 0 },
+      { id: "50", name: "50% sugar", km: "ស្ករ ៥០%", price: 0 },
+      { id: "0", name: "No sugar", km: "គ្មានស្ករ", price: 0 },
+    ] },
+    { id: "toppings", name: "Toppings", km: "គ្រឿងបន្ថែម", type: "multi", choices: [
+      { id: "pearls", name: "Extra pearls", km: "គ្រាប់ត្ងៃបន្ថែម", price: 0.3 },
+      { id: "pudding", name: "Pudding", km: "ពុឌីង", price: 0.5 },
+    ] },
+  ],
+  "green-bowl/salad": [
+    { id: "extras", name: "Extras", km: "បន្ថែម", type: "multi", choices: [
+      { id: "chicken", name: "Extra chicken", km: "សាច់មាន់បន្ថែម", price: 1.5 },
+      { id: "egg", name: "Boiled egg", km: "ពងមាន់ស្ងោរ", price: 0.5 },
+    ] },
+  ],
+};
+
+for (const store of STORES) {
+  for (const item of store.items) {
+    const options = ITEM_OPTIONS[`${store.id}/${item.id}`];
+    if (options) item.options = options;
+  }
+}
+
+// ---------- Opening hours ----------
+// Rice & Co. is lunch-only on purpose, so the "Closed" state can be seen in a demo.
+const HOURS: Record<string, Hours> = {
+  "golden-noodle": { open: "06:00", close: "21:00" },
+  "burger-yard": { open: "10:00", close: "23:00" },
+  "rice-bowl": { open: "06:00", close: "14:00" },
+  "pizza-lab": { open: "11:00", close: "23:30" },
+  "sweet-spot": { open: "09:00", close: "22:00" },
+  "green-bowl": { open: "07:30", close: "20:00" },
+  "daily-mart": { open: "00:00", close: "24:00" },
+  "home-plus": { open: "08:00", close: "21:00" },
+};
+for (const store of STORES) store.hours = HOURS[store.id];
+
+// ---------- Store locations (demo, around central Phnom Penh) ----------
+const LOCATIONS: Record<string, { lat: number; lng: number }> = {
+  "golden-noodle": { lat: 11.5681, lng: 104.9189 },
+  "burger-yard": { lat: 11.5552, lng: 104.9248 },
+  "rice-bowl": { lat: 11.5449, lng: 104.9165 },
+  "pizza-lab": { lat: 11.5603, lng: 104.9302 },
+  "sweet-spot": { lat: 11.5498, lng: 104.9281 },
+  "green-bowl": { lat: 11.5627, lng: 104.9225 },
+  "daily-mart": { lat: 11.5574, lng: 104.9137 },
+  "home-plus": { lat: 11.5488, lng: 104.9339 },
+};
+for (const store of STORES) store.location = LOCATIONS[store.id];

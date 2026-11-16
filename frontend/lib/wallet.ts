@@ -6,6 +6,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
+import { canPayWithWallet } from "./pricing";
 
 export interface WalletTxn {
   id: string;
@@ -41,7 +42,7 @@ export function topUp(amount: number) {
 
 /** Returns false (and charges nothing) if the balance is too low. */
 export function payFromWallet(amount: number, description: string) {
-  if (store.get().balance < amount) return false;
+  if (!canPayWithWallet(store.get().balance, amount)) return false;
   add("payment", -amount, description);
   return true;
 }

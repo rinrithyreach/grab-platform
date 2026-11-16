@@ -41,7 +41,7 @@ export default function CreditsPage() {
       <section className="card mt-4 p-5 text-sm">
         <h2 className="text-lg font-bold"><T k="credits.other" /></h2>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
-          <li>Map: <a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer" className="underline">Leaflet</a> · map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> contributors</li>
+          <li>Map: <a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer" className="underline">Leaflet</a> · map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> contributors · backup map tiles © <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer" className="underline">CARTO</a></li>
           <li>Social media icons: <a href="https://simpleicons.org" target="_blank" rel="noopener noreferrer" className="underline">Simple Icons</a> (CC0)</li>
           <li>Fonts: Geist and Noto Sans Khmer (SIL Open Font License), via Google Fonts</li>
         </ul>

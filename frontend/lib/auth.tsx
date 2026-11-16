@@ -8,10 +8,11 @@
  * and closing the tab logs you out. (A demo trade-off: any script on the page could
  * read sessionStorage, so a real app would use secure cookies instead.)
  *
- * It also checks once whether the backend is reachable; the ride pages use
- * `online === false` to switch to demo mode.
+ * Pages that need the backend (the ride pages) call `checkOnline()`; `online === false`
+ * then switches them to demo mode. Other pages never contact the backend unless you're
+ * logged in, so they don't log connection errors when it isn't running.
  */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError, createApiClient, type AuthResponse, type RegisterRequest, type User } from "./api";
 
 type Api = ReturnType<typeof createApiClient>;
@@ -20,8 +21,10 @@ interface AuthValue {
   user: User | null;
   /** false until a saved login (if any) has been restored; avoids flashing "please log in" */
   ready: boolean;
-  /** null while checking, then whether the backend answered */
+  /** null until checked, then whether the backend answered */
   online: boolean | null;
+  /** Ask whether the backend is up (only checks once per page load). */
+  checkOnline: () => void;
   login: (email: string, password: string) => Promise<User>;
   register: (body: RegisterRequest) => Promise<User>;
   logout: () => void;
@@ -47,29 +50,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
 
-  // On first load: restore a saved login and check whether the backend is up.
+  // On first load: restore a saved login. The backend is only contacted if there is one.
   useEffect(() => {
     let cancelled = false;
     const saved = readSession();
     const restored = saved ? api.restoreSession(saved) : false;
     if (saved && !restored) saveSession(null); // expired
 
-    api.isOnline().then(async (isUp) => {
-      if (cancelled) return;
-      setOnline(isUp);
-      if (restored && saved) {
-        if (!isUp) setUser(saved.user); // can't verify offline; trust the saved login for display
-        else {
-          try { setUser(await api.me()); }
-          catch (err) {
-            if (err instanceof ApiError && err.status === 401) { api.logout(); saveSession(null); }
-            else setUser(saved.user);
-          }
-        }
-      }
-      if (!cancelled) setReady(true);
-    });
+    const restore = restored && saved
+      ? api.me().then(
+          (u) => { if (!cancelled) { setUser(u); setOnline(true); } },
+          (err) => {
+            if (cancelled) return;
+            if (err instanceof ApiError && err.status === 401) { api.logout(); saveSession(null); setOnline(true); }
+            else { setUser(saved.user); if (err instanceof TypeError) setOnline(false); } // offline: trust the saved login for display
+          })
+      : Promise.resolve();
+    restore.then(() => { if (!cancelled) setReady(true); });
     return () => { cancelled = true; };
+  }, [api]);
+
+  // Checked at most once, and only when a page asks (see useRideService).
+  const checking = useRef(false);
+  const checkOnline = useCallback(() => {
+    if (checking.current) return;
+    checking.current = true;
+    api.isOnline().then(setOnline);
   }, [api]);
 
   const value = useMemo<AuthValue>(() => ({
@@ -77,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     ready,
     online,
+    checkOnline,
     login: async (email, password) => {
       const u = await api.login(email, password);
       saveSession(api.getSession());
@@ -90,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return u;
     },
     logout: () => { api.logout(); saveSession(null); setUser(null); },
-  }), [api, user, ready, online]);
+  }), [api, user, ready, online, checkOnline]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

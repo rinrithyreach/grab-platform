@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     agentFeedback: true,
   },
   cacheComponents: true,
+  // Serve photos as AVIF (smallest) or WebP when the browser supports them.
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {

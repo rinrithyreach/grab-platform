@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans_Khmer } from "next/font/google";
+import { Geist, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
@@ -14,20 +14,36 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 // Geist has no Khmer letters, so Khmer text falls back to this font.
+// Not preloaded: most visitors read English, and the browser fetches it as soon as Khmer text appears.
 const notoKhmer = Noto_Sans_Khmer({
   variable: "--font-khmer",
   subsets: ["khmer"],
+  preload: false,
 });
 
+// The site's public address, used to build full links in link previews.
+// Set NEXT_PUBLIC_SITE_URL when the website is hosted somewhere; defaults to local development.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: `${BRAND.name} — Rides, Food & Mart`, template: `%s · ${BRAND.name}` },
   description: BRAND.tagline,
+  // Link previews on Telegram, Facebook, X... (the image comes from app/opengraph-image.tsx)
+  openGraph: {
+    type: "website",
+    siteName: BRAND.name,
+    title: `${BRAND.name} — Rides, Food & Mart`,
+    description: BRAND.tagline,
+    locale: "en_US",
+    alternateLocale: ["km_KH"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${BRAND.name} — Rides, Food & Mart`,
+    description: BRAND.tagline,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -37,7 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${notoKhmer.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${notoKhmer.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <SettingsScript />

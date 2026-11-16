@@ -72,7 +72,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     },
     /** True if the backend answers at all (used to switch the ride pages to demo mode). */
     isOnline: async () => {
-      try { await fetch(`${baseUrl.replace(/\/$/, "")}/health`, { cache: "no-store", credentials: "omit", mode: "no-cors" }); return true; }
+      try { await fetch(`${baseUrl.replace(/\/$/, "")}/health`, { cache: "no-store", credentials: "omit", mode: "no-cors", signal: AbortSignal.timeout(4000) }); return true; }
       catch { return false; }
     },
     me: (signal?: AbortSignal) => request<User>("/api/auth/me", "GET", undefined, signal),

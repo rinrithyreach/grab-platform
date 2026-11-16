@@ -52,6 +52,7 @@ export default function MyRidesPage() {
   const [paid, setPaid] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [reviewing, setReviewing] = useState<string | null>(null);
+  const [tab, setTab] = useState<"active" | "history">("active");
   const canLoad = !!service && ready && (service.mode === "demo" || !!user);
 
   // Backend place names are English; show the Khmer name when we know the place.
@@ -96,6 +97,27 @@ export default function MyRidesPage() {
         <div className="mt-6 space-y-4">
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
           {rides === null && !error && <RideSkeletons />}
+          {rides && rides.length > 0 && (
+            <div role="tablist" aria-label={t("rides.title")} className="flex gap-1 rounded-xl bg-surface p-1 shadow-sm ring-1 ring-border">
+              {(["active", "history"] as const).map((k) => {
+                const n = rides.filter((r) => ACTIVE.includes(r.status) === (k === "active")).length;
+                return (
+                  <button
+                    key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+                    className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === k ? "bg-brand text-white dark:text-background" : "text-muted hover:text-foreground"}`}
+                  >
+                    {t(k === "active" ? "rides.tabActive" : "rides.tabHistory")} ({n})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {rides && rides.length > 0 && !rides.some((r) => ACTIVE.includes(r.status) === (tab === "active")) && (
+            <div className="card p-8 text-center text-muted">
+              <p>{t(tab === "active" ? "rides.noActive" : "rides.noHistory")}</p>
+              {tab === "active" && <Link href="/ride" className="btn-primary mt-4">{t("ride.title")}</Link>}
+            </div>
+          )}
           {rides?.length === 0 && (
             <div className="card p-10 text-center">
               <p className="text-5xl" aria-hidden>🚗</p>
@@ -104,7 +126,7 @@ export default function MyRidesPage() {
             </div>
           )}
 
-          {rides?.map((r) => (
+          {rides?.filter((r) => ACTIVE.includes(r.status) === (tab === "active")).map((r) => (
             <article key={r.id} className="card p-5">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">

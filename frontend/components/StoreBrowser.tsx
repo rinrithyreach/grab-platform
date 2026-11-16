@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { STORES, type StoreKind } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
+import { matchesSearch } from "@/lib/search";
 import StoreCard from "./StoreCard";
 import Select from "./Select";
 
@@ -16,11 +17,11 @@ export default function StoreBrowser({ kind }: { kind: StoreKind }) {
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState<Sort>("recommended");
 
-  const q = query.trim().toLowerCase();
+  // Search the store name, its category (English + Khmer) and every item on its menu.
   const results = stores.filter((s) =>
     (category === "All" || s.cuisine === category) &&
-    (!q || [s.name, s.km?.cuisine ?? "", ...s.items.flatMap((i) => [i.name, i.km?.name ?? ""])]
-      .some((text) => text.toLowerCase().includes(q))),
+    (matchesSearch(query, s.name, s.cuisine, s.km?.cuisine) ||
+      s.items.some((i) => matchesSearch(query, i.name, i.description, i.km?.name, i.km?.description))),
   );
   if (sort === "rating") results.sort((a, b) => b.rating - a.rating);
   if (sort === "fastest") results.sort((a, b) => a.etaMinutes - b.etaMinutes);
@@ -64,7 +65,7 @@ export default function StoreBrowser({ kind }: { kind: StoreKind }) {
 
       {results.length ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {results.map((s) => <StoreCard key={s.id} store={s} />)}
+          {results.map((s, i) => <StoreCard key={s.id} store={s} priority={i < 2} />)}
         </div>
       ) : (
         <p className="mt-10 text-center text-muted">{t("browse.noMatches")}</p>

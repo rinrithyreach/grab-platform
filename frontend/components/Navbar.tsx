@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
 import { cartDetails, useShop } from "@/lib/cart";
@@ -28,14 +28,19 @@ export default function Navbar() {
   const { cart } = useShop();
   const { count } = cartDetails(cart);
   const [open, setOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const close = () => setOpen(false);
 
-  // While the drawer is open: Escape closes it and the page behind can't scroll.
+  // While the drawer is open: Escape closes it, the page behind can't scroll, and keyboard
+  // focus moves into the drawer (then back to the ☰ button when it closes).
   useEffect(() => {
     if (!open) return;
+    closeButton.current?.focus();
+    const opener = menuButton.current;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
@@ -43,6 +48,7 @@ export default function Navbar() {
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
+      opener?.focus();
     };
   }, [open]);
 
@@ -94,6 +100,7 @@ export default function Navbar() {
               <Link href="/login" className="btn-primary ml-1 hidden h-9 px-4 text-sm sm:inline-flex">{t("nav.login")}</Link>
             )}
             <button
+              ref={menuButton}
               className="grid h-10 w-10 place-items-center rounded-full text-lg hover:bg-brand-soft lg:hidden"
               aria-label={t("nav.menu")}
               aria-expanded={open}
@@ -127,7 +134,7 @@ export default function Navbar() {
             <span className="min-w-0 truncate text-sm text-muted">
               {user ? <><span className="text-brand">●</span> {t("nav.hi", { name: user.fullName })}</> : BRAND.name}
             </span>
-            <button onClick={close} aria-label={t("nav.close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl text-accent hover:bg-brand-soft">✕</button>
+            <button ref={closeButton} onClick={close} aria-label={t("nav.close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl text-accent hover:bg-brand-soft">✕</button>
           </div>
 
           <nav className="flex-1 overflow-y-auto">

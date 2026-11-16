@@ -6,6 +6,7 @@ import { useId, useState } from "react";
 import { money } from "@/lib/brand";
 import { STORES } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
+import { matchesSearch } from "@/lib/search";
 
 const MAX_STORES = 4;
 const MAX_ITEMS = 6;
@@ -14,12 +15,11 @@ export default function GlobalSearch() {
   const { t, pick } = useT();
   const [q, setQ] = useState("");
   const resultsId = useId();
-  const query = q.trim().toLowerCase();
-  const has = (...texts: (string | undefined)[]) => texts.some((x) => x?.toLowerCase().includes(query));
+  const query = q.trim();
 
-  const stores = query ? STORES.filter((s) => has(s.name, s.cuisine, s.km?.cuisine)).slice(0, MAX_STORES) : [];
+  const stores = query ? STORES.filter((s) => matchesSearch(query, s.name, s.cuisine, s.km?.cuisine)).slice(0, MAX_STORES) : [];
   const items = query
-    ? STORES.flatMap((s) => s.items.filter((i) => has(i.name, i.km?.name)).map((i) => ({ store: s, item: i }))).slice(0, MAX_ITEMS)
+    ? STORES.flatMap((s) => s.items.filter((i) => matchesSearch(query, i.name, i.km?.name)).map((i) => ({ store: s, item: i }))).slice(0, MAX_ITEMS)
     : [];
 
   return (

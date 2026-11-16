@@ -34,7 +34,7 @@ function WelcomeSlide() {
           </h1>
           <p className="mt-4 max-w-md text-lg opacity-90">{t("brand.tagline")}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/ride" className="btn bg-white text-brand hover:bg-white/90">🚗 {t("home.bookRide")}</Link>
+            <Link href="/ride" className="btn bg-white text-teal-800 hover:bg-white/90">🚗 {t("home.bookRide")}</Link>
             <Link href="/food" className="btn border border-white/40 hover:bg-white/10">🍜 {t("home.orderFood")}</Link>
           </div>
         </div>

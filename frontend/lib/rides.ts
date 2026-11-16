@@ -6,7 +6,7 @@
  *  - "demo": used automatically when the backend can't be reached. Rides are saved in the
  *    browser and a pretend driver accepts → drives → completes the trip over about a minute.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { BookRideRequest, Payment, Ride, RideStatus } from "./api";
 import { useAuth } from "./auth";
 import { createLocalStore } from "./local-store";
@@ -116,7 +116,9 @@ function liveService(api: ReturnType<typeof useAuth>["api"]): RideService {
  * `null` while still checking whether the backend is up.
  */
 export function useRideService(): RideService | null {
-  const { api, online } = useAuth();
+  const { api, online, checkOnline } = useAuth();
+  // Ride pages are the only ones that need to know if the backend is running.
+  useEffect(() => { checkOnline(); }, [checkOnline]);
   // Memoized so pages can safely use the service in effect dependency lists.
   return useMemo(() => (online === null ? null : online ? liveService(api) : demoService), [api, online]);
 }
