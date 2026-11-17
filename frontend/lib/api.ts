@@ -43,6 +43,31 @@ export interface Review { id: string; rideId: string; driverId: string; rating: 
  * Home-page slideshow banner, returned by GET /api/banners (public, no login).
  * The backend decides how many banners there are and their order.
  */
+/**
+ * Wallet top-up through a payment provider (Bakong KHQR). NOT BUILT IN THE BACKEND YET —
+ * the website uses a demo provider until NEXT_PUBLIC_PAYMENT_PROVIDER=api (see lib/payments.ts).
+ *
+ * Contract for the backend (all need login):
+ *   POST /api/wallet/topups          body { amount, method: "bakong_khqr" }  -> TopUp (status "pending")
+ *        The backend asks Bakong for a KHQR code for this amount and returns it in `qr`.
+ *   GET  /api/wallet/topups/{id}                                             -> TopUp (latest status)
+ *        The backend checks the payment with Bakong (e.g. by the KHQR md5 hash) and, the first
+ *        time it sees "paid", credits the user's wallet. Calling it again must not credit twice.
+ *   POST /api/wallet/topups/{id}/cancel                                      -> TopUp (status "cancelled")
+ */
+export type TopUpStatus = "pending" | "paid" | "expired" | "failed" | "cancelled";
+export interface TopUp {
+  id: string;
+  amount: number;          // USD
+  currency: "USD";
+  method: "bakong_khqr";
+  qr: string;              // the KHQR text; the website draws it as a QR code
+  status: TopUpStatus;
+  createdAt: string;
+  expiresAt: string;       // the QR stops working after this
+  paidAt?: string | null;
+}
+
 export interface Banner {
   id: string;
   imageUrl: string;      // full URL of the picture; shown full-width in the home hero, so use wide images (e.g. 1920×520). Edges may be cropped on phones.
@@ -159,6 +184,9 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     simulatePayment: (rideId: string) => request<Payment>("/api/payments", "POST", { rideId }),
     myPayments: (page = 1, signal?: AbortSignal) => request<Payment[]>(`/api/payments/mine?page=${page}`, "GET", undefined, signal),
     reviewRide: (rideId: string, rating: number, comment?: string) => request<Review>("/api/reviews", "POST", { rideId, rating, comment }),
+    createTopUp: (amount: number) => request<TopUp>("/api/wallet/topups", "POST", { amount, method: "bakong_khqr" }),
+    topUpStatus: (id: string, signal?: AbortSignal) => request<TopUp>(`/api/wallet/topups/${encodeURIComponent(id)}`, "GET", undefined, signal),
+    cancelTopUp: (id: string) => request<TopUp>(`/api/wallet/topups/${encodeURIComponent(id)}/cancel`, "POST"),
     banners: async (signal?: AbortSignal) => (await request<Banner[]>("/api/banners", "GET", undefined, signal)).map(withImage),
     driverReviews: (id: string, page = 1) => request<Review[]>(`/api/drivers/${encodeURIComponent(id)}/reviews?page=${page}`),
   };

@@ -104,14 +104,17 @@ export default function ProfilePage() {
   const { user, ready, logout } = useAuth();
   const { addresses } = useProfile();
   const { orders } = useShop();
-  const { balance } = useWallet();
+  const { balance, hasWallet } = useWallet(user?.id);
   const settings = useSettings();
 
   const shortcuts: { href: string; label: MessageKey; value: string }[] = [
     { href: "/orders", label: "nav.myOrders", value: String(orders.length) },
     { href: "/rides", label: "nav.myRides", value: "→" },
     { href: "/deliveries", label: "nav.deliveries", value: "📦" },
-    { href: "/wallet", label: "wallet.name", value: money(balance) },
+    // Guests have no wallet: the shortcut asks them to log in instead of showing a balance.
+    hasWallet
+      ? { href: "/wallet", label: "wallet.name", value: money(balance) }
+      : { href: "/login", label: "wallet.name", value: `🔒 ${t("nav.login")}` },
   ];
 
   return (

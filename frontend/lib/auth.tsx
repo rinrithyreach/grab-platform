@@ -12,7 +12,7 @@
  * then switches them to demo mode. Other pages never contact the backend unless you're
  * logged in, so they don't log connection errors when it isn't running.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ApiError, createApiClient, type AuthResponse, type RegisterRequest, type User } from "./api";
 
 type Api = ReturnType<typeof createApiClient>;
@@ -120,10 +120,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+const noopSubscribe = () => () => {};
+
+/**
+ * False while React is matching a component to the server HTML ("hydrating"), true after.
+ * The server never knows who is logged in, so during hydration every component must render
+ * as a guest. Without this, parts of the page that hydrate a little later (inside <Suspense>,
+ * like the footer) would see the restored login and not match the server HTML.
+ */
+function useHydrated() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
-  return ctx;
+  const hydrated = useHydrated();
+  // First render matches the server (guest, not ready); the real login shows right after.
+  return hydrated ? ctx : { ...ctx, user: null, ready: false };
 }
 
 /** Turns an API/network error into text. Server messages come from the backend (English). */

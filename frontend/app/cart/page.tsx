@@ -16,6 +16,7 @@ import { canPayWithWallet, chosenOptions } from "@/lib/pricing";
 import { useProfile } from "@/lib/profile";
 import { toast } from "@/lib/toast";
 import { useWallet } from "@/lib/wallet";
+import { useAuth } from "@/lib/auth";
 import BackButton from "@/components/BackButton";
 
 const PAYMENTS: { value: PaymentMethod; icon: string; label: MessageKey }[] = [
@@ -30,7 +31,9 @@ export default function CartPage() {
   const { t, pick, dateLocale } = useT();
   const { cart, orders } = useShop();
   const { addresses } = useProfile();
-  const { balance } = useWallet();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const { balance, hasWallet } = useWallet(userId);
   const {
     store, lines, subtotal, discount, normalFee, deliveryFee, total, deal, amountToUnlock,
     promoCode, codeDiscount, codeValid, tip,
@@ -46,6 +49,8 @@ export default function CartPage() {
     : 0;
   const [address, setAddress] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("Cash");
+  // Guests have no wallet; if Wallet was picked before logging out, fall back to Cash.
+  const method: PaymentMethod = payment === "Wallet" && !hasWallet ? "Cash" : payment;
   const [note, setNote] = useState("");
   const [addressError, setAddressError] = useState(false);
   const [codeInput, setCodeInput] = useState("");
@@ -88,9 +93,10 @@ export default function CartPage() {
       document.getElementById("address")?.focus();
       return;
     }
-    const result = placeOrder(address.trim(), payment, note.trim());
+    const result = placeOrder(address.trim(), method, note.trim(), userId);
     if ("error" in result) {
       if (result.error === "insufficient") toast(t("wallet.insufficient", { balance: money(balance) }), "error");
+      if (result.error === "loginRequired") toast(t("wallet.loginToUse"), "error");
       return;
     }
     router.push(`/orders?placed=${result.order.id}`);
@@ -203,15 +209,22 @@ export default function CartPage() {
           <div className="grid grid-cols-3 gap-2">
             {PAYMENTS.map((p) => (
               <button
-                type="button" key={p.value} onClick={() => setPayment(p.value)} aria-pressed={payment === p.value}
-                className={`rounded-xl border px-2 py-2.5 text-sm font-medium ${payment === p.value ? "border-brand bg-brand-soft text-brand" : "border-border"}`}
+                type="button" key={p.value} onClick={() => setPayment(p.value)} aria-pressed={method === p.value}
+                disabled={p.value === "Wallet" && !hasWallet}
+                title={p.value === "Wallet" && !hasWallet ? t("wallet.loginToUse") : undefined}
+                className={`rounded-xl border px-2 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${method === p.value ? "border-brand bg-brand-soft text-brand" : "border-border"}`}
               >
                 <span aria-hidden>{p.icon}</span> {t(p.label)}
               </button>
             ))}
           </div>
           {/* Checked live against the current total, so it updates as soon as the cart or balance changes. */}
-          {payment === "Wallet" && (
+          {!hasWallet && (
+            <p className="mt-1.5 text-sm text-muted">
+              🔒 <Link href="/login" className="font-semibold text-brand underline">{t("wallet.loginToUse")}</Link>
+            </p>
+          )}
+          {method === "Wallet" && (
             walletShort ? (
               <p role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">
                 {t("wallet.insufficient", { balance: money(balance) })}{" "}
@@ -276,7 +289,7 @@ export default function CartPage() {
           )}
           <div className="flex justify-between pt-1 text-base font-bold"><dt>{t("cart.total")}</dt><dd>{money(total)}</dd></div>
         </dl>
-        <button type="submit" className="btn-primary w-full" disabled={storeClosed || (payment === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
+        <button type="submit" className="btn-primary w-full" disabled={storeClosed || (method === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
         <p className="text-center text-xs text-muted">{t("cart.demo")}</p>
       </form>
     </div>
