@@ -7,6 +7,7 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import BackButton from "@/components/BackButton";
 import { normalizePhoneNumber } from "@/lib/phone";
+import { authDestination } from "@/lib/auth-destination";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,8 +31,8 @@ export default function RegisterPage() {
     if (!phoneNumber) { setPhoneError(true); document.getElementById("phoneNumber")?.focus(); return; }
     setBusy(true); setError("");
     try {
-      await register({ phoneNumber, password: form.password });
-      router.replace("/");
+      const user = await register({ phoneNumber, password: form.password });
+      router.replace(authDestination(user.role, window.location.search));
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {

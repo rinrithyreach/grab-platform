@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
 import SettingsScript from "@/components/SettingsScript";
 import Navbar from "@/components/Navbar";
+import AccountSync from "@/components/AccountSync";
 import Footer from "@/components/Footer";
 import Toaster from "@/components/Toaster";
 import SkipLink from "@/components/SkipLink";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           <SkipLink />
           <Suspense fallback={<div className="h-16 border-b border-border bg-surface" aria-busy="true" />}><Navbar /></Suspense>
+          <AccountSync />
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
           <Toaster />

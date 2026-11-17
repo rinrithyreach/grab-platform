@@ -8,13 +8,21 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
     public DbSet<User> Users => Set<User>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<Ride> Rides => Set<Ride>();
+    public DbSet<RideMerchantResponse> RideMerchantResponses => Set<RideMerchantResponse>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Merchant> Merchants => Set<Merchant>();
     public DbSet<MerchantListing> MerchantListings => Set<MerchantListing>();
     public DbSet<MerchantImage> MerchantImages => Set<MerchantImage>();
+    public DbSet<AccountData> AccountData => Set<AccountData>();
+    public DbSet<SharedStorageIdentity> SharedStorageIdentities => Set<SharedStorageIdentity>();
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<AccountData>().HasKey(x => x.UserId);
+        b.Entity<AccountData>().HasOne<User>().WithOne().HasForeignKey<AccountData>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<AccountData>().Property(x => x.Version).IsConcurrencyToken();
+        b.Entity<SharedStorageIdentity>().Property(x => x.StorageId).HasDefaultValueSql("NEWID()");
+        b.Entity<SharedStorageIdentity>().HasData(new { Id = 1 });
         b.Entity<User>().HasIndex(x => x.Email).IsUnique().HasFilter("[Email] IS NOT NULL");
         b.Entity<User>().HasIndex(x => x.PhoneNumber).IsUnique();
         b.Entity<User>().Property(x => x.Email).HasMaxLength(254);
@@ -29,6 +37,14 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
         b.Entity<Driver>().HasOne<User>().WithOne().HasForeignKey<Driver>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Ride>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Ride>().HasOne<Driver>().WithMany().HasForeignKey(x => x.DriverId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Ride>().HasOne(x => x.Merchant).WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Ride>().HasIndex(x => new { x.MerchantId, x.Status });
+        b.Entity<RideMerchantResponse>().HasKey(x => new { x.RideId, x.MerchantId });
+        b.Entity<RideMerchantResponse>().HasOne<Ride>().WithMany().HasForeignKey(x => x.RideId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<RideMerchantResponse>().HasOne<Merchant>().WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<RideMerchantResponse>().HasIndex(x => x.MerchantId).IsUnique().HasFilter("[IsActive] = 1");
+        b.Entity<RideMerchantResponse>().HasIndex(x => x.RideId).IsUnique().HasFilter("[IsActive] = 1");
+        b.Entity<RideMerchantResponse>().ToTable(t => t.HasCheckConstraint("CK_RideMerchantResponses_ActiveAccepted", "[IsActive] = 0 OR [Accepted] = 1"));
         b.Entity<Ride>().Property(x => x.Version).IsRowVersion();
         b.Entity<Ride>().Property(x => x.Fare).HasPrecision(12, 2);
         b.Entity<Ride>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);

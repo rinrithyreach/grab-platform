@@ -24,6 +24,23 @@ export default function MerchantOffers({ service }: { service?: MerchantServiceK
     return () => ctrl.abort();
   }, [api, service, retry]);
 
+  useEffect(() => {
+    const ctrl = new AbortController();
+    let busy = false;
+    const refresh = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const pages = await Promise.all(Array.from({ length: page }, (_, index) => api.merchantOffers(service, index + 1, ctrl.signal)));
+        if (!ctrl.signal.aborted) { setOffers(pages.flat()); setMore(pages[pages.length - 1].length === 24); setError(false); }
+      } catch { /* retain the last successful public list; initial load/retry shows errors */ }
+      finally { busy = false; }
+    };
+    const timer = setInterval(() => { if (document.visibilityState !== "hidden") void refresh(); }, 5000);
+    window.addEventListener("focus", refresh);
+    return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [api, service, page]);
+
   async function loadMore() {
     setLoading(true); setError(false);
     try {

@@ -4,9 +4,10 @@ import type { MerchantProfileRequest } from "@/lib/api";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { MERCHANT_SERVICES } from "@/lib/merchant";
 import RideMerchantLocation from "./RideMerchantLocation";
+import RideWorkSchedule from "./RideWorkSchedule";
 
-export default function MerchantProfileFields({ value, onChange, hideRidePhone = false }: {
-  value: MerchantProfileRequest; onChange: (profile: MerchantProfileRequest) => void; hideRidePhone?: boolean;
+export default function MerchantProfileFields({ value, onChange, hideRidePhone = false, showRideSchedule = true, allowServiceSelection = false }: {
+  value: MerchantProfileRequest; onChange: (profile: MerchantProfileRequest) => void; hideRidePhone?: boolean; showRideSchedule?: boolean; allowServiceSelection?: boolean;
 }) {
   const { t } = useT();
   const ride = value.service === "GrabRide";
@@ -27,15 +28,15 @@ export default function MerchantProfileFields({ value, onChange, hideRidePhone =
   ];
   return (
     <div className="space-y-5">
-      <fieldset>
+      {allowServiceSelection && <fieldset>
         <legend className="label">{t("merchant.choose")}</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {MERCHANT_SERVICES.map((s) => <label key={s.id} className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm font-semibold ${value.service === s.id ? "border-brand bg-brand-soft text-brand" : "border-border"}`}>
-            <input type="radio" name="merchant-service" value={s.id} checked={value.service === s.id} onChange={() => onChange({ ...value, service: s.id })} className="accent-brand" />
+            <input type="radio" name="merchant-service" value={s.id} checked={value.service === s.id} onChange={() => onChange({ ...value, service: s.id, openingHours: value.service !== s.id && (ride || s.id === "GrabRide") ? "" : value.openingHours })} className="accent-brand" />
             <span aria-hidden>{s.emoji}</span>{s.id}
           </label>)}
         </div>
-      </fieldset>
+      </fieldset>}
       <div className="grid gap-4 sm:grid-cols-2">
         {fields.map((f) => <div key={f.key} className={f.key === "address" ? "sm:col-span-2" : ""}>
           <label className="label" htmlFor={`merchant-${f.key}`}>{t(f.label)}</label>
@@ -43,6 +44,7 @@ export default function MerchantProfileFields({ value, onChange, hideRidePhone =
         </div>)}
       </div>
       {ride && <RideMerchantLocation value={value.address} onChange={(address) => onChange({ ...value, address })} />}
+      {ride && showRideSchedule && <RideWorkSchedule value={value.openingHours} onChange={(openingHours) => onChange({ ...value, openingHours })} />}
       {!ride && <div>
         <label className="label" htmlFor="merchant-description">{t("merchant.description")}</label>
         <textarea id="merchant-description" name="description" className="input h-auto min-h-28 py-3" required minLength={10} maxLength={1500} rows={4} value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />

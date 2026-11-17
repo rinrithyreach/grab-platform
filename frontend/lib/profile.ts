@@ -1,6 +1,6 @@
 "use client";
 
-/** The user's saved delivery addresses (Home / Work / Other), kept in the browser. */
+/** Saved delivery addresses. The shared local store syncs signed-in state through the API. */
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
 

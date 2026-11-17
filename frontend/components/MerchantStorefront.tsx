@@ -16,9 +16,18 @@ export default function MerchantStorefront({ id }: { id: string }) {
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     const ctrl = new AbortController();
-    api.merchantStorefront(id, ctrl.signal).then((store) => { setData(store); setError(null); })
-      .catch((err) => { if (!ctrl.signal.aborted) setError(err instanceof ApiError && err.status === 404 ? "missing" : "network"); });
-    return () => ctrl.abort();
+    let busy = false;
+    const refresh = () => {
+      if (busy) return;
+      busy = true;
+      void api.merchantStorefront(id, ctrl.signal).then((store) => { setData(store); setError(null); })
+        .catch((err) => { if (!ctrl.signal.aborted) { setError(err instanceof ApiError && err.status === 404 ? "missing" : "network"); if (err instanceof ApiError && err.status === 404) setData(null); } })
+        .finally(() => { busy = false; });
+    };
+    refresh();
+    const timer = setInterval(() => { if (document.visibilityState !== "hidden") refresh(); }, 5000);
+    window.addEventListener("focus", refresh);
+    return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [api, id, retry]);
 
   if (!data) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-10">{error ? <><p role="alert">{t(error === "missing" ? "merchant.notFound" : "merchant.unavailable")}</p><button className="btn-outline" onClick={() => { setError(null); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></> : <p role="status">{t("merchant.loading")}</p>}</div>;

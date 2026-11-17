@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Every browser talks to its own frontend origin. All clones can point this
+  // server-side setting at ONE shared API without exposing SQL/JWT secrets.
+  rewrites() {
+    const api = (process.env.API_PROXY_URL || "http://localhost:5000").replace(/\/$/, "");
+    return [{ source: "/backend/:path*", destination: `${api}/:path*` }];
+  },
   // Redirect retired storefront URLs before streaming/caching any page content.
   redirects() {
     return ["/mart", "/store/daily-mart", "/store/home-plus"].map((source) => ({ source, destination: "/express", permanent: false }));

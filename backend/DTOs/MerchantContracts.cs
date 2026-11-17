@@ -42,5 +42,9 @@ public record MerchantOfferDto(Guid Id, string Title, string Description, decima
     string ImageUrl, MerchantPublicDto Merchant);
 public record MerchantStorefrontDto(MerchantPublicDto Merchant, List<MerchantOfferDto> Listings);
 public record MerchantDashboardDto(MerchantProfileDto Profile, List<MerchantListingDto> Listings);
+public record RideMerchantAreaDto(Guid Id, string Name, string Address, string OpeningHours);
+public record MerchantRideRequestDto(RideDto Ride, string CustomerName);
+public record MerchantRideInboxDto(List<MerchantRideRequestDto> Requests, MerchantRideRequestDto? ActiveRide);
+public record MerchantRideResponseRequest([property: JsonRequired] bool Accept);
 public record MerchantImageDto(Guid Id, string ImageUrl);
 public record BannerDto(Guid Id, string ImageUrl, string Title, string Subtitle, string LinkUrl);

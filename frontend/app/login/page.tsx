@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import BackButton from "@/components/BackButton";
 import { BRAND } from "@/lib/brand";
 import { normalizePhoneNumber } from "@/lib/phone";
+import { authDestination } from "@/lib/auth-destination";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,8 +27,8 @@ export default function LoginPage() {
     if (!phone) { setPhoneError(true); document.getElementById("phoneNumber")?.focus(); return; }
     setBusy(true); setError("");
     try {
-      await login(phone, password);
-      router.replace("/");
+      const user = await login(phone, password);
+      router.replace(authDestination(user.role, window.location.search));
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {

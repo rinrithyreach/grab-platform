@@ -7,8 +7,34 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
+import { validRideWorkSchedule } from "@/lib/ride-work-schedule";
 import MerchantProfileFields from "./MerchantProfileFields";
 import MerchantOfferCard from "./MerchantOfferCard";
+import RideWorkSchedule from "./RideWorkSchedule";
+import MerchantRideRequests from "./MerchantRideRequests";
+
+function WorkScheduleEditor({ profile, onSaved }: { profile: MerchantProfile; onSaved: (value: MerchantProfile) => void }) {
+  const { api } = useAuth();
+  const { t } = useT();
+  const [hours, setHours] = useState(profile.openingHours);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validRideWorkSchedule(hours)) { setError(t("merchant.workInvalid")); return; }
+    setBusy(true); setError("");
+    try {
+      onSaved(await api.updateMerchantProfile({ ...profile, openingHours: hours }));
+      toast(t("merchant.saved"));
+    } catch (err) { setError(errorMessage(err, t)); }
+    finally { setBusy(false); }
+  }
+  return <form onSubmit={submit} className="card mt-6 p-5 sm:p-7"><fieldset disabled={busy} className="space-y-5">
+    <RideWorkSchedule value={hours} onChange={setHours} />
+    {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+    <button className="btn-primary">{t(busy ? "merchant.saving" : "merchant.saveWorkSchedule")}</button>
+  </fieldset></form>;
+}
 
 function ProfileEditor({ initial, onSaved }: { initial: MerchantProfile; onSaved: (value: MerchantProfile) => void }) {
   const { api } = useAuth();
@@ -21,16 +47,17 @@ function ProfileEditor({ initial, onSaved }: { initial: MerchantProfile; onSaved
     if (profile.service === "GrabRide" && !profile.address.trim()) { setError(t("merchant.location.required")); return; }
     setBusy(true); setError("");
     try {
-      onSaved(await api.updateMerchantProfile({ ...profile, email: profile.email?.trim() || null }));
+      onSaved(await api.updateMerchantProfile({ ...profile, email: profile.email?.trim() || null,
+        openingHours: profile.service === "GrabRide" && initial.service === "GrabRide" ? initial.openingHours : profile.openingHours }));
       toast(t("merchant.saved"));
     } catch (err) { setError(errorMessage(err, t)); }
     finally { setBusy(false); }
   }
   return <form onSubmit={submit} className="card mt-6 p-5 sm:p-7"><fieldset disabled={busy} className="space-y-5">
-    <h2 className="text-xl font-bold">{t("merchant.profile")}</h2>
-    <MerchantProfileFields value={profile} onChange={setProfile} />
+    <h2 className="text-xl font-bold">{t(profile.service === "GrabRide" ? "merchant.riderInformation" : "merchant.profile")}</h2>
+    <MerchantProfileFields value={profile} onChange={setProfile} showRideSchedule={false} />
     {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-    <button className="btn-primary">{t(busy ? "merchant.saving" : "merchant.saveProfile")}</button>
+    <button className="btn-primary">{t(busy ? "merchant.saving" : profile.service === "GrabRide" ? "merchant.saveRiderProfile" : "merchant.saveProfile")}</button>
   </fieldset></form>;
 }
 
@@ -116,7 +143,32 @@ export default function MerchantDashboard() {
     return () => ctrl.abort();
   }, [api, t, retry]);
 
+  useEffect(() => {
+    if (tab !== "listings" || editor !== null || data?.profile.service === "GrabRide") return;
+    const ctrl = new AbortController();
+    let busy = false;
+    const refresh = async () => {
+      if (busy) return;
+      busy = true;
+      try { setData(await api.merchantDashboard(ctrl.signal)); } catch { /* keep the last successful dashboard */ }
+      finally { busy = false; }
+    };
+    const timer = setInterval(() => { if (document.visibilityState !== "hidden") void refresh(); }, 5000);
+    window.addEventListener("focus", refresh);
+    return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [api, tab, editor, data?.profile.service]);
+
   if (!data) return <div className="mx-auto max-w-6xl px-4 py-10">{error ? <div className="card space-y-4 p-6"><p role="alert">{error}</p><button className="btn-outline" onClick={() => { setError(""); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></div> : <p role="status">{t("merchant.loading")}</p>}</div>;
+
+  if (data.profile.service === "GrabRide") return <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="text-sm font-semibold text-brand">GrabRide · {data.profile.ownerName}</p><h1 className="mt-2 text-3xl font-bold">{t("merchant.rideDashboard")}</h1><p className="mt-2 text-muted">{t("merchant.rideDashboardIntro")}</p></div>
+      <Link href="/" className="btn-outline text-sm">{t("merchant.viewHome")} ↗</Link>
+    </div>
+    <MerchantRideRequests key={`${data.profile.id}-requests`} />
+    <WorkScheduleEditor key={data.profile.id} profile={data.profile} onSaved={(profile) => setData((previous) => previous ? { ...previous, profile } : previous)} />
+    <ProfileEditor key={`${data.profile.id}-profile`} initial={data.profile} onSaved={(profile) => setData((previous) => previous ? { ...previous, profile } : previous)} />
+  </div>;
 
   const publishedCount = data.listings.filter((l) => l.isPublished).length;
   return <div className="mx-auto max-w-6xl px-4 py-8">

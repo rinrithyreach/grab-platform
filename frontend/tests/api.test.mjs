@@ -8,6 +8,21 @@ const source = await readFile(new URL("../lib/api.ts", import.meta.url), "utf8")
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
 const { createApiClient, ApiError } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 
+test("ride merchant areas load a public page through the configured API", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  const rows = [{ id: "rider", name: "Dara", address: "GPS: 11.55, 104.92", openingHours: "Mon 08:00-17:00" }];
+  globalThis.fetch = async (url, options) => { calls.push({ url, ...options }); return Response.json(rows); };
+  try {
+    const api = createApiClient("http://localhost:5000");
+    assert.deepEqual(await api.rideMerchantAreas(2, new AbortController().signal), rows);
+    assert.equal(calls[0].url, "http://localhost:5000/api/merchants/ride-areas?page=2");
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[0].headers.Authorization, undefined);
+    assert.ok(calls[0].signal instanceof AbortSignal);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("merchant sign-in survives refresh and uploads use multipart with bearer authentication", async () => {
   const originalFetch = globalThis.fetch;
   const user = { id: "merchant", fullName: "Dara", phoneNumber: "+85512345678", role: "Merchant" };
@@ -108,7 +123,7 @@ test("profile name updates notify the provider and persist in the saved session"
   const user = { id: "customer", fullName: "Customer", phoneNumber: "+85512345678", role: "Customer" };
   const saved = { accessToken: "same-token", expiresAt: new Date(Date.now() + 60000).toISOString(), user };
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, "http://localhost:5000/api/auth/me");
+    assert.equal(url, "/backend/api/auth/me");
     assert.equal(options.method, "PATCH");
     assert.equal(options.headers.Authorization, "Bearer same-token");
     assert.deepEqual(JSON.parse(options.body), { fullName: "Dara" });

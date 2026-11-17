@@ -16,6 +16,7 @@ export function merchantRegistrationProfile(profile: MerchantProfileRequest): Me
   if (profile.service === "GrabRide") return {
     service: "GrabRide", ownerName: profile.ownerName.trim(), address: profile.address.trim(),
     motorcycleLicensePlate: profile.motorcycleLicensePlate?.trim() ?? "",
+    openingHours: profile.openingHours.trim(),
   };
   return { ...profile, email: profile.email?.trim() || null };
 }

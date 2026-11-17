@@ -15,6 +15,9 @@ public interface IRideService
     Task<List<RideDto>> List(Guid userId, Role role, bool mine, int page, CancellationToken ct);
     Task<RideDto> Get(Guid userId, Role role, Guid id, CancellationToken ct);
     Task<RideDto> Transition(Guid userId, Role role, Guid id, RideStatus status, CancellationToken ct);
+    Task<RideDto> UpdateLocation(Guid userId, Role role, Guid id, RideLocationRequest? location, CancellationToken ct);
+    Task<MerchantRideInboxDto> MerchantInbox(Guid userId, CancellationToken ct);
+    Task<MerchantRideInboxDto> MerchantRespond(Guid userId, Guid rideId, bool accept, CancellationToken ct);
 }
 public interface IDriverService
 {

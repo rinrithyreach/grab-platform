@@ -3,6 +3,10 @@ import { loadLib } from "../tests/load-lib.mjs";
 
 // HTTP verification only. Run a production server first; this does not drive a browser.
 const base = process.env.SMOKE_BASE_URL ?? "http://localhost:3000";
+const proxy = await fetch(new URL("/backend/api/sync/status", base));
+assert.equal(proxy.status, 200, "Frontend proxy reaches the shared API/database");
+assert.match((await proxy.json()).storageId, /^[0-9a-f-]{36}$/i);
+assert.equal((await fetch(new URL("/backend/api/account-data", base))).status, 401, "Private snapshots require sign-in through the proxy");
 const { STORES } = await loadLib("catalog", "hours");
 const active = STORES.filter((s) => s.kind === "food");
 const routes = ["/", "/food", "/express", "/deliveries", "/ride", "/rides", "/cart", "/orders", "/profile", "/wallet", "/login", "/register", "/merchant", "/merchant/register", "/partners/00000000-0000-0000-0000-000000000000", "/credits", ...active.map((s) => `/store/${s.id}`)];

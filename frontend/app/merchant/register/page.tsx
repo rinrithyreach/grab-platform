@@ -8,6 +8,7 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { EMPTY_MERCHANT_PROFILE, merchantRegistrationProfile } from "@/lib/merchant";
 import { normalizePhoneNumber } from "@/lib/phone";
+import { validRideWorkSchedule } from "@/lib/ride-work-schedule";
 
 export default function MerchantRegisterPage() {
   const { api } = useAuth();
@@ -26,6 +27,7 @@ export default function MerchantRegisterPage() {
     e.preventDefault();
     const phoneNumber = normalizePhoneNumber(phone);
     if (ride && !profile.address.trim()) { setError(t("merchant.location.required")); return; }
+    if (ride && !validRideWorkSchedule(profile.openingHours)) { setError(t("merchant.workInvalid")); return; }
     if (!phoneNumber || (!ride && !normalizePhoneNumber(profile.contactPhone))) { setError(t("auth.phoneInvalid")); return; }
     if (!ride && password !== confirm) { setError(t("merchant.passwordMismatch")); return; }
     setBusy(true); setError("");
@@ -42,7 +44,7 @@ export default function MerchantRegisterPage() {
     <p className="mt-2 text-muted">{t("merchant.intro")}</p>
     <form onSubmit={submit} className="card mt-6 p-5 sm:p-8">
       <fieldset disabled={busy} className="space-y-8">
-        <section><h2 className="mb-5 text-xl font-bold">{t(ride ? "merchant.riderInformation" : "merchant.business")}</h2><MerchantProfileFields value={profile} onChange={setProfile} hideRidePhone /></section>
+        <section><h2 className="mb-5 text-xl font-bold">{t(ride ? "merchant.riderInformation" : "merchant.business")}</h2><MerchantProfileFields value={profile} onChange={setProfile} hideRidePhone allowServiceSelection /></section>
         <section className="space-y-4 border-t border-border pt-6">
           <h2 className="text-xl font-bold">{t("merchant.account")}</h2>
           <div><label className="label" htmlFor="merchant-signup-phone">{t("auth.phone")}</label><input id="merchant-signup-phone" name="phoneNumber" className="input" type="tel" required maxLength={30} autoComplete="username" aria-describedby="merchant-phone-hint" value={phone} onChange={(e) => setPhone(e.target.value)} /><p id="merchant-phone-hint" className="mt-1 text-xs text-muted">{t("merchant.phoneHint")}</p></div>

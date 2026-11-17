@@ -22,6 +22,27 @@ namespace Grab.Api.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Grab.Api.Models.AccountData", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("AccountData");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Driver", b =>
                 {
                     b.Property<Guid>("Id")
@@ -312,9 +333,24 @@ namespace Grab.Api.Migrations
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<double?>("DriverLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("DriverLocationAccuracy")
+                        .HasColumnType("float");
+
+                    b.Property<DateTimeOffset?>("DriverLocationUpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<double?>("DriverLongitude")
+                        .HasColumnType("float");
+
                     b.Property<decimal>("Fare")
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
+
+                    b.Property<Guid?>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<double>("PickupLatitude")
                         .HasColumnType("float");
@@ -344,7 +380,66 @@ namespace Grab.Api.Migrations
 
                     b.HasIndex("DriverId", "Status");
 
+                    b.HasIndex("MerchantId", "Status");
+
                     b.ToTable("Rides");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.RideMerchantResponse", b =>
+                {
+                    b.Property<Guid>("RideId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Accepted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("RespondedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("RideId", "MerchantId");
+
+                    b.HasIndex("MerchantId")
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
+
+                    b.HasIndex("RideId")
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
+
+                    b.ToTable("RideMerchantResponses", t =>
+                        {
+                            t.HasCheckConstraint("CK_RideMerchantResponses_ActiveAccepted", "[IsActive] = 0 OR [Accepted] = 1");
+                        });
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.SharedStorageIdentity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid>("StorageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWID()");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SharedStorageIdentities");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1
+                        });
                 });
 
             modelBuilder.Entity("Grab.Api.Models.User", b =>
@@ -389,6 +484,15 @@ namespace Grab.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.AccountData", b =>
+                {
+                    b.HasOne("Grab.Api.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("Grab.Api.Models.AccountData", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Grab.Api.Models.Driver", b =>
@@ -477,6 +581,28 @@ namespace Grab.Api.Migrations
                         .WithMany()
                         .HasForeignKey("DriverId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Grab.Api.Models.Merchant", "Merchant")
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Merchant");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.RideMerchantResponse", b =>
+                {
+                    b.HasOne("Grab.Api.Models.Merchant", null)
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Grab.Api.Models.Ride", null)
+                        .WithMany()
+                        .HasForeignKey("RideId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

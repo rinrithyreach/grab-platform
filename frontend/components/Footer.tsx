@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { BRAND, PROJECT, SOCIAL_LINKS } from "@/lib/brand";
 import { cartDetails, useShop } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { useHydratedPathname } from "@/lib/navigation";
 import { SOCIAL_ICON_PATHS } from "./social-icon-paths";
 
 function FooterLinks({ title, links }: { title: MessageKey; links: { href: string; label: string }[] }) {
@@ -25,7 +25,8 @@ function FooterLinks({ title, links }: { title: MessageKey; links: { href: strin
 export default function Footer() {
   const { t } = useT();
   const { user } = useAuth();
-  const pathname = usePathname();
+  const merchant = user?.role === "Merchant";
+  const pathname = useHydratedPathname();
   const { cart } = useShop();
   // Store pages show a floating "View cart" bar; leave room so it doesn't cover the footer.
   const cartBarVisible = pathname.startsWith("/store/") && cartDetails(cart).count > 0;
@@ -58,8 +59,10 @@ export default function Footer() {
             { href: "/deliveries", label: t("nav.deliveries") },
             { href: "/cart", label: t("nav.cart") },
             { href: "/wallet", label: t("nav.wallet") },
-            { href: "/profile", label: t("nav.profile") },
-            { href: "/merchant", label: t("nav.merchant") },
+            ...(merchant ? [{ href: "/merchant", label: t("nav.myMerchant") }] : [
+              { href: "/profile", label: t("nav.profile") },
+              { href: "/merchant", label: t("nav.merchant") },
+            ]),
             ...(user ? [] : [
               { href: "/login", label: t("nav.login") },
               { href: "/register", label: t("footer.signUp") },

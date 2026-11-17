@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Cart + order history, saved in the browser (localStorage).
+ * Cart + order history. Signed-in state syncs through the account-data API;
+ * localStorage is the retry cache. Guest state stays local until imported.
  * A tiny external store read with useSyncExternalStore so the server render
  * (empty cart) and the first client render always match.
  * The price maths lives in lib/pricing.ts.
@@ -115,7 +116,7 @@ export function placeOrder(address: string, payment: PaymentMethod, note: string
   if (!store || store.kind !== "food" || !lines.length) return { error: "empty" };
   if (payment === "Wallet" && !payFromWallet(total, store.name)) return { error: "insufficient" };
   const order: Order = {
-    id: `ORD-${Date.now().toString(36).toUpperCase()}`,
+    id: `ORD-${crypto.randomUUID()}`,
     storeId: store.id, storeName: store.name,
     lines: lines.map(({ itemId, name, price, qty, options, optionIds }) => ({ itemId, name, price, qty, options, optionIds })),
     subtotal, discount,

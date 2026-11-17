@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
 import { cartDetails, useShop } from "@/lib/cart";
 import { STORES, type StoreKind } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { useHydratedPathname } from "@/lib/navigation";
 import SettingsMenu from "./SettingsMenu";
 
 const LINKS: { href: string; key: MessageKey }[] = [
@@ -24,9 +24,13 @@ const LINKS: { href: string; key: MessageKey }[] = [
 const EXPANDABLE: Partial<Record<string, StoreKind>> = { "/food": "food" };
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const pathname = useHydratedPathname();
   const { t } = useT();
   const { user, logout } = useAuth();
+  const merchant = user?.role === "Merchant";
+  const accountHref = merchant ? "/merchant" : "/profile";
+  const accountLabel = t(merchant ? "nav.myMerchant" : "nav.profile");
+  const links = merchant ? LINKS.filter((link) => link.href !== "/merchant") : LINKS;
   const savedName = user?.fullName.trim();
   const greetingName = savedName && savedName !== "Customer" ? savedName : user?.phoneNumber ?? "";
   const { cart } = useShop();
@@ -81,7 +85,7 @@ export default function Navbar() {
           </Link>
 
           <ul className="ml-3 hidden gap-0.5 xl:flex">
-            {LINKS.map((l) => (
+            {links.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
@@ -98,8 +102,8 @@ export default function Navbar() {
 
           <div className="ml-auto flex items-center gap-1">
             <SettingsMenu />
-            <Link href="/profile" aria-label={t("nav.profile")} title={t("nav.profile")} className={`hidden h-10 w-10 place-items-center rounded-full text-lg hover:bg-brand-soft sm:grid ${isActive("/profile") ? "bg-brand-soft" : ""}`}>
-              <span aria-hidden>👤</span>
+            <Link href={accountHref} aria-label={accountLabel} title={accountLabel} aria-current={isActive(accountHref) ? "page" : undefined} className={`hidden h-10 items-center justify-center gap-2 rounded-full hover:bg-brand-soft sm:flex ${merchant ? "px-3 text-sm font-semibold" : "w-10 text-lg"} ${isActive(accountHref) ? "bg-brand-soft" : ""}`}>
+              <span aria-hidden>{merchant ? "🏪" : "👤"}</span>{merchant && accountLabel}
             </Link>
             <Link href="/cart" aria-label={t("nav.cart")} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-brand-soft">
               <span className="text-xl">🛒</span>
@@ -161,7 +165,7 @@ export default function Navbar() {
           <nav className="flex-1 overflow-y-auto">
             <ul>
               <li><Link href="/" className={`${row} ${pathname === "/" ? "text-brand" : ""}`}>{t("nav.home")}</Link></li>
-              {LINKS.map((l) => {
+              {links.map((l) => {
                 const kind = EXPANDABLE[l.href];
                 if (!kind) {
                   return (
@@ -207,7 +211,7 @@ export default function Navbar() {
                 );
               })}
               <li><Link href="/wallet" className={`${row} ${pathname === "/wallet" ? "text-brand" : ""}`}>{t("nav.wallet")}</Link></li>
-              <li><Link href="/profile" className={`${row} ${pathname === "/profile" ? "text-brand" : ""}`}>{t("nav.profile")}</Link></li>
+              <li><Link href={accountHref} aria-current={isActive(accountHref) ? "page" : undefined} className={`${row} ${isActive(accountHref) ? "text-brand" : ""}`}>{accountLabel}</Link></li>
               <li>
                 <Link href="/cart" className={`${row} ${pathname === "/cart" ? "text-brand" : ""}`}>
                   {t("nav.cart")}

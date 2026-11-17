@@ -7,6 +7,8 @@ export type RideStatus = "Pending" | "Accepted" | "InProgress" | "Completed" | "
 export interface User { id: string; fullName: string; phoneNumber: string; role: Role }
 export interface AuthResponse { accessToken: string; expiresAt: string; user: User }
 export interface RegisterRequest { phoneNumber: string; password: string }
+export interface AccountData { version: number; data: Record<string, object> }
+export interface StoreReview { id: string; storeId: string; name: string; rating: number; comment: string; createdAt: string }
 export type MerchantServiceKind = "GrabRide" | "GrabFood" | "GrabExpress";
 export interface MerchantProfileRequest {
   service: MerchantServiceKind; businessName: string; ownerName: string; contactPhone: string;
@@ -15,6 +17,7 @@ export interface MerchantProfileRequest {
 }
 export interface RideMerchantRegistrationProfile {
   service: "GrabRide"; ownerName: string; address: string; motorcycleLicensePlate: string;
+  openingHours: string;
 }
 export interface MerchantProfile extends MerchantProfileRequest { id: string }
 export type MerchantPublic = Omit<MerchantProfile, "ownerName" | "motorcycleLicensePlate">;
@@ -24,6 +27,7 @@ export interface MerchantListingRequest {
 export interface MerchantListing extends MerchantListingRequest { id: string; imageUrl: string; updatedAt: string }
 export interface MerchantOffer { id: string; title: string; description: string; price: number; imageUrl: string; merchant: MerchantPublic }
 export interface MerchantDashboard { profile: MerchantProfile; listings: MerchantListing[] }
+export interface RideMerchantArea { id: string; name: string; address: string; openingHours: string }
 export interface MerchantStorefront { merchant: MerchantPublic; listings: MerchantOffer[] }
 export interface BookRideRequest {
   pickupLocation: string; destination: string; pickupLatitude: number; pickupLongitude: number;
@@ -32,7 +36,13 @@ export interface BookRideRequest {
 export interface Ride extends BookRideRequest {
   id: string; customerId: string; driverId: string | null; fare: number; pricingMode: string;
   status: RideStatus; createdAt: string; completedAt: string | null;
+  merchantId?: string | null; merchantName?: string | null;
+  driverLocation?: RideDriverLocation | null;
 }
+export interface RideLocation { latitude: number; longitude: number; accuracy: number | null }
+export interface RideDriverLocation extends RideLocation { updatedAt: string }
+export interface MerchantRideRequest { ride: Ride; customerName: string }
+export interface MerchantRideInbox { requests: MerchantRideRequest[]; activeRide: MerchantRideRequest | null }
 export interface Driver {
   id: string; fullName: string; vehicleType: string; vehiclePlate: string; isAvailable: boolean;
   currentLatitude: number | null; currentLongitude: number | null;
@@ -56,7 +66,7 @@ export class ApiError extends Error {
     super(problem.detail ?? (Object.values(problem.errors ?? {}).flat().join(" ") || problem.title || `Request failed (${status})`));
   }
 }
-export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000") {
+export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/backend") {
   const origin = baseUrl.replace(/\/$/, "");
   const assetUrl = (url: string) => url.startsWith("/") ? `${origin}${url}` : url;
   const withImage = <T extends { imageUrl: string }>(value: T): T => ({ ...value, imageUrl: assetUrl(value.imageUrl) });
@@ -92,9 +102,15 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
   }
   return {
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
+    accountData: (signal?: AbortSignal) => request<AccountData>("/api/account-data", "GET", undefined, signal),
+    saveAccountData: (body: AccountData, signal?: AbortSignal) => request<AccountData>("/api/account-data", "PATCH", body, signal),
+    storeReviews: (signal?: AbortSignal) => request<StoreReview[]>("/api/store-reviews", "GET", undefined, signal),
     login: (phoneNumber: string, password: string) => authenticate("/api/auth/login", { phoneNumber, password }),
     merchantRegister: (body: RegisterRequest & { profile: MerchantProfileRequest | RideMerchantRegistrationProfile }) => authenticate("/api/merchants/register", body),
     merchantLogin: (phoneNumber: string, password: string) => authenticate("/api/merchants/login", { phoneNumber, password }),
+    rideMerchantAreas: (page = 1, signal?: AbortSignal) => request<RideMerchantArea[]>(`/api/merchants/ride-areas?page=${page}`, "GET", undefined, signal),
+    merchantRideInbox: (signal?: AbortSignal) => request<MerchantRideInbox>("/api/merchants/ride-requests", "GET", undefined, signal),
+    respondMerchantRide: (id: string, accept: boolean) => request<MerchantRideInbox>(`/api/merchants/ride-requests/${encodeURIComponent(id)}/response`, "POST", { accept }),
     merchantDashboard: async (signal?: AbortSignal) => {
       const data = await request<MerchantDashboard>("/api/merchants/me", "GET", undefined, signal);
       return { ...data, listings: data.listings.map(withImage) };
@@ -142,6 +158,13 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
       catch { return false; }
     },
     me: (signal?: AbortSignal) => request<User>("/api/auth/me", "GET", undefined, signal),
+    refreshMe: async (signal?: AbortSignal) => {
+      const token = session?.accessToken;
+      const user = await request<User>("/api/auth/me", "GET", undefined, signal);
+      if (session && session.accessToken === token && session.user.id === user.id && JSON.stringify(session.user) !== JSON.stringify(user))
+        setSession({ ...session, user });
+      return user;
+    },
     updateProfile: async (body: { fullName: string }) => {
       const token = session?.accessToken;
       const user = await request<User>("/api/auth/me", "PATCH", body);
@@ -151,9 +174,11 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "ht
     },
     rides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides?page=${page}`, "GET", undefined, signal),
     myRides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides/mine?page=${page}`, "GET", undefined, signal),
-    ride: (id: string) => request<Ride>(`/api/rides/${encodeURIComponent(id)}`),
+    ride: (id: string, signal?: AbortSignal) => request<Ride>(`/api/rides/${encodeURIComponent(id)}`, "GET", undefined, signal),
     bookRide: (body: BookRideRequest) => request<Ride>("/api/rides", "POST", body),
     updateRideStatus: (id: string, status: RideStatus) => request<Ride>(`/api/rides/${encodeURIComponent(id)}/status`, "PATCH", { status }),
+    updateRideLocation: (id: string, location: RideLocation, signal?: AbortSignal) => request<Ride>(`/api/rides/${encodeURIComponent(id)}/location`, "PATCH", location, signal),
+    stopRideLocation: (id: string, signal?: AbortSignal) => request<Ride>(`/api/rides/${encodeURIComponent(id)}/location`, "DELETE", undefined, signal),
     availableDrivers: () => request<Driver[]>("/api/drivers/available"),
     createDriver: (body: { userId: string; vehicleType: string; vehiclePlate: string }) => request<Driver>("/api/drivers", "POST", body),
     simulatePayment: (rideId: string) => request<Payment>("/api/payments", "POST", { rideId }),

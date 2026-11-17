@@ -2,7 +2,8 @@
 
 /**
  * Store reviews. A few sample reviews ship with the demo; reviews written by the user
- * (from "Rate your order" on My orders) are saved in the browser and added on top.
+ * (from "Rate your order" on My orders) sync through the account-data API;
+ * other customers' public reviews are refreshed from /api/store-reviews.
  */
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
@@ -35,18 +36,21 @@ const SAMPLE: Review[] = [
 ];
 
 const store = createLocalStore<{ reviews: Review[] }>("grab-reviews-v1", { reviews: [] });
+const publicStore = createLocalStore<{ reviews: Review[] }>("grab-public-reviews-v1", { reviews: [] });
+export function setPublicStoreReviews(reviews: Review[]) { publicStore.set({ reviews }); }
 const useUserReviews = () => useSyncExternalStore(store.subscribe, store.get, store.getInitial).reviews;
 
 export function addReview(review: Omit<Review, "id" | "createdAt">) {
   store.update((s) => ({
-    reviews: [{ ...review, id: `r-${Date.now().toString(36)}`, createdAt: new Date().toISOString() }, ...s.reviews],
+    reviews: [{ ...review, id: `r-${crypto.randomUUID()}`, createdAt: new Date().toISOString() }, ...s.reviews],
   }));
 }
 
 /** All reviews for a store (newest first) plus the average rating and count. */
 export function useStoreReviews(storeId: string) {
   const mine = useUserReviews();
-  const reviews = [...mine.filter((r) => r.storeId === storeId), ...SAMPLE.filter((r) => r.storeId === storeId)];
+  const shared = useSyncExternalStore(publicStore.subscribe, publicStore.get, publicStore.getInitial).reviews;
+  const reviews = [...mine.filter((r) => r.storeId === storeId), ...shared.filter((r) => r.storeId === storeId), ...SAMPLE.filter((r) => r.storeId === storeId)];
   const base = STORES.find((s) => s.id === storeId)?.rating ?? 0;
   // Blend the catalogue rating (worth ~20 past reviews) with the reviews shown here.
   const weight = 20;

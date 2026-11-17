@@ -3,7 +3,7 @@
 /**
  * One interface for ride pages, with two implementations:
  *  - "live": the real backend through lib/api.ts (needs login)
- *  - "demo": used automatically when the backend can't be reached. Rides are saved in the
+ *  - "demo": available only when explicitly enabled and the backend can't be reached. Rides are saved in the
  *    browser and a pretend driver accepts → drives → completes the trip over about a minute.
  */
 import { useEffect, useMemo } from "react";
@@ -130,5 +130,5 @@ export function useRideService(): RideService | null {
   // Ride pages are the only ones that need to know if the backend is running.
   useEffect(() => { checkOnline(); }, [checkOnline]);
   // Memoized so pages can safely use the service in effect dependency lists.
-  return useMemo(() => (online === null ? null : online ? liveService(api) : demoService), [api, online]);
+  return useMemo(() => (online === null ? null : online || process.env.NEXT_PUBLIC_ENABLE_DEMO_RIDES !== "true" ? liveService(api) : demoService), [api, online]);
 }

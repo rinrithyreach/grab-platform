@@ -2,6 +2,8 @@
 
 Prepared after the [frontend audit](../frontend/AUDIT.md), 16 November 2026. This is a plan for the next implementation phase; endpoints marked proposed do not exist yet.
 
+Update: merchant publishing, homepage banners and SQL-backed account snapshot synchronization have since been implemented. Signed-in Food/Express/account demo state now persists through `GET/PATCH /api/account-data`, with public store reviews and a shared-storage diagnostic endpoint. The normalized order/delivery/wallet services proposed below remain future work; persistence does not replace simulated prices, payments or fulfillment. See [shared setup](../SHARED_SETUP.md).
+
 ## Keep the existing stack
 
 The repository already has ASP.NET Core 10 controllers, EF Core 10 with SQL Server, JWT authentication, role checks, Swagger, migrations and SQL-backed integration tests. The Next.js frontend already calls the auth/ride endpoints through `frontend/lib/api.ts` and a per-browser `AuthProvider`. Extend this implementation rather than creating a second backend.

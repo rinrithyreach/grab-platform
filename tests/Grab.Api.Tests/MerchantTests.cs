@@ -15,7 +15,8 @@ public partial class ApiTests
 {
     private static MerchantProfileRequest Business(MerchantServiceKind service = MerchantServiceKind.GrabFood) => new(
         service, "Dara's Business", "Private Owner", "012345678", "business@example.test",
-        "House 12, Street 271", "Phnom Penh", "Local specialty", "A local business serving our neighbourhood.", "Mon–Sat 7 AM–8 PM",
+        "House 12, Street 271", "Phnom Penh", "Local specialty", "A local business serving our neighbourhood.",
+        service == MerchantServiceKind.GrabRide ? "Mon 07:00-20:00; Sat 07:00-20:00" : "Mon–Sat 7 AM–8 PM",
         service == MerchantServiceKind.GrabRide ? "1AB-1234" : null);
 
     private static async Task<AuthResponse> MerchantAccount(HttpClient client, string password, MerchantServiceKind service = MerchantServiceKind.GrabFood)
@@ -90,9 +91,11 @@ public partial class ApiTests
                 Assert.False(profile.TryGetProperty(privateField, out _));
         }
         var updatedProfile = Business(MerchantServiceKind.GrabRide) with { OwnerName = "Dara's Rides" };
-        Assert.Equal(HttpStatusCode.OK, (await merchant.PatchAsJsonAsync("/api/merchants/me", updatedProfile, Json)).StatusCode);
-        Assert.Empty(await Read<List<MerchantOfferDto>>(await publicClient.GetAsync("/api/merchants/offers?service=GrabFood")));
-        Assert.Equal("Dara's Rides", Assert.Single(await Read<List<MerchantOfferDto>>(await publicClient.GetAsync("/api/merchants/offers?service=GrabRide"))).Merchant.BusinessName);
+        Assert.Equal(HttpStatusCode.BadRequest, (await merchant.PatchAsJsonAsync("/api/merchants/me", updatedProfile, Json)).StatusCode);
+        Assert.Single(await Read<List<MerchantOfferDto>>(await publicClient.GetAsync("/api/merchants/offers?service=GrabFood")));
+        Assert.Empty(await Read<List<MerchantOfferDto>>(await publicClient.GetAsync("/api/merchants/offers?service=GrabRide")));
+        Assert.Single(await Read<List<BannerDto>>(await publicClient.GetAsync("/api/banners")));
+        Assert.Equal(HttpStatusCode.OK, (await publicClient.GetAsync($"/api/merchants/{dashboard.Profile.Id}")).StatusCode);
 
         using var fresh = f.CreateClient();
         var login = await fresh.PostAsJsonAsync("/api/merchants/login", new LoginRequest(account.User.PhoneNumber, f.Password));
@@ -105,7 +108,7 @@ public partial class ApiTests
             Assert.NotEqual(f.Password, (await db.Users.SingleAsync(x => x.Id == account.User.Id)).PasswordHash);
             Assert.True(await db.MerchantListings.AnyAsync(x => x.Id == draft.Id && x.IsPublished));
         }
-        await merchant.PatchAsJsonAsync($"/api/merchants/listings/{draft.Id}", draftRequest);
+        Assert.Equal(HttpStatusCode.OK, (await merchant.PatchAsJsonAsync($"/api/merchants/listings/{draft.Id}", draftRequest)).StatusCode);
         Assert.Empty(await Read<List<MerchantOfferDto>>(await publicClient.GetAsync("/api/merchants/offers")));
         Assert.Empty(await Read<List<BannerDto>>(await publicClient.GetAsync("/api/banners")));
         Assert.Equal(HttpStatusCode.OK, (await publicClient.GetAsync("/swagger/v1/swagger.json")).StatusCode);
@@ -113,6 +116,29 @@ public partial class ApiTests
 
     [Theory]
     [InlineData(MerchantServiceKind.GrabRide)]
+    [InlineData(MerchantServiceKind.GrabFood)]
+    [InlineData(MerchantServiceKind.GrabExpress)]
+    public async Task Merchant_account_keeps_only_its_registered_service(MerchantServiceKind registeredService)
+    {
+        await using var f = new ApiFactory();
+        await f.InitializeDatabase();
+        using var merchant = f.CreateClient();
+        await MerchantAccount(merchant, f.Password, registeredService);
+        var original = (await Read<MerchantDashboardDto>(await merchant.GetAsync("/api/merchants/me"))).Profile;
+        foreach (var otherService in Enum.GetValues<MerchantServiceKind>().Where(service => service != registeredService))
+        {
+            var response = await merchant.PatchAsJsonAsync("/api/merchants/me", Business(otherService), Json);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(original, (await Read<MerchantDashboardDto>(await merchant.GetAsync("/api/merchants/me"))).Profile);
+        }
+        var edit = await merchant.PatchAsJsonAsync("/api/merchants/me", Business(registeredService) with { OwnerName = "Updated Owner" }, Json);
+        Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
+        var saved = await Read<MerchantProfileDto>(edit);
+        Assert.Equal(registeredService, saved.Service);
+        Assert.Equal("Updated Owner", saved.OwnerName);
+    }
+
+    [Theory]
     [InlineData(MerchantServiceKind.GrabFood)]
     [InlineData(MerchantServiceKind.GrabExpress)]
     public async Task Merchant_services_validate_profiles_prices_and_uploads(MerchantServiceKind service)
@@ -123,7 +149,7 @@ public partial class ApiTests
         await MerchantAccount(c, f.Password, service);
         var profile = (await Read<MerchantDashboardDto>(await c.GetAsync("/api/merchants/me"))).Profile;
         Assert.Equal(service, profile.Service);
-        foreach (var invalid in new[] { Business() with { BusinessName = "  " }, Business() with { Address = "   " }, Business() with { ContactPhone = "bad-phone" }, Business() with { Email = "invalid" } })
+        foreach (var invalid in new[] { Business(service) with { BusinessName = "  " }, Business(service) with { Address = "   " }, Business(service) with { ContactPhone = "bad-phone" }, Business(service) with { Email = "invalid" } })
             Assert.Equal(HttpStatusCode.BadRequest, (await c.PatchAsJsonAsync("/api/merchants/me", invalid, Json)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/merchants/images", Photo("<svg onload='alert(1)'/>"u8.ToArray(), "evil.png"))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/merchants/images", Photo(new byte[2 * 1024 * 1024 + 1]))).StatusCode);
@@ -174,18 +200,16 @@ public partial class ApiTests
             service = "GrabRide", ownerName = "Sok Dara", contactPhone = "098765432", address = "Siem Reap", motorcycleLicensePlate = "1XY-5678"
         })).StatusCode);
 
-        var image = await Read<MerchantImageDto>(await c.PostAsync("/api/merchants/images", Photo()));
-        await c.PostAsJsonAsync("/api/merchants/listings", new MerchantListingRequest("Motorcycle ride", "Motorcycle rides around the city.", 2m, image.Id, true, true));
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/merchants/images", Photo())).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsJsonAsync("/api/merchants/listings", new MerchantListingRequest("Motorcycle ride", "Motorcycle rides around the city.", 2m, Guid.NewGuid(), true, true))).StatusCode);
         using var publicClient = f.CreateClient();
         var publicResponse = await publicClient.GetAsync($"/api/merchants/{dashboard.Profile.Id}");
-        Assert.Equal(HttpStatusCode.OK, publicResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, publicResponse.StatusCode);
         var publicJson = await publicResponse.Content.ReadAsStringAsync();
         Assert.DoesNotContain("motorcycleLicensePlate", publicJson);
         Assert.DoesNotContain("1XY-5678", publicJson);
-        var store = await Read<MerchantStorefrontDto>(publicResponse);
-        Assert.Equal("Sok Dara", store.Merchant.BusinessName);
-        Assert.Equal("Siem Reap", store.Merchant.Address);
-        Assert.Contains("Siem Reap", Assert.Single(await Read<List<BannerDto>>(await publicClient.GetAsync("/api/banners"))).Subtitle);
+        Assert.Empty(await Read<List<MerchantOfferDto>>(await publicClient.GetAsync("/api/merchants/offers?service=GrabRide")));
+        Assert.Empty(await Read<List<BannerDto>>(await publicClient.GetAsync("/api/banners")));
 
         using var fresh = f.CreateClient();
         var login = await fresh.PostAsJsonAsync("/api/merchants/login", new LoginRequest("098765432", f.Password));

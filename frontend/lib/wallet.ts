@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Demo wallet (like GrabPay). Balance and history are kept in the browser.
+ * Demo wallet (like GrabPay). Signed-in balance/history sync through the
+ * account-data API; the browser caches pending edits for retry.
  * No real money: top-ups just add to the number.
  */
 import { useSyncExternalStore } from "react";
@@ -27,7 +28,7 @@ export const useWallet = () => useSyncExternalStore(store.subscribe, store.get, 
 export const walletBalance = () => store.get().balance;
 
 const round = (n: number) => Math.round(n * 100) / 100;
-const txnId = () => `TX-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 100)}`;
+const txnId = () => `TX-${crypto.randomUUID()}`;
 
 function add(kind: WalletTxn["kind"], amount: number, description: string) {
   store.update((s) => ({

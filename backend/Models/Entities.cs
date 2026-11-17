@@ -30,6 +30,8 @@ public class Ride
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid CustomerId { get; set; }
     public Guid? DriverId { get; set; }
+    public Guid? MerchantId { get; set; }
+    public Merchant? Merchant { get; set; }
     public string PickupLocation { get; set; } = "";
     public string Destination { get; set; } = "";
     public double PickupLatitude { get; set; }
@@ -40,6 +42,10 @@ public class Ride
     public RideStatus Status { get; set; } = RideStatus.Pending;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAt { get; set; }
+    public double? DriverLatitude { get; set; }
+    public double? DriverLongitude { get; set; }
+    public double? DriverLocationAccuracy { get; set; }
+    public DateTimeOffset? DriverLocationUpdatedAt { get; set; }
     public byte[] Version { get; set; } = [];
 }
 public class Payment

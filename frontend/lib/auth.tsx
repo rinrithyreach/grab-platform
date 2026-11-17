@@ -8,12 +8,13 @@
  * and closing the tab logs you out. (A demo trade-off: any script on the page could
  * read sessionStorage, so a real app would use secure cookies instead.)
  *
- * Pages that need the backend (the ride pages) call `checkOnline()`; `online === false`
- * then switches them to demo mode. Other pages never contact the backend unless you're
- * logged in, so they don't log connection errors when it isn't running.
+ * Private account data is scoped immediately when the session changes and is
+ * synchronized by AccountSync. Public views poll the API independently.
+ * Offline ride simulation requires explicit configuration.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ApiError, createApiClient, type AuthResponse, type RegisterRequest, type User } from "./api";
+import { selectLocalAccount } from "./local-store";
 
 type Api = ReturnType<typeof createApiClient>;
 interface AuthValue {
@@ -33,6 +34,9 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 const SESSION_KEY = "grab-session";
+const subscribeHydration = () => () => {};
+const getHydrated = () => true;
+const getServerHydrated = () => false;
 
 function saveSession(session: AuthResponse | null) {
   try {
@@ -50,9 +54,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
+  const owner = user?.id;
+
+  useEffect(() => {
+    if (!owner) return;
+    const ctrl = new AbortController();
+    let busy = false;
+    const refresh = async () => {
+      if (busy) return;
+      busy = true;
+      try { await api.refreshMe(ctrl.signal); } catch { /* account sync displays connectivity state */ }
+      finally { busy = false; }
+    };
+    const timer = setInterval(() => { if (document.visibilityState !== "hidden") void refresh(); }, 15000);
+    window.addEventListener("focus", refresh);
+    return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [api, owner]);
 
   // A 401 or token expiry must also update the navbar and saved browser session.
   useEffect(() => api.subscribeSession((session) => {
+    selectLocalAccount(session?.user.id ?? null);
     saveSession(session);
     setUser(session?.user ?? null);
   }), [api]);
@@ -122,8 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
+  const hydrated = useSyncExternalStore(subscribeHydration, getHydrated, getServerHydrated);
   if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
-  return ctx;
+  // A Suspense child can hydrate after the provider restores a saved session.
+  // Its first render must still match the guest state used to generate its HTML.
+  return hydrated ? ctx : { ...ctx, user: null, ready: false, online: null };
 }
 
 /** Turns an API/network error into text. Server messages come from the backend (English). */

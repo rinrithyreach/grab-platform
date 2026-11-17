@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { useState } from "react";
 import { errorMessage, useAuth } from "@/lib/auth";
 import type { User } from "@/lib/api";
@@ -100,6 +101,14 @@ function NameEditor({ user }: { user: User }) {
 }
 
 export default function ProfilePage() {
+  const { user, ready } = useAuth();
+  const { t } = useT();
+  if (user?.role === "Merchant") redirect("/merchant");
+  if (!ready) return <p role="status" className="mx-auto max-w-3xl px-4 py-8 text-muted">{t("merchant.loading")}</p>;
+  return <CustomerProfilePage />;
+}
+
+function CustomerProfilePage() {
   const { t } = useT();
   const { user, ready, logout } = useAuth();
   const { addresses } = useProfile();
