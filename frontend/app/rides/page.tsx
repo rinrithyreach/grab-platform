@@ -158,9 +158,10 @@ function MyRidesContent() {
                   <p className="font-semibold">{placeName(r.pickupLocation)} → {placeName(r.destination)}</p>
                   <p className="text-sm text-muted">{new Date(r.createdAt).toLocaleString(dateLocale)}</p>
                   {r.merchantName && <p className="mt-1 text-sm text-brand">{t("ride.acceptedByMerchant", { name: r.merchantName })}</p>}
-                  {(r.vehicle || (r.driverName && r.status !== "Pending")) && (
+                  {(r.vehicle || r.vehicleType || (r.driverName && r.status !== "Pending")) && (
                     <p className="mt-1 text-sm text-muted">
                       {r.vehicle && <>{VEHICLE[r.vehicle].emoji} {t(VEHICLE[r.vehicle].name)}</>}
+                      {!r.vehicle && r.vehicleType && <>{r.vehicleType}</>}
                       {r.driverName && r.status !== "Pending" && <> · {t("rides.driver", { name: r.driverName })}</>}
                     </p>
                   )}

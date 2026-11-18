@@ -8,6 +8,7 @@ Services: **GrabRide, GrabFood and GrabExpress** (Express replaces Mart).
 
 - [Run the frontend](frontend/README.md)
 - [Frontend audit and verification](frontend/AUDIT.md)
+- [Security review, fixes and remaining limitations](SECURITY_AUDIT.md)
 - [Run the ASP.NET Core / Entity Framework API](backend/README.md)
 - [Next backend integration phase](backend/IMPLEMENTATION_PLAN.md)
 

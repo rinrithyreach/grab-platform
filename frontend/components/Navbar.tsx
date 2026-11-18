@@ -8,6 +8,7 @@ import { cartDetails, useShop } from "@/lib/cart";
 import { STORES, type StoreKind } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useHydratedPathname } from "@/lib/navigation";
+import { partnerTotals, usePartnerCart } from "@/lib/partner-cart";
 import SettingsMenu from "./SettingsMenu";
 
 const LINKS: { href: string; key: MessageKey }[] = [
@@ -34,7 +35,8 @@ export default function Navbar() {
   const savedName = user?.fullName.trim();
   const greetingName = savedName && savedName !== "Customer" ? savedName : user?.phoneNumber ?? "";
   const { cart } = useShop();
-  const { count } = cartDetails(cart);
+  // Only one of the two carts holds items at a time (see lib/cart.ts).
+  const count = cartDetails(cart).count + partnerTotals(usePartnerCart()).count;
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);

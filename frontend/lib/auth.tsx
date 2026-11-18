@@ -94,8 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (saved && !restored) saveSession(null); // expired
 
     const restore = restored && saved
-      ? api.me(ctrl.signal).then(
-          (u) => { if (!cancelled && api.getSession()?.accessToken === saved.accessToken) { setUser(u); setOnline(true); } },
+      ? api.refreshMe(ctrl.signal).then(
+          () => { if (!cancelled && api.getSession()?.accessToken === saved.accessToken) setOnline(true); },
           (err) => {
             if (cancelled) return;
             if (err instanceof ApiError && err.status === 401) { if (!api.getSession()) saveSession(null); setOnline(true); }
@@ -122,15 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkOnline,
     login: async (phoneNumber, password) => {
       const u = await api.login(phoneNumber, password);
-      saveSession(api.getSession());
-      setUser(u);
+      // subscribeSession owns persistence and UI state, including logout races.
       setOnline(true);
       return u;
     },
     register: async (body) => {
       const u = await api.register(body);
-      saveSession(api.getSession());
-      setUser(u);
       setOnline(true);
       return u;
     },

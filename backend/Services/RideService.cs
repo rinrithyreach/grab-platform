@@ -8,6 +8,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Grab.Api.Services;
 public class RideService(GrabDbContext db, IConfiguration config) : IRideService
 {
+    private static RideVehicleType MerchantVehicleType(Merchant merchant) =>
+        Enum.TryParse<RideVehicleType>(merchant.Category, out var selected) && Enum.IsDefined(selected)
+            ? selected : RideVehicleType.Motorcycle;
+
     private async Task<Merchant> RideMerchant(Guid userId, CancellationToken ct) =>
         await db.Merchants.SingleOrDefaultAsync(m => m.UserId == userId && m.Service == MerchantServiceKind.GrabRide, ct)
         ?? throw new ApiException(403, "Only registered GrabRide merchants can receive ride requests.");
@@ -15,6 +19,7 @@ public class RideService(GrabDbContext db, IConfiguration config) : IRideService
     public async Task<MerchantRideInboxDto> MerchantInbox(Guid userId, CancellationToken ct)
     {
         var merchant = await RideMerchant(userId, ct);
+        var vehicleType = MerchantVehicleType(merchant);
         var active = await db.Rides.AsNoTracking().Include(r => r.Merchant)
             .SingleOrDefaultAsync(r => r.MerchantId == merchant.Id && (r.Status == RideStatus.Accepted || r.Status == RideStatus.InProgress), ct);
         if (active is not null)
@@ -23,7 +28,7 @@ public class RideService(GrabDbContext db, IConfiguration config) : IRideService
             return new([], new(active.Dto(), name));
         }
         var pending = await db.Rides.AsNoTracking()
-            .Where(r => r.Status == RideStatus.Pending && r.DriverId == null && r.MerchantId == null
+            .Where(r => r.Status == RideStatus.Pending && r.VehicleType == vehicleType && r.DriverId == null && r.MerchantId == null
                 && !db.RideMerchantResponses.Any(response => response.RideId == r.Id && response.MerchantId == merchant.Id))
             .OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).Take(25)
             .Select(r => new { Ride = r, Name = db.Users.Where(u => u.Id == r.CustomerId).Select(u => u.FullName).First() }).ToListAsync(ct);
@@ -42,6 +47,8 @@ public class RideService(GrabDbContext db, IConfiguration config) : IRideService
         }
         if (ride.Status != RideStatus.Pending || ride.DriverId is not null || ride.MerchantId is not null)
             throw new ApiException(409, "This ride request is no longer available.");
+        if (ride.VehicleType != MerchantVehicleType(merchant))
+            throw new ApiException(403, "This ride requires a different vehicle type.");
         if (accept)
         {
             if (await db.RideMerchantResponses.AnyAsync(r => r.MerchantId == merchant.Id && r.IsActive, ct))
@@ -60,10 +67,18 @@ public class RideService(GrabDbContext db, IConfiguration config) : IRideService
     {
         if (string.IsNullOrWhiteSpace(r.PickupLocation) || string.IsNullOrWhiteSpace(r.Destination))
             throw new ApiException(400, "Pickup and destination are required.");
+        if (!double.IsFinite(r.PickupLatitude) || r.PickupLatitude is < -90 or > 90
+            || !double.IsFinite(r.PickupLongitude) || r.PickupLongitude is < -180 or > 180
+            || !double.IsFinite(r.DestinationLatitude) || r.DestinationLatitude is < -90 or > 90
+            || !double.IsFinite(r.DestinationLongitude) || r.DestinationLongitude is < -180 or > 180)
+            throw new ApiException(400, "Valid pickup and destination coordinates are required.");
+        if (r.PickupLatitude == r.DestinationLatitude && r.PickupLongitude == r.DestinationLongitude)
+            throw new ApiException(400, "Pickup and destination must be different locations.");
+        if (!Enum.IsDefined(r.VehicleType)) throw new ApiException(400, "Choose Motorcycle, Rickshaw or Classic.");
         var ride = new Ride { CustomerId = customerId, PickupLocation = r.PickupLocation.Trim(), Destination = r.Destination.Trim(),
             PickupLatitude = r.PickupLatitude, PickupLongitude = r.PickupLongitude,
             DestinationLatitude = r.DestinationLatitude, DestinationLongitude = r.DestinationLongitude,
-            Fare = config.GetValue<decimal>("Pricing:DevelopmentFlatFareUsd", 5) };
+            Fare = config.GetValue<decimal>("Pricing:DevelopmentFlatFareUsd", 5), VehicleType = r.VehicleType };
         db.Rides.Add(ride);
         await db.SaveChangesAsync(ct);
         return ride.Dto();

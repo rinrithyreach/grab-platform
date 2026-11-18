@@ -10,13 +10,14 @@ export const EMPTY_MERCHANT_PROFILE: MerchantProfileRequest = {
   service: "GrabFood", businessName: "", ownerName: "", contactPhone: "", email: "",
   address: "", city: "Phnom Penh", category: "", description: "", openingHours: "",
   motorcycleLicensePlate: "",
+  vehicleType: "Motorcycle",
 };
 
 export function merchantRegistrationProfile(profile: MerchantProfileRequest): MerchantProfileRequest | RideMerchantRegistrationProfile {
   if (profile.service === "GrabRide") return {
     service: "GrabRide", ownerName: profile.ownerName.trim(), address: profile.address.trim(),
     motorcycleLicensePlate: profile.motorcycleLicensePlate?.trim() ?? "",
-    openingHours: profile.openingHours.trim(),
+    openingHours: profile.openingHours.trim(), vehicleType: profile.vehicleType ?? "Motorcycle",
   };
-  return { ...profile, email: profile.email?.trim() || null };
+  return { ...profile, vehicleType: null, email: profile.email?.trim() || null };
 }

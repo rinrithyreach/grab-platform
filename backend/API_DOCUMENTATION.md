@@ -25,7 +25,7 @@ The browser caches pending changes per account, polls every five seconds while v
 | GET | `/api/rides?page=1` | Customer: own; Driver: assigned plus Pending queue; Admin: all | 200 Ride[] |
 | GET | `/api/rides/mine?page=1` | Customer: own; Driver: assigned; Admin: all administrative history | 200 Ride[] |
 | GET | `/api/rides/{id}` | Owner, assigned driver, Admin; inaccessible records return 404 | 200 Ride |
-| POST | `/api/rides` | Customer only; fare generated on server | 201 Ride, Location header |
+| POST | `/api/rides` | Customer only; choose `vehicleType`: `Motorcycle`, `Rickshaw`, or `Classic`; fare generated on server | 201 Ride, Location header |
 | PATCH | `/api/rides/{id}/status` | State machine below | 200 Ride |
 | PATCH | `/api/rides/{id}/location` | Assigned GrabRide Merchant or Driver; Accepted/InProgress only | 200 Ride |
 | DELETE | `/api/rides/{id}/location` | Assigned GrabRide Merchant or Driver; stop sharing on an active ride | 200 Ride |
@@ -59,8 +59,9 @@ Update your profile name (authenticated; trimmed name 2–120 characters, withou
 
 Book (location labels 2–300 chars; latitudes -90…90, longitudes -180…180):
 ```json
-{ "pickupLocation": "University", "destination": "Central Market", "pickupLatitude": 11.56, "pickupLongitude": 104.92, "destinationLatitude": 11.57, "destinationLongitude": 104.93 }
+{ "pickupLocation": "University", "destination": "Central Market", "pickupLatitude": 11.56, "pickupLongitude": 104.92, "destinationLatitude": 11.57, "destinationLongitude": 104.93, "vehicleType": "Rickshaw" }
 ```
+Omitting `vehicleType` defaults to `Motorcycle` for older clients. GrabRide merchants see and can accept pending rides for their registered vehicle type only.
 Status:
 ```json
 { "status": "Accepted" }
@@ -147,7 +148,7 @@ The merchant service is fixed at registration. `PATCH /api/merchants/me` must in
 
 Merchants register for one service: `GrabRide`, `GrabFood` or `GrabExpress`. Each merchant account has the `Merchant` role and one business profile. A sign-in phone must be unique across all account types. Customer registration still assigns Customer; the dedicated merchant endpoint assigns only Merchant, never Driver/Admin.
 
-**GrabRide** registration needs only the rider's name, phone number, password, motorcycle license plate and location. Send `phoneNumber` and `password` at the top level, and `profile: { "service": "GrabRide", "ownerName": "Dara Sok", "motorcycleLicensePlate": "1AB-1234", "address": "Phnom Penh" }`. Other profile fields may be omitted. The server uses the name as the public display name and the sign-in phone as the public contact phone at registration. The private dashboard returns `motorcycleLicensePlate`; public profile/offer/banner DTOs omit it. Plate values are trimmed, converted to uppercase and must contain 2–30 characters without control characters. Ride location accepts 2–300 characters. For GrabRide profile PATCH, provide `service`, `ownerName`, `contactPhone`, `address` and `motorcycleLicensePlate`; the store fields remain unnecessary.
+**GrabRide** registration needs the rider's name, phone number, password, vehicle type, license plate and location. Send `phoneNumber` and `password` at the top level, and `profile: { "service": "GrabRide", "ownerName": "Dara Sok", "vehicleType": "Rickshaw", "motorcycleLicensePlate": "1AB-1234", "address": "Phnom Penh" }`. Choose `Motorcycle`, `Rickshaw` or `Classic`; omitted `vehicleType` defaults to `Motorcycle` for older clients. Other profile fields may be omitted. The server uses the name as the public display name and the sign-in phone as the public contact phone at registration. The private dashboard returns `motorcycleLicensePlate`; public profile/offer/banner DTOs omit it. Plate values are trimmed, converted to uppercase and must contain 2–30 characters without control characters. Ride location accepts 2–300 characters. For GrabRide profile PATCH, provide `service`, `ownerName`, `contactPhone`, `address`, `vehicleType` and `motorcycleLicensePlate`; the store fields remain unnecessary.
 
 The frontend's location picker fills this same `address` field with either `Sangkat name, Khan District name, Phnom Penh` or `GPS: latitude, longitude` (six decimal places). District and sangkat choices use the bundled NCDD reference; selecting Use current location immediately requests device coordinates from the browser, with a retry button only after failure. There are no new API fields, external reverse-geocoding calls or database migrations for these two location modes. Existing saved textual locations remain readable.
 
@@ -165,7 +166,7 @@ GrabRide registration and profile PATCH also accept `openingHours` for the weekl
 | `POST /api/merchants/listings` | Merchant | 201 listing; requires an image owned by this merchant |
 | `PATCH /api/merchants/listings/{id}` | Owning merchant | Updated listing; another merchant's ID returns 404 |
 | `GET /api/merchants/offers?service=GrabFood&page=1` | Public | Published offers, 24 per page; optional service filter |
-| `GET /api/merchants/ride-areas?page=1` | Public | Registered GrabRide merchant map fields: `id`, public display `name`, saved `address`, `openingHours`; 100 per page, including accounts without listings. Other services and accounts no longer in the Merchant role are excluded. No account user ID, phone, email, password or motorcycle plate is returned. These are registration locations, not live positions or availability. |
+| `GET /api/merchants/ride-areas?page=1` | Public | Registered GrabRide merchant map fields: `id`, public display `name`, saved `address`, `openingHours`, `vehicleType`; 100 per page, including accounts without listings. Other services and accounts no longer in the Merchant role are excluded. No account user ID, phone, email, password or license plate is returned. These are registration locations, not live positions or availability. |
 | `GET /api/merchants/{id}` | Public | `{ merchant, listings }`; 404 if there are no published listings |
 | `GET /api/banners` | Public | Latest 12 updated published listings with `showInSlideshow: true` |
 | `GET /api/merchant-images/{id}` | Public | Stored image bytes with detected MIME type and `nosniff` |
@@ -209,3 +210,17 @@ Create/update listing body:
 ```
 
 Prices are USD, 0.01–999999.99 with at most two decimal places. Clear `isPublished` to hide a listing from public feeds, storefronts and banners while retaining it in the dashboard. Clear `showInSlideshow` to keep a published listing on service pages without featuring it in the homepage slideshow. Banner links point to `/partners/{merchantId}`. Public profiles omit owner name, user ID, sign-in phone and password/hash; they include only the explicit public business contact details. These offers support direct merchant enquiries, separate from the existing demo food checkout and ride/Express booking flows.
+
+## Merchant product orders
+
+Customers order published GrabFood/GrabExpress listings from one merchant per order. The server re-reads every listing at checkout: the browser sends only listing IDs and quantities, never prices. Title and unit price are copied onto each order line, so later listing edits do not change past orders. Payment is simulated (`Cash` or `Card` on delivery); the flat delivery fee is $1.50, matching the frontend.
+
+| Method and route | Access | Result |
+|---|---|---|
+| `POST /api/orders` | Customer | 201 Order. Body `{ merchantId, items: [{ listingId, quantity }], deliveryAddress, note, paymentMethod }`. 1–30 lines, quantity 1–50 (duplicate lines are merged). Address needs 5–300 characters with letters and numbers. Unknown merchant → 404. A listing that is unpublished, unknown or from another merchant → 409 (reload the storefront). Merchants cannot order from their own store. |
+| `GET /api/orders/mine?page=1` | Customer | Own orders, newest first, 20 per page |
+| `POST /api/orders/{id}/cancel` | Customer owner | Pending → Cancelled. After the store responds → 409. Another customer's order → 404. |
+| `GET /api/merchants/orders?page=1` | Merchant | This store's orders: Pending first, then active, then finished; 20 per page. Includes `customerName` and `customerPhone` for delivery. |
+| `POST /api/merchants/orders/{id}/status` | Owning merchant | Body `{ "status": "Accepted" }`. Allowed: Pending → Accepted or Rejected, Accepted → OnTheWay or Rejected, OnTheWay → Delivered or Rejected (`Rejected` after acceptance is the store cancelling). Any other move → 409; another store's order → 404. |
+
+Order response: `{ id, merchantId, merchantName, service, status, paymentMethod, items: [{ listingId, title, unitPrice, quantity, lineTotal }], subtotal, deliveryFee, total, deliveryAddress, note, createdAt, updatedAt, customerName, customerPhone }`. `customerName`/`customerPhone` are `null` in customer responses. Status changes use a rowversion, so simultaneous updates return 409 instead of overwriting each other.

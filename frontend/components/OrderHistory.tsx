@@ -13,6 +13,7 @@ import { addReview, useReviewedOrders } from "@/lib/reviews";
 import { toast } from "@/lib/toast";
 import { useT, type MessageKey } from "@/lib/i18n";
 import RideMap from "./RideMap";
+import { PartnerOrderList, usePartnerOrders } from "./PartnerOrders";
 
 // Demo delivery timeline (minutes after ordering).
 const PREPARING_UNTIL = 2;
@@ -132,7 +133,9 @@ function RateOrder({ order, onDone }: { order: Order; onDone: () => void }) {
 }
 
 export default function OrderHistory() {
-  const placed = useSearchParams().get("placed");
+  const params = useSearchParams();
+  const placed = params.get("placed");
+  const partner = usePartnerOrders();
   const { t, dateLocale } = useT();
   const lineText = useLineText();
   const router = useRouter();
@@ -145,14 +148,20 @@ export default function OrderHistory() {
 
   function orderAgain(o: Order) {
     if (getStore(o.storeId)?.kind === "mart") { router.push("/express"); return; }
-    const ok = reorder(o, (otherId) => window.confirm(t("cart.replace", { store: getStore(otherId)?.name ?? "" })));
-    if (ok) { toast(t("orders.reordered")); router.push("/cart"); }
+    const result = reorder(o, (otherName) => window.confirm(t("cart.replace", { store: otherName })));
+    if (result === "ok") { toast(t("orders.reordered")); router.push("/cart"); }
+    else if (result === "unavailable") toast(t("partner.removed"), "error");
   }
   const toggle = (id: string, kind: "receipt" | "track" | "rate") =>
     setPanel((p) => (p?.id === id && p.kind === kind ? null : { id, kind }));
   const isOpen = (id: string, kind: string) => panel?.id === id && panel.kind === kind;
 
+  const storeOrders = <PartnerOrderList orders={partner.orders} error={partner.error} placed={params.get("partner")} onChanged={partner.replace} />;
+
   if (!orders.length) {
+    if (partner.orders.length || partner.error) return storeOrders;
+    // Just checked out: the new store order is still loading.
+    if (params.get("partner")) return <p role="status" className="mt-6 text-muted">{t("common.loading")}</p>;
     return (
       <div className="card mt-6 p-10 text-center">
         <p className="text-5xl" aria-hidden>🧾</p>
@@ -163,6 +172,9 @@ export default function OrderHistory() {
   }
 
   return (
+    <>
+    {storeOrders}
+    {partner.orders.length > 0 && <h2 className="mt-8 text-xl font-bold">{t("orders.foodTitle")}</h2>}
     <div className="mt-6 space-y-4">
       {placed && orders.some((o) => o.id === placed) && (
         <p className="rounded-xl bg-brand-soft p-4 font-medium text-brand">
@@ -220,5 +232,6 @@ export default function OrderHistory() {
         );
       })}
     </div>
+    </>
   );
 }

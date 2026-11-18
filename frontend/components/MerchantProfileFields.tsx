@@ -37,6 +37,15 @@ export default function MerchantProfileFields({ value, onChange, hideRidePhone =
           </label>)}
         </div>
       </fieldset>}
+      {ride && <fieldset>
+        <legend className="label">{t("merchant.vehicleType")}</legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {(["Motorcycle", "Rickshaw", "Classic"] as const).map((type) => <label key={type} className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-sm font-semibold ${value.vehicleType === type ? "border-brand bg-brand-soft text-brand" : "border-border"}`}>
+            <input type="radio" name="rideVehicleType" value={type} checked={value.vehicleType === type} onChange={() => onChange({ ...value, vehicleType: type })} className="accent-brand" />
+            {type}
+          </label>)}
+        </div>
+      </fieldset>}
       <div className="grid gap-4 sm:grid-cols-2">
         {fields.map((f) => <div key={f.key} className={f.key === "address" ? "sm:col-span-2" : ""}>
           <label className="label" htmlFor={`merchant-${f.key}`}>{t(f.label)}</label>

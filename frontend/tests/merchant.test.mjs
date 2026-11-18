@@ -67,6 +67,9 @@ test("GrabRide registration includes rider details and seven working-day checkbo
   assert.ok(html.includes('value="manual"'));
   assert.ok(!html.includes('id="merchant-confirm-password"'));
   assert.equal([...html.matchAll(/name="merchant-service"/g)].length, 3, "Service is chosen during registration");
+  assert.equal([...html.matchAll(/name="rideVehicleType"/g)].length, 3);
+  for (const vehicle of ["Motorcycle", "Rickshaw", "Classic"])
+    assert.ok(html.includes(`value="${vehicle}"`));
   assert.equal([...html.matchAll(/name="workingDay"/g)].length, 7);
   assert.ok(html.includes('name="selectAllWorkingDays"'));
   assert.equal([...html.matchAll(/type="time"/g)].length, 14);
@@ -87,7 +90,7 @@ test("Food and Express registration retain their business fields and password co
 
 test("GrabRide registration sends rider details without hidden business requirements", () => {
   const profile = merchantRegistrationProfile({ ...EMPTY_MERCHANT_PROFILE, service: "GrabRide", ownerName: " Dara Sok ", address: " Phnom Penh ", motorcycleLicensePlate: " 1AB-1234 ", openingHours: " Mon 08:00-17:00; Sun 18:00-02:00 " });
-  assert.deepEqual(profile, { service: "GrabRide", ownerName: "Dara Sok", address: "Phnom Penh", motorcycleLicensePlate: "1AB-1234", openingHours: "Mon 08:00-17:00; Sun 18:00-02:00" });
+  assert.deepEqual(profile, { service: "GrabRide", ownerName: "Dara Sok", address: "Phnom Penh", motorcycleLicensePlate: "1AB-1234", openingHours: "Mon 08:00-17:00; Sun 18:00-02:00", vehicleType: "Motorcycle" });
 });
 
 test("GrabRide dashboard saves and restores checked days and times without listings or profile edits resetting the schedule", async (t) => {
@@ -120,6 +123,7 @@ test("GrabRide dashboard saves and restores checked days and times without listi
     "@/lib/ride-work-schedule": await component("../lib/ride-work-schedule.ts", {}),
     "./MerchantProfileFields": fields, "./RideWorkSchedule": await scheduleComponent(),
     "./MerchantRideRequests": dataModule('export default () => null;'),
+    "./MerchantOrders": dataModule('export default () => null;'),
     "./MerchantOfferCard": dataModule('export default () => null;'),
     "next/link": dataModule(`import { createElement } from "${reactModule}"; export default ({ children, ...props }) => createElement("a", props, children);`),
   }))).default;
@@ -176,6 +180,9 @@ test("GrabRide dashboard saves and restores checked days and times without listi
     await act(async () => root.unmount());
     data = { ...data, profile: { ...data.profile, service, openingHours: "Mon–Sat 7 AM–8 PM" } };
     await mount();
+    // Business dashboards open on incoming orders; listing tools are one tab away.
+    assert.ok([...container.querySelectorAll("button")].some((button) => button.textContent.startsWith("merchant.orders")), `${service} shows its orders tab`);
+    await act(async () => [...container.querySelectorAll("button")].find((button) => button.textContent === "merchant.listings").click());
     assert.ok(container.textContent.includes("merchant.newListing"), `${service} keeps listing tools`);
     assert.ok(!container.querySelector('input[name="workingDay"]'));
     await act(async () => [...container.querySelectorAll("button")].find((button) => button.textContent === "merchant.profile").click());

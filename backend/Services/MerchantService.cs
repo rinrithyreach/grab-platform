@@ -44,18 +44,23 @@ public class MerchantService(GrabDbContext db)
         merchant.ContactPhone = PhoneNumbers.Normalize(r.ContactPhone) ?? throw new ApiException(400, "Enter a valid public contact phone number.");
         if (r.Service == MerchantServiceKind.GrabRide)
         {
-            var plate = Text(r.MotorcycleLicensePlate, 2, 30, "Motorcycle license plate");
-            if (plate.Any(char.IsControl)) throw new ApiException(400, "Enter a motorcycle license plate without control characters.");
+            if (r.VehicleType.HasValue && !Enum.IsDefined(r.VehicleType.Value))
+                throw new ApiException(400, "Choose Motorcycle, Rickshaw or Classic.");
+            var vehicleType = r.VehicleType ?? (Enum.TryParse<RideVehicleType>(merchant.Category, out var current)
+                && Enum.IsDefined(current) ? current : RideVehicleType.Motorcycle);
+            var plate = Text(r.MotorcycleLicensePlate, 2, 30, "Vehicle license plate");
+            if (plate.Any(char.IsControl)) throw new ApiException(400, "Enter a vehicle license plate without control characters.");
             merchant.MotorcycleLicensePlate = plate.ToUpperInvariant();
             merchant.BusinessName = merchant.OwnerName;
             merchant.Address = Text(r.Address, 2, 300, "Location");
             merchant.Email = null;
             merchant.City = "";
-            merchant.Category = "Motorcycle";
+            merchant.Category = vehicleType.ToString();
             merchant.Description = "";
             merchant.OpeningHours = RideWorkingHours(r.OpeningHours);
             return;
         }
+        if (r.VehicleType.HasValue) throw new ApiException(400, "Vehicle type applies only to GrabRide partners.");
         merchant.MotorcycleLicensePlate = null;
         merchant.BusinessName = Text(r.BusinessName, 2, 120, "Business name");
         merchant.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim();
@@ -73,7 +78,8 @@ public class MerchantService(GrabDbContext db)
     public static MerchantPublicDto PublicProfile(Merchant m) => new(m.Id, m.Service, m.BusinessName,
         m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours);
     private static MerchantProfileDto Profile(Merchant m) => new(m.Id, m.Service, m.BusinessName,
-        m.OwnerName, m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours, m.MotorcycleLicensePlate);
+        m.OwnerName, m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours, m.MotorcycleLicensePlate,
+        m.Service == MerchantServiceKind.GrabRide && Enum.TryParse<RideVehicleType>(m.Category, out var type) ? type : null);
     private static MerchantListingDto Listing(MerchantListing l) => new(l.Id, l.Title, l.Description,
         l.Price, l.ImageId, ImageUrl(l.ImageId), l.IsPublished, l.ShowInSlideshow, l.UpdatedAt);
     private static MerchantOfferDto Offer(MerchantListing l) => new(l.Id, l.Title, l.Description,
@@ -163,7 +169,8 @@ public class MerchantService(GrabDbContext db)
         return await db.Merchants.AsNoTracking()
             .Where(m => m.Service == MerchantServiceKind.GrabRide && db.Users.Any(u => u.Id == m.UserId && u.Role == Role.Merchant))
             .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id).Skip((page - 1) * 100).Take(100)
-            .Select(m => new RideMerchantAreaDto(m.Id, m.BusinessName, m.Address, m.OpeningHours)).ToListAsync(ct);
+            .Select(m => new RideMerchantAreaDto(m.Id, m.BusinessName, m.Address, m.OpeningHours,
+                m.Category == "Rickshaw" ? RideVehicleType.Rickshaw : m.Category == "Classic" ? RideVehicleType.Classic : RideVehicleType.Motorcycle)).ToListAsync(ct);
     }
 
     public async Task<MerchantStorefrontDto> Storefront(Guid id, CancellationToken ct)

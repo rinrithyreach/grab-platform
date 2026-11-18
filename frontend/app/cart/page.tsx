@@ -15,8 +15,10 @@ import { formatTime, isOpenAt } from "@/lib/hours";
 import { canPayWithWallet, chosenOptions } from "@/lib/pricing";
 import { useProfile } from "@/lib/profile";
 import { toast } from "@/lib/toast";
+import { usePartnerCart } from "@/lib/partner-cart";
 import { useWallet } from "@/lib/wallet";
 import BackButton from "@/components/BackButton";
+import PartnerCheckout from "@/components/PartnerCheckout";
 
 const PAYMENTS: { value: PaymentMethod; icon: string; label: MessageKey }[] = [
   { value: "Cash", icon: "💵", label: "cart.cash" },
@@ -41,8 +43,11 @@ export default function CartPage() {
   const walletShort = !canPayWithWallet(balance, total);
   const promoLabel = store?.promo ? pick(store.promo, store.km?.promo) : "";
   // For "buy X get Y": how many more of one item until the next free one.
-  const buyGetGap = deal?.type === "buyGetFree" && !discount
-    ? Math.min(...lines.map((l) => deal.buy + deal.free - (l.qty % (deal.buy + deal.free))))
+  // Counted per dish across option lines, the same way lib/pricing.ts applies the deal.
+  const perDish = new Map<string, number>();
+  for (const l of lines) perDish.set(l.itemId, (perDish.get(l.itemId) ?? 0) + l.qty);
+  const buyGetGap = deal?.type === "buyGetFree" && !discount && perDish.size
+    ? Math.min(...[...perDish.values()].map((qty) => deal.buy + deal.free - (qty % (deal.buy + deal.free))))
     : 0;
   const [address, setAddress] = useState("");
   const [payment, setPayment] = useState<PaymentMethod>("Cash");
@@ -50,6 +55,10 @@ export default function CartPage() {
   const [addressError, setAddressError] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
+  const partner = usePartnerCart();
+
+  // Products from a merchant partner have their own checkout (saved by the API).
+  if (partner.lines.length && !lines.length) return <PartnerCheckout />;
 
   if (!store || store.kind !== "food" || !lines.length) {
     return (

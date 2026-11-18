@@ -12,6 +12,7 @@ import { useAuth } from "./auth";
 import { createLocalStore } from "./local-store";
 
 export type VehicleId = "bike" | "tuk" | "car";
+export const rideVehicleType = { bike: "Motorcycle", tuk: "Rickshaw", car: "Classic" } as const;
 
 /** A ride as the pages show it. Demo rides also know their vehicle and driver name. */
 export type RideView = Ride & { vehicle?: VehicleId; driverName?: string; reviewed?: boolean };
@@ -65,7 +66,7 @@ const demoService: RideService = {
   async bookRide(body, vehicle, km) {
     const id = `demo-${Date.now().toString(36)}`;
     const ride: DemoRide = {
-      ...body, id, customerId: "demo-user", vehicle,
+      ...body, vehicleType: rideVehicleType[vehicle], id, customerId: "demo-user", vehicle,
       driverId: `driver-${id}`, driverName: DRIVERS[Math.floor(Math.random() * DRIVERS.length)],
       fare: demoFare(vehicle, km), pricingMode: "Demo", status: "Pending",
       createdAt: new Date().toISOString(), completedAt: null,
@@ -112,7 +113,7 @@ async function allPages<T>(fetchPage: (page: number) => Promise<T[]>, signal?: A
 function liveService(api: ReturnType<typeof useAuth>["api"]): RideService {
   return {
     mode: "live",
-    bookRide: (body) => api.bookRide(body), // the backend sets the fare; it doesn't take a vehicle type yet
+    bookRide: (body, vehicle) => api.bookRide({ ...body, vehicleType: rideVehicleType[vehicle] }),
     myRides: (signal) => allPages((page) => api.myRides(page, signal), signal),
     myPayments: (signal) => allPages((page) => api.myPayments(page, signal), signal),
     cancel: (id) => api.updateRideStatus(id, "Cancelled"),

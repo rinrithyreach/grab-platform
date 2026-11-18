@@ -22,7 +22,7 @@ async function compile(relativePath, imports = {}) {
   return dataModule(outputText);
 }
 
-async function setup(t) {
+async function setup(t, availableTypes = ["Motorcycle", "Rickshaw", "Classic"]) {
   const dom = new JSDOM('<div id="root"></div>', { url: "http://localhost:3000/ride" });
   const previous = { window: globalThis.window, document: globalThis.document, IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT };
   const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -46,13 +46,21 @@ async function setup(t) {
   });
   const link = dataModule(`import { createElement } from "${react}"; export default ({ children, ...props }) => createElement("a", props, children);`);
   const translations = dataModule("const t = (key, vars) => key + (vars ? ' ' + JSON.stringify(vars) : ''); export const useT = () => ({ t, pick: english => english });");
-  const rides = dataModule("export const bookings = []; export const demoFare = () => 5; export const useRideService = () => ({ mode: 'live', bookRide: async (body, vehicle, km) => { bookings.push({ body, vehicle, km }); return { ...body, id: 'test-ride', fare: 5 }; } });");
+  const rides = dataModule("export const bookings = []; export const rideVehicleType = { bike: 'Motorcycle', tuk: 'Rickshaw', car: 'Classic' }; export const demoFare = () => 5; export const useRideService = () => ({ mode: 'live', bookRide: async (body, vehicle, km) => { bookings.push({ body, vehicle, km }); return { ...body, id: 'test-ride', fare: 5 }; } });");
   const { bookings } = await import(rides);
   bookings.length = 0;
   const placesModule = await compile("../lib/places.ts");
   const { PLACES } = await import(placesModule);
   const locationHelpers = await compile("../lib/merchant-location.ts", { "./phnom-penh": await compile("../lib/phnom-penh.ts") });
-  const map = dataModule(`import { createElement } from "${react}"; export default ({ from, to }) => createElement('div', { 'data-testid': 'map', 'data-from-lat': from.lat, 'data-from-lng': from.lng, 'data-to-lat': to.lat, 'data-to-lng': to.lng });`);
+  const map = dataModule(`import { createElement, useEffect } from "${react}";
+    let registered = ${JSON.stringify(availableTypes)};
+    const listeners = new Set();
+    export const setRegistered = (types) => { registered = types; for (const listener of listeners) listener(registered.map(vehicleType => ({ vehicleType }))); };
+    export default ({ from, to, onAvailabilityChange }) => {
+      useEffect(() => { listeners.add(onAvailabilityChange); onAvailabilityChange(registered.map(vehicleType => ({ vehicleType }))); return () => listeners.delete(onAvailabilityChange); }, [onAvailabilityChange]);
+      return createElement('div', { 'data-testid': 'map', 'data-from-lat': from.lat, 'data-from-lng': from.lng, 'data-to-lat': to.lat, 'data-to-lng': to.lng });
+    };`);
+  const { setRegistered } = await import(map);
   const RidePage = (await import(await compile("../app/ride/page.tsx", {
     "next/link": link, "@/lib/auth": dataModule("export const useAuth = () => ({user: {role: 'Customer'}, ready: true}); export const errorMessage = err => err.message;"),
     "@/lib/brand": dataModule("export const money = value => '$' + value;"), "@/lib/i18n": translations,
@@ -76,7 +84,7 @@ async function setup(t) {
   async function submit() {
     await act(async () => container.querySelector("form").dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true })));
   }
-  return { dom, container, PLACES, bookings, locationRequests, button, click, choose, submit };
+  return { dom, container, PLACES, bookings, locationRequests, button, click, choose, submit, setRegistered };
 }
 
 test("customers explicitly detect pickup coordinates; the map, swap and booking use the detected point", async (t) => {
@@ -105,6 +113,44 @@ test("customers explicitly detect pickup coordinates; the map, swap and booking 
   assert.equal(app.bookings[0].body.pickupLocation, "GPS: 11.551235, 104.927891");
   assert.equal(app.bookings[0].body.destination, app.PLACES[1].name);
   assert.ok(app.bookings[0].km > 0 && Number.isFinite(app.bookings[0].km));
+});
+
+test("live ride booking shows all vehicle choices and submits the selected type", async (t) => {
+  const app = await setup(t);
+  for (const name of ["ride.moto", "ride.tuktuk", "ride.car"])
+    assert.ok(app.button(name), `${name} must appear in live mode`);
+  await app.click(app.button("ride.tuktuk"));
+  assert.equal(app.button("ride.tuktuk").getAttribute("aria-pressed"), "true");
+  await app.submit();
+  assert.equal(app.bookings[0].vehicle, "tuk");
+  assert.equal(app.bookings[0].body.vehicleType, "Rickshaw");
+});
+
+test("unregistered ride types stay faded and cannot be booked until a matching merchant registers", async (t) => {
+  const app = await setup(t, ["Motorcycle"]);
+  assert.equal(app.button("ride.moto").disabled, false);
+  assert.equal(app.button("ride.tuktuk").disabled, true);
+  assert.equal(app.button("ride.car").disabled, true);
+  assert.ok(app.button("ride.car").className.includes("opacity-45"));
+  assert.ok(app.button("ride.car").textContent.includes("ride.vehicleUnregistered"));
+  assert.equal(app.button("ride.moto").getAttribute("aria-pressed"), "true");
+  await app.click(app.button("ride.car"));
+  assert.equal(app.button("ride.moto").getAttribute("aria-pressed"), "true");
+  await act(async () => app.setRegistered(["Motorcycle", "Rickshaw"]));
+  assert.equal(app.button("ride.tuktuk").disabled, false);
+  await app.click(app.button("ride.tuktuk"));
+  await app.submit();
+  assert.equal(app.bookings[0].body.vehicleType, "Rickshaw");
+});
+
+test("no registered GrabRide merchant disables every live ride option and booking", async (t) => {
+  const app = await setup(t, []);
+  for (const name of ["ride.moto", "ride.tuktuk", "ride.car"])
+    assert.equal(app.button(name).disabled, true);
+  assert.equal(app.button("ride.submit").disabled, true);
+  assert.ok(app.container.textContent.includes("ride.noMerchantAreas"));
+  await app.submit();
+  assert.equal(app.bookings.length, 0);
 });
 
 test("denied location access explains the failure and still allows a manual pickup booking", async (t) => {

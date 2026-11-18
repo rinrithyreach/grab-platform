@@ -42,6 +42,42 @@ test("unavailable routers, missing roads and malformed upstream geometry produce
   }
 });
 
+test("route byte limits stop oversized chunked requests and upstream responses", async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => { calls++; return new Response("x".repeat(2_000_001)); });
+  assert.equal((await POST(request("x".repeat(513)))).status, 413);
+  assert.equal(calls, 0);
+  // A declared length is checked before buffering. Streaming bodies are bounded too.
+  const declared = new Request("http://localhost/api/ride-route", {
+    method: "POST", body: "{}", headers: { "Content-Length": "99999999" },
+  });
+  assert.equal((await POST(declared)).status, 413);
+  const encoder = new TextEncoder();
+  let cancelled = false;
+  const stream = new ReadableStream({
+    pull(controller) { controller.enqueue(encoder.encode("x".repeat(300))); },
+    cancel() { cancelled = true; },
+  });
+  const chunked = new Request("http://localhost/api/ride-route", { method: "POST", body: stream, duplex: "half" });
+  assert.equal((await POST(chunked)).status, 413);
+  assert.equal(cancelled, true);
+  assert.equal((await POST(request({ from: [11, 104], to: [12, 105] }))).status, 503);
+  assert.equal(calls, 1);
+});
+
+test("concurrent route requests are bounded and slots are released after failures", async (t) => {
+  const finish = [];
+  t.mock.method(globalThis, "fetch", async () => new Promise((resolve) => finish.push(resolve)));
+  const pending = Array.from({ length: 16 }, () => POST(request({ from: [11, 104], to: [12, 105] })));
+  const rejected = await POST(request({ from: [11, 104], to: [12, 105] }));
+  assert.equal(rejected.status, 503);
+  assert.equal(rejected.headers.get("Retry-After"), "2");
+  await new Promise((resolve) => setImmediate(resolve));
+  finish.forEach((resolve) => resolve(Response.json({}, { status: 503 })));
+  await Promise.all(pending);
+  assert.equal((await POST(request({}))).status, 400);
+});
+
 test("road refreshes are throttled and a delayed old route cannot replace a changed destination", async (t) => {
   const dom = new JSDOM('<div id="root"></div>', { url: "http://localhost:3000/rides" });
   const previous = { window: globalThis.window, document: globalThis.document, IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT };

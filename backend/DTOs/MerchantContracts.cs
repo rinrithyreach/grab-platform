@@ -15,7 +15,8 @@ public record MerchantProfileRequest(
     [StringLength(100)] string? Category,
     [StringLength(1500)] string? Description,
     [StringLength(200)] string? OpeningHours,
-    [StringLength(30)] string? MotorcycleLicensePlate = null);
+    [StringLength(30)] string? MotorcycleLicensePlate = null,
+    [EnumDataType(typeof(RideVehicleType))] RideVehicleType? VehicleType = null);
 
 public record MerchantRegisterRequest(
     [Required, StringLength(30)] string PhoneNumber,
@@ -35,14 +36,14 @@ public record MerchantPublicDto(Guid Id, MerchantServiceKind Service, string Bus
     string Description, string OpeningHours);
 public record MerchantProfileDto(Guid Id, MerchantServiceKind Service, string BusinessName,
     string OwnerName, string ContactPhone, string? Email, string Address, string City,
-    string Category, string Description, string OpeningHours, string? MotorcycleLicensePlate);
+    string Category, string Description, string OpeningHours, string? MotorcycleLicensePlate, RideVehicleType? VehicleType);
 public record MerchantListingDto(Guid Id, string Title, string Description, decimal Price,
     Guid ImageId, string ImageUrl, bool IsPublished, bool ShowInSlideshow, DateTimeOffset UpdatedAt);
 public record MerchantOfferDto(Guid Id, string Title, string Description, decimal Price,
     string ImageUrl, MerchantPublicDto Merchant);
 public record MerchantStorefrontDto(MerchantPublicDto Merchant, List<MerchantOfferDto> Listings);
 public record MerchantDashboardDto(MerchantProfileDto Profile, List<MerchantListingDto> Listings);
-public record RideMerchantAreaDto(Guid Id, string Name, string Address, string OpeningHours);
+public record RideMerchantAreaDto(Guid Id, string Name, string Address, string OpeningHours, RideVehicleType VehicleType);
 public record MerchantRideRequestDto(RideDto Ride, string CustomerName);
 public record MerchantRideInboxDto(List<MerchantRideRequestDto> Requests, MerchantRideRequestDto? ActiveRide);
 public record MerchantRideResponseRequest([property: JsonRequired] bool Accept);

@@ -22,6 +22,12 @@ export const STARTING_BALANCE = 20;
 const store = createLocalStore<WalletState>("grab-wallet-v1", {
   balance: STARTING_BALANCE,
   txns: [{ id: "welcome", kind: "topup", amount: STARTING_BALANCE, description: "Welcome bonus", createdAt: "2026-01-01T00:00:00.000Z" }],
+}, (value): value is WalletState => {
+  const wallet = value as WalletState;
+  return !!wallet && Number.isFinite(wallet.balance) && wallet.balance >= 0 && Number.isSafeInteger(Math.round(wallet.balance * 100))
+    && Array.isArray(wallet.txns) && wallet.txns.every((txn) => txn && typeof txn.id === "string"
+      && ["topup", "payment", "refund"].includes(txn.kind) && Number.isFinite(txn.amount)
+      && typeof txn.description === "string" && typeof txn.createdAt === "string" && Number.isFinite(Date.parse(txn.createdAt)));
 });
 
 export const useWallet = () => useSyncExternalStore(store.subscribe, store.get, store.getInitial);
@@ -38,13 +44,14 @@ function add(kind: WalletTxn["kind"], amount: number, description: string) {
 }
 
 export function topUp(amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) return;
+  if (!Number.isFinite(amount) || round(amount) <= 0
+    || !Number.isSafeInteger(Math.round((store.get().balance + amount) * 100))) return;
   add("topup", amount, "Top up");
 }
 
 /** Returns false (and charges nothing) if the balance is too low. */
 export function payFromWallet(amount: number, description: string) {
-  if (amount <= 0 || !canPayWithWallet(store.get().balance, amount)) return false;
+  if (round(amount) <= 0 || !Number.isSafeInteger(Math.round(amount * 100)) || !canPayWithWallet(store.get().balance, amount)) return false;
   add("payment", -amount, description);
   return true;
 }

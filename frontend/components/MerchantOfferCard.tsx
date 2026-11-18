@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { MerchantOffer } from "@/lib/api";
 import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
 
-export default function MerchantOfferCard({ offer, preview = false }: { offer: MerchantOffer; preview?: boolean }) {
+/** `children` (preview mode only) is shown under the details, e.g. the add-to-cart controls. */
+export default function MerchantOfferCard({ offer, preview = false, children }: { offer: MerchantOffer; preview?: boolean; children?: ReactNode }) {
   const { t } = useT();
   const content = <>
     <div className="aspect-[16/10] overflow-hidden bg-brand-soft">
@@ -23,6 +25,6 @@ export default function MerchantOfferCard({ offer, preview = false }: { offer: M
     </div>
   </>;
   return preview
-    ? <article className="card overflow-hidden">{content}</article>
+    ? <article className="card flex flex-col overflow-hidden">{content}{children && <div className="mt-auto px-5 pb-5">{children}</div>}</article>
     : <Link href={`/partners/${offer.merchant.id}`} className="card group block overflow-hidden transition-shadow hover:shadow-lg">{content}</Link>;
 }

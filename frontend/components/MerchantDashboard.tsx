@@ -12,6 +12,7 @@ import MerchantProfileFields from "./MerchantProfileFields";
 import MerchantOfferCard from "./MerchantOfferCard";
 import RideWorkSchedule from "./RideWorkSchedule";
 import MerchantRideRequests from "./MerchantRideRequests";
+import MerchantOrders from "./MerchantOrders";
 
 function WorkScheduleEditor({ profile, onSaved }: { profile: MerchantProfile; onSaved: (value: MerchantProfile) => void }) {
   const { api } = useAuth();
@@ -133,7 +134,9 @@ export default function MerchantDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
-  const [tab, setTab] = useState<"listings" | "profile">("listings");
+  // Orders first: that is where new customer orders arrive.
+  const [tab, setTab] = useState<"orders" | "listings" | "profile">("orders");
+  const [pending, setPending] = useState(0);
   const [editor, setEditor] = useState<MerchantListing | "new" | null>(null);
 
   useEffect(() => {
@@ -179,8 +182,10 @@ export default function MerchantDashboard() {
     <div className="mt-7 grid grid-cols-3 gap-3">{([
       ["merchant.total", data.listings.length], ["merchant.published", publishedCount], ["merchant.draft", data.listings.length - publishedCount],
     ] as const).map(([key, count]) => <div key={key} className="card p-4 sm:p-5"><p className="text-xs text-muted sm:text-sm">{t(key)}</p><p className="mt-1 text-3xl font-bold">{count}</p></div>)}</div>
-    <div className="mt-7 flex flex-wrap gap-2 border-b border-border pb-3">{(["listings", "profile"] as const).map((item) => <button key={item} aria-pressed={tab === item} onClick={() => { setTab(item); setEditor(null); }} className={tab === item ? "btn-primary text-sm" : "btn-outline text-sm"}>{t(item === "listings" ? "merchant.listings" : "merchant.profile")}</button>)}</div>
-    {tab === "profile" ? <ProfileEditor initial={data.profile} onSaved={(profile) => setData({ ...data, profile })} /> : <>
+    <div className="mt-7 flex flex-wrap gap-2 border-b border-border pb-3">{(["orders", "listings", "profile"] as const).map((item) => <button key={item} aria-pressed={tab === item} onClick={() => { setTab(item); setEditor(null); }} className={`${tab === item ? "btn-primary" : "btn-outline"} gap-2 text-sm`}>{t(item === "orders" ? "merchant.orders" : item === "listings" ? "merchant.listings" : "merchant.profile")}{item === "orders" && pending > 0 && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-black" aria-label={`${t("merchant.pendingOrders")}: ${pending}`}>{pending}</span>}</button>)}</div>
+    {/* Kept mounted so the new-order count stays live on the other tabs. */}
+    <div hidden={tab !== "orders"}><MerchantOrders key={data.profile.id} onPending={setPending} /></div>
+    {tab === "orders" ? null : tab === "profile" ? <ProfileEditor initial={data.profile} onSaved={(profile) => setData({ ...data, profile })} /> : <>
       {editor !== null ? <ListingEditor key={editor === "new" ? "new" : editor.id} profile={data.profile} initial={editor === "new" ? undefined : editor} onCancel={() => setEditor(null)} onSaved={(listing) => {
         setData((previous) => previous ? { ...previous, listings: [listing, ...previous.listings.filter((l) => l.id !== listing.id)] } : previous); setEditor(null);
       }} /> : <>

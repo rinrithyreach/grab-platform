@@ -35,9 +35,17 @@ const SAMPLE: Review[] = [
   { id: "s10", storeId: "home-plus", name: "Sok", rating: 4, comment: "Good prices on detergent.", km: "តម្លៃសាប៊ូបោកខោអាវសមរម្យ។", createdAt: "2026-10-12T07:30:00Z" },
 ];
 
-const store = createLocalStore<{ reviews: Review[] }>("grab-reviews-v1", { reviews: [] });
-const publicStore = createLocalStore<{ reviews: Review[] }>("grab-public-reviews-v1", { reviews: [] });
-export function setPublicStoreReviews(reviews: Review[]) { publicStore.set({ reviews }); }
+function validReviews(value: unknown): value is { reviews: Review[] } {
+  const reviews = (value as { reviews?: Review[] })?.reviews;
+  return Array.isArray(reviews) && reviews.every((r) => r && typeof r.id === "string"
+    && typeof r.storeId === "string" && typeof r.name === "string" && typeof r.comment === "string"
+    && typeof r.createdAt === "string" && Number.isFinite(Date.parse(r.createdAt))
+    && Number.isInteger(r.rating) && r.rating >= 1 && r.rating <= 5
+    && (r.orderId === undefined || typeof r.orderId === "string") && (r.km === undefined || typeof r.km === "string"));
+}
+const store = createLocalStore<{ reviews: Review[] }>("grab-reviews-v1", { reviews: [] }, validReviews);
+const publicStore = createLocalStore<{ reviews: Review[] }>("grab-public-reviews-v1", { reviews: [] }, validReviews);
+export function setPublicStoreReviews(reviews: Review[]) { if (validReviews({ reviews })) publicStore.set({ reviews }); }
 const useUserReviews = () => useSyncExternalStore(store.subscribe, store.get, store.getInitial).reviews;
 
 export function addReview(review: Omit<Review, "id" | "createdAt">) {

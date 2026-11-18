@@ -70,19 +70,24 @@ public class StoreReviewsController(GrabDbContext db) : ControllerBase
     {
         var subject = User.FindFirst("sub")?.Value;
         Guid.TryParse(subject, out var currentId);
-        var rows = await db.AccountData.AsNoTracking().Where(data => data.UserId != currentId && data.Json.Contains("grab-reviews-v1"))
-            .Select(data => new { data.Json, data.UserId }).ToListAsync(ct);
-        var result = new List<StoreReviewDto>();
-        foreach (var row in rows)
-        {
-            using var doc = JsonDocument.Parse(row.Json);
-            if (!doc.RootElement.TryGetProperty("grab-reviews-v1", out var section) || !section.TryGetProperty("reviews", out var reviews)) continue;
-            foreach (var review in reviews.EnumerateArray())
-                result.Add(new($"{row.UserId}:{review.GetProperty("id").GetString()}", review.GetProperty("storeId").GetString()!,
-                    review.GetProperty("name").GetString()!, review.GetProperty("rating").GetInt32(),
-                    review.GetProperty("comment").GetString()!, review.GetProperty("createdAt").GetString()!));
-        }
-        return result.OrderByDescending(x => x.CreatedAt).Take(1000).ToList();
+        // Project only public fields and bound results in SQL. Loading every full
+        // account snapshot here allowed anonymous requests to exhaust API memory.
+        return await db.Database.SqlQuery<StoreReviewDto>($"""
+            SELECT TOP (1000)
+                LOWER(CONVERT(nvarchar(36), a.UserId)) + ':' + r.Id AS Id,
+                r.StoreId, r.Name, r.Rating, r.Comment, r.CreatedAt
+            FROM AccountData AS a
+            CROSS APPLY OPENJSON(a.Json, '$."grab-reviews-v1".reviews') WITH (
+                Id nvarchar(120) '$.id', StoreId nvarchar(120) '$.storeId',
+                Name nvarchar(120) '$.name', Rating int '$.rating',
+                Comment nvarchar(1500) '$.comment', CreatedAt nvarchar(60) '$.createdAt'
+            ) AS r
+            WHERE a.UserId <> {currentId}
+                AND r.Id IS NOT NULL AND r.StoreId IS NOT NULL AND r.Name IS NOT NULL
+                AND r.Rating BETWEEN 1 AND 5 AND r.Comment IS NOT NULL
+                AND TRY_CONVERT(datetimeoffset, r.CreatedAt) IS NOT NULL
+            ORDER BY TRY_CONVERT(datetimeoffset, r.CreatedAt) DESC, a.UserId, r.Id
+            """).ToListAsync(ct);
     }
 }
 

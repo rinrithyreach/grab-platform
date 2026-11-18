@@ -14,6 +14,8 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
     public DbSet<Merchant> Merchants => Set<Merchant>();
     public DbSet<MerchantListing> MerchantListings => Set<MerchantListing>();
     public DbSet<MerchantImage> MerchantImages => Set<MerchantImage>();
+    public DbSet<MerchantOrder> MerchantOrders => Set<MerchantOrder>();
+    public DbSet<MerchantOrderItem> MerchantOrderItems => Set<MerchantOrderItem>();
     public DbSet<AccountData> AccountData => Set<AccountData>();
     public DbSet<SharedStorageIdentity> SharedStorageIdentities => Set<SharedStorageIdentity>();
     protected override void OnModelCreating(ModelBuilder b)
@@ -48,6 +50,7 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
         b.Entity<Ride>().Property(x => x.Version).IsRowVersion();
         b.Entity<Ride>().Property(x => x.Fare).HasPrecision(12, 2);
         b.Entity<Ride>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<Ride>().Property(x => x.VehicleType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(RideVehicleType.Motorcycle);
         b.Entity<Ride>().Property(x => x.PickupLocation).HasMaxLength(300);
         b.Entity<Ride>().Property(x => x.Destination).HasMaxLength(300);
         b.Entity<Ride>().HasIndex(x => new { x.CustomerId, x.CreatedAt });
@@ -81,5 +84,23 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
         b.Entity<MerchantListing>().ToTable(t => t.HasCheckConstraint("CK_MerchantListings_Price", "[Price] > 0"));
         b.Entity<MerchantImage>().HasOne<Merchant>().WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<MerchantImage>().Property(x => x.ContentType).HasMaxLength(30);
+        b.Entity<MerchantOrder>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<MerchantOrder>().HasOne(x => x.Merchant).WithMany().HasForeignKey(x => x.MerchantId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<MerchantOrder>().HasMany(x => x.Items).WithOne().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<MerchantOrder>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<MerchantOrder>().Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+        b.Entity<MerchantOrder>().Property(x => x.DeliveryAddress).HasMaxLength(300);
+        b.Entity<MerchantOrder>().Property(x => x.Note).HasMaxLength(500);
+        b.Entity<MerchantOrder>().Property(x => x.Subtotal).HasPrecision(12, 2);
+        b.Entity<MerchantOrder>().Property(x => x.DeliveryFee).HasPrecision(12, 2);
+        b.Entity<MerchantOrder>().Property(x => x.Total).HasPrecision(12, 2);
+        b.Entity<MerchantOrder>().Property(x => x.Version).IsRowVersion();
+        b.Entity<MerchantOrder>().HasIndex(x => new { x.CustomerId, x.CreatedAt });
+        b.Entity<MerchantOrder>().HasIndex(x => new { x.MerchantId, x.Status });
+        b.Entity<MerchantOrder>().ToTable(t => t.HasCheckConstraint("CK_MerchantOrders_Total", "[Subtotal] > 0 AND [DeliveryFee] >= 0 AND [Total] = [Subtotal] + [DeliveryFee]"));
+        b.Entity<MerchantOrderItem>().HasOne<MerchantListing>().WithMany().HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<MerchantOrderItem>().Property(x => x.Title).HasMaxLength(120);
+        b.Entity<MerchantOrderItem>().Property(x => x.UnitPrice).HasPrecision(12, 2);
+        b.Entity<MerchantOrderItem>().ToTable(t => t.HasCheckConstraint("CK_MerchantOrderItems_Quantity", "[Quantity] BETWEEN 1 AND 50 AND [UnitPrice] > 0"));
     }
 }

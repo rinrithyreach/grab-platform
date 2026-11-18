@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RideMerchantArea, RideVehicleType } from "@/lib/api";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { PLACES, distanceKm } from "@/lib/places";
 import { DeviceLocationError, deviceRideLocation, getDeviceLocation, type DeviceLocation, type LocationFailure } from "@/lib/merchant-location";
-import { demoFare, useRideService, type RideView, type VehicleId } from "@/lib/rides";
+import { demoFare, rideVehicleType, useRideService, type RideView, type VehicleId } from "@/lib/rides";
 import { toast } from "@/lib/toast";
 import LoginRequired from "@/components/LoginRequired";
 import Select from "@/components/Select";
@@ -28,7 +29,8 @@ export default function RidePage() {
   const { t, pick } = useT();
   const [pickup, setPickup] = useState(0);
   const [dropoff, setDropoff] = useState(1);
-  const [vehicle, setVehicle] = useState<VehicleId>("car");
+  const [vehicle, setVehicle] = useState<VehicleId | null>("car");
+  const [merchantAvailability, setMerchantAvailability] = useState<{ phase: "loading" | "ready" | "error"; types: RideVehicleType[] }>({ phase: "loading", types: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [booked, setBooked] = useState<RideView | null>(null);
@@ -50,6 +52,18 @@ export default function RidePage() {
   const etaMin = Math.max(3, Math.round((km / 22) * 60)); // ~22 km/h city traffic
   const placeOptions = places.map((p, i) => ({ value: i, label: i === CURRENT_LOCATION ? t("ride.currentLocation") : pick(p.name, p.km) }));
   const demo = rides?.mode === "demo";
+  const selectedVehicleAvailable = demo || (merchantAvailability.phase === "ready" && vehicle !== null && merchantAvailability.types.includes(rideVehicleType[vehicle]));
+  const updateMerchantAvailability = useCallback((areas: RideMerchantArea[] | null) => {
+    const types = areas ? [...new Set(areas.map((area) => area.vehicleType))] : [];
+    setMerchantAvailability((previous) => {
+      const phase = areas ? "ready" : "error";
+      return previous.phase === phase && previous.types.length === types.length && previous.types.every((type) => types.includes(type))
+        ? previous : { phase, types };
+    });
+    if (demo) setVehicle((current) => current ?? "car");
+    else if (areas) setVehicle((current) => current && types.includes(rideVehicleType[current])
+      ? current : VEHICLES.find((option) => types.includes(rideVehicleType[option.id]))?.id ?? null);
+  }, [demo]);
 
   function cancelDetection() {
     locationRequest.current += 1;
@@ -71,6 +85,7 @@ export default function RidePage() {
   async function book(e: React.FormEvent) {
     e.preventDefault();
     if (!rides || busy || detecting) return;
+    if (!vehicle || !selectedVehicleAvailable) { setError(t("ride.vehicleUnavailable")); return; }
     if (sameLocation) { setError(t("ride.same")); return; }
     setBusy(true); setError("");
     try {
@@ -79,6 +94,7 @@ export default function RidePage() {
         pickupLocation: from.name, destination: to.name,
         pickupLatitude: from.lat, pickupLongitude: from.lng,
         destinationLatitude: to.lat, destinationLongitude: to.lng,
+        vehicleType: rideVehicleType[vehicle],
       }, vehicle, km);
       setBooked(ride);
       toast(t("ride.requested"));
@@ -139,34 +155,42 @@ export default function RidePage() {
               >⇅</button>
             </div>
 
-            {demo ? <div>
+            <div>
               <span className="label">{t("ride.vehicle")}</span>
               <div className="grid grid-cols-3 gap-2">
-                {VEHICLES.map((v) => (
+                {VEHICLES.map((v) => {
+                  const available = demo || (merchantAvailability.phase === "ready" && merchantAvailability.types.includes(rideVehicleType[v.id]));
+                  return (
                   <button
-                    type="button" key={v.id} onClick={() => setVehicle(v.id)} aria-pressed={vehicle === v.id}
-                    className={`rounded-xl border p-3 text-center ${vehicle === v.id ? "border-brand bg-brand-soft" : "border-border"}`}
+                    type="button" key={v.id} onClick={() => setVehicle(v.id)} disabled={!available} aria-pressed={available && vehicle === v.id}
+                    className={`rounded-xl border p-3 text-center ${available ? vehicle === v.id ? "border-brand bg-brand-soft" : "border-border" : "cursor-not-allowed border-border opacity-45"}`}
                   >
                     <span className="block text-2xl" aria-hidden>{v.emoji}</span>
                     <span className="block text-sm font-semibold">{t(v.name)}</span>
                     <span className="block text-xs text-muted">{v.seats > 1 ? t("ride.seats", { n: v.seats }) : t("ride.seat")}</span>
+                    {!available && merchantAvailability.phase === "ready" && <span className="mt-1 block text-xs">{t("ride.vehicleUnregistered")}</span>}
                     {/* Demo mode prices by vehicle and distance; the real backend sets its own fare. */}
                     {demo && !sameLocation && <span className="mt-1 block text-sm font-bold text-brand">{money(demoFare(v.id, km))}</span>}
                   </button>
-                ))}
+                  );
+                })}
               </div>
-            </div> : <p className="rounded-xl bg-brand-soft p-3 text-sm text-brand">{t("ride.liveVehicle")}</p>}
+              {!demo && merchantAvailability.phase === "loading" && <p role="status" className="mt-2 text-sm text-muted">{t("ride.vehicleAvailabilityLoading")}</p>}
+              {!demo && merchantAvailability.phase === "error" && <p role="alert" className="mt-2 text-sm text-muted">{t("ride.vehicleAvailabilityError")}</p>}
+              {!demo && merchantAvailability.phase === "ready" && merchantAvailability.types.length === 0 && <p role="status" className="mt-2 text-sm text-muted">{t("ride.noMerchantAreas")}</p>}
+            </div>
+            {!demo && <p className="rounded-xl bg-brand-soft p-3 text-sm text-brand">{t("ride.liveVehicle")}</p>}
 
             {!demo && user?.role !== "Customer" && <p role="alert" className="text-sm text-muted">{t("ride.customerOnly")}</p>}
 
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-            <button className="btn-primary w-full" disabled={busy || detecting || sameLocation || (!demo && user?.role !== "Customer")}>
-              {busy ? t("ride.busy") : demo ? `${t("ride.submit")} · ${money(demoFare(vehicle, km))}` : t("ride.submit")}
+            <button className="btn-primary w-full" disabled={busy || detecting || sameLocation || !selectedVehicleAvailable || (!demo && user?.role !== "Customer")}>
+              {busy ? t("ride.busy") : demo ? `${t("ride.submit")} · ${money(demoFare(vehicle ?? "car", km))}` : t("ride.submit")}
             </button>
           </form>
 
           <aside className="card h-fit space-y-5 p-5 sm:p-6">
-            <RideMerchantMap from={from} to={to} label={t("ride.mapLabel", { from: fromLabel, to: toLabel })} />
+            <RideMerchantMap from={from} to={to} vehicleType={vehicle ? rideVehicleType[vehicle] : undefined} onAvailabilityChange={updateMerchantAvailability} label={t("ride.mapLabel", { from: fromLabel, to: toLabel })} />
             <div>
               <h2 className="font-bold">{t("ride.summary")}</h2>
               <ol className="mt-3 space-y-3 border-l-2 border-dashed border-border pl-4 text-sm">

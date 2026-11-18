@@ -15,6 +15,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(o =>
+{
+    o.AddServerHeader = false;
+    o.Limits.MaxRequestBodySize = 2_200_000; // Includes the bounded multipart image upload.
+});
 builder.Services.AddOptions<JwtSettings>().BindConfiguration("Jwt")
     .Validate(s => Encoding.UTF8.GetByteCount(s.SigningKey) >= 32, "Set Jwt:SigningKey using User Secrets or environment (32+ bytes).")
     .Validate(s => s.ExpiryMinutes is >= 5 and <= 120 && !string.IsNullOrWhiteSpace(s.Issuer) && !string.IsNullOrWhiteSpace(s.Audience), "Invalid JWT configuration.")
@@ -28,6 +33,7 @@ builder.Services.AddScoped<IRideService, RideService>();
 builder.Services.AddScoped<IDriverService, DriverService>();
 builder.Services.AddScoped<ICommerceService, CommerceService>();
 builder.Services.AddScoped<MerchantService>();
+builder.Services.AddScoped<OrderService>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
@@ -68,6 +74,22 @@ builder.Services.AddSwaggerGen(o =>
     o.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = [] });
 });
 var app = builder.Build();
+// Apply even to authentication failures and exception responses. API data includes
+// access tokens, addresses and GPS positions and must not be retained by caches.
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        context.Response.Headers.XFrameOptions = "DENY";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        if (context.Request.Path.StartsWithSegments("/api")
+            && !context.Request.Path.StartsWithSegments("/api/merchant-images"))
+            context.Response.Headers.CacheControl = "no-store";
+        return Task.CompletedTask;
+    });
+    await next(context);
+});
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
@@ -75,7 +97,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();
 }
-else app.UseHttpsRedirection();
+else
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 app.UseCors("frontend");
 app.UseRateLimiter();
 app.UseAuthentication();

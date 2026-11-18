@@ -315,6 +315,8 @@ test("customer testing routes return after login while merchant accounts stay on
   const { authDestination } = await loadLib("auth-destination");
   assert.equal(authDestination("Customer", "?next=%2Fride"), "/ride");
   assert.equal(authDestination("Customer", "?next=/rides"), "/rides");
+  assert.equal(authDestination("Customer", "?next=%2Fcart"), "/cart");
+  assert.equal(authDestination("Customer", "?next=/orders"), "/orders");
   assert.equal(authDestination("Customer", ""), "/");
   assert.equal(authDestination("Merchant", "?next=/ride"), "/merchant");
   for (const next of ["https://example.com", "//example.com", "/profile", "/ride?external=true"])

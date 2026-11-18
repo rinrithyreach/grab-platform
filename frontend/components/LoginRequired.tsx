@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import type { CustomerReturnPage } from "@/lib/auth-destination";
 import { useT, type MessageKey } from "@/lib/i18n";
 
-export default function LoginRequired({ what, returnTo }: { what: MessageKey; returnTo?: "/ride" | "/rides" }) {
+export default function LoginRequired({ what, returnTo }: { what: MessageKey; returnTo?: CustomerReturnPage }) {
   const { t } = useT();
   return (
     <div className="card mx-auto mt-6 max-w-md p-8 text-center">

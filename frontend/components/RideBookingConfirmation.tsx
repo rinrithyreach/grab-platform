@@ -35,6 +35,7 @@ export default function RideBookingConfirmation({ initial, from, to, demo, onAno
   }, [api, initial.id, demo, finished]);
 
   return <div className="card mx-auto mt-6 max-w-2xl p-5 text-center sm:p-8">
+    <p className="text-sm font-semibold text-brand">{t("ride.vehicle")}: {ride.vehicleType}</p>
     <p className="text-5xl" aria-hidden>{ride.status === "Pending" ? "🚕" : ride.status === "Cancelled" ? "✕" : "✓"}</p>
     <h2 className="mt-3 text-xl font-bold">{t("ride.requested")}</h2>
     <p className="mt-2 text-muted">{from} → {to}</p>

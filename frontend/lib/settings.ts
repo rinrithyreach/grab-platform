@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * User settings (language + theme), saved in localStorage.
+ * User settings (language + theme), synced to the account and kept on this device.
  * The inline script in lib/settings-script.ts applies them before first paint;
  * this store keeps React in sync and re-applies on change.
  */
@@ -15,7 +15,7 @@ const DEFAULTS: Settings = { lang: "en", theme: "system" };
 const store = createLocalStore<Settings>(SETTINGS_KEY, DEFAULTS, (value): value is Settings => {
   const settings = value as Settings;
   return ["en", "km"].includes(settings.lang) && ["light", "dark", "system"].includes(settings.theme);
-});
+}, { persistOnDevice: true });
 
 function apply() {
   const state = store.get();

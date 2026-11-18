@@ -33,7 +33,7 @@ public partial class ApiTests
         Assert.Equal(profile.Address, area.Address);
         Assert.Equal(profile.OpeningHours, area.OpeningHours);
         using (var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
-            Assert.Equal(new[] { "address", "id", "name", "openingHours" }, json.RootElement[0].EnumerateObject().Select(p => p.Name).OrderBy(name => name).ToArray());
+            Assert.Equal(new[] { "address", "id", "name", "openingHours", "vehicleType" }, json.RootElement[0].EnumerateObject().Select(p => p.Name).OrderBy(name => name).ToArray());
         Assert.Empty((await Read<MerchantDashboardDto>(await rider.GetAsync("/api/merchants/me"))).Listings);
 
         var updated = profile with { Address = "Tonle Basak, Khan Chamkar Mon, Phnom Penh", OpeningHours = "Sun 18:00-02:00" };

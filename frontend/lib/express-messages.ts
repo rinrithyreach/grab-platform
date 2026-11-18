@@ -39,7 +39,7 @@ export const enExpress = {
   "express.status.Delivered": "Delivered",
   "express.status.Cancelled": "Cancelled",
   "express.cancelError": "This parcel has already been picked up and cannot be cancelled.",
-  "ride.liveVehicle": "The current API assigns the vehicle and sets a development fare after booking.",
+  "ride.liveVehicle": "Your selected vehicle type is sent to matching partners. The API sets a development fare after booking.",
   "ride.customerOnly": "Ride booking is available to customer accounts.",
 };
 

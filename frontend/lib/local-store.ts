@@ -72,7 +72,7 @@ export function backUpPendingData() {
  *   const store = createLocalStore("key", { ... });
  *   export const useThing = () => useSyncExternalStore(store.subscribe, store.get, store.getInitial);
  */
-export function createLocalStore<T extends object>(key: string, initial: T, validate?: (value: unknown) => value is T) {
+export function createLocalStore<T extends object>(key: string, initial: T, validate?: (value: unknown) => value is T, options: { persistOnDevice?: boolean } = {}) {
   let state = initial;
   let loaded = false;
   const listeners = new Set<() => void>();
@@ -97,9 +97,19 @@ export function createLocalStore<T extends object>(key: string, initial: T, vali
     if (loaded || typeof window === "undefined") return;
     loaded = true;
     try {
-      const raw = account && accountKeys.has(key) ? JSON.stringify(cache.data[key] ?? initial) : window.localStorage.getItem(key);
+      const scoped = account && accountKeys.has(key);
+      const saved = scoped ? cache.data[key] : undefined;
+      // Preferences can carry over from the device until account settings arrive.
+      // Private stores must still start empty when switching accounts.
+      const raw = saved !== undefined ? JSON.stringify(saved)
+        : !scoped || options.persistOnDevice ? window.localStorage.getItem(key) : null;
       state = parse(raw);
+      if (scoped && options.persistOnDevice) persistDevice(state);
     } catch { /* storage blocked or corrupt: keep defaults */ }
+  }
+
+  function persistDevice(next: T) {
+    try { window.localStorage.setItem(key, JSON.stringify(next)); } catch { /* memory remains usable */ }
   }
 
   const get = () => { load(); return state; };
@@ -109,7 +119,8 @@ export function createLocalStore<T extends object>(key: string, initial: T, vali
     if (account && accountKeys.has(key)) {
       cache = { ...cache, data: { ...cache.data, [key]: next }, pending: true, revision: cache.revision + 1 };
       persistCache(); changeListeners.forEach((listener) => listener());
-    } else try { window.localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ }
+    }
+    if (!account || !accountKeys.has(key) || options.persistOnDevice) persistDevice(next);
     listeners.forEach((l) => l());
   };
 

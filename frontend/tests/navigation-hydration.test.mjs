@@ -42,6 +42,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "@/lib/navigation": await compile("../lib/navigation.ts", { "next/navigation": routing }),
       "@/lib/i18n": dataModule("const t = key => key; export const useT = () => ({ t });"),
       "@/lib/cart": dataModule("const cart = {}; export const useShop = () => ({ cart }); export const cartDetails = () => ({ count: 2 });"),
+      "@/lib/partner-cart": dataModule("const cart = {}; export const usePartnerCart = () => cart; export const partnerTotals = () => ({ count: 0 });"),
       "@/lib/catalog": dataModule("export const STORES = [];"),
       "@/lib/brand": dataModule("export const BRAND = {name: 'Grab'}; export const PROJECT = {year: 2026}; export const SOCIAL_LINKS = [];"),
       "./SettingsMenu": dataModule("export default () => null;"),

@@ -2,6 +2,7 @@ namespace Grab.Api.Models;
 
 public enum Role { Customer, Driver, Admin, Merchant }
 public enum RideStatus { Pending, Accepted, InProgress, Completed, Cancelled }
+public enum RideVehicleType { Motorcycle, Rickshaw, Classic }
 
 public class User
 {
@@ -39,6 +40,7 @@ public class Ride
     public double DestinationLatitude { get; set; }
     public double DestinationLongitude { get; set; }
     public decimal Fare { get; set; }
+    public RideVehicleType VehicleType { get; set; } = RideVehicleType.Motorcycle;
     public RideStatus Status { get; set; } = RideStatus.Pending;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAt { get; set; }

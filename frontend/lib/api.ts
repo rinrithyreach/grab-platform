@@ -10,14 +10,17 @@ export interface RegisterRequest { phoneNumber: string; password: string }
 export interface AccountData { version: number; data: Record<string, object> }
 export interface StoreReview { id: string; storeId: string; name: string; rating: number; comment: string; createdAt: string }
 export type MerchantServiceKind = "GrabRide" | "GrabFood" | "GrabExpress";
+export type RideVehicleType = "Motorcycle" | "Rickshaw" | "Classic";
 export interface MerchantProfileRequest {
   service: MerchantServiceKind; businessName: string; ownerName: string; contactPhone: string;
   email: string | null; address: string; city: string; category: string; description: string; openingHours: string;
   motorcycleLicensePlate?: string | null;
+  vehicleType?: RideVehicleType | null;
 }
 export interface RideMerchantRegistrationProfile {
   service: "GrabRide"; ownerName: string; address: string; motorcycleLicensePlate: string;
   openingHours: string;
+  vehicleType: RideVehicleType;
 }
 export interface MerchantProfile extends MerchantProfileRequest { id: string }
 export type MerchantPublic = Omit<MerchantProfile, "ownerName" | "motorcycleLicensePlate">;
@@ -27,13 +30,29 @@ export interface MerchantListingRequest {
 export interface MerchantListing extends MerchantListingRequest { id: string; imageUrl: string; updatedAt: string }
 export interface MerchantOffer { id: string; title: string; description: string; price: number; imageUrl: string; merchant: MerchantPublic }
 export interface MerchantDashboard { profile: MerchantProfile; listings: MerchantListing[] }
-export interface RideMerchantArea { id: string; name: string; address: string; openingHours: string }
+export interface RideMerchantArea { id: string; name: string; address: string; openingHours: string; vehicleType: RideVehicleType }
 export interface MerchantStorefront { merchant: MerchantPublic; listings: MerchantOffer[] }
+/** Pending → Accepted → OnTheWay → Delivered; Rejected (by the store) or Cancelled (by the customer) end it early. */
+export type MerchantOrderStatus = "Pending" | "Accepted" | "OnTheWay" | "Delivered" | "Rejected" | "Cancelled";
+export type OrderPaymentMethod = "Cash" | "Card";
+export interface PlaceOrderRequest {
+  merchantId: string; items: { listingId: string; quantity: number }[];
+  deliveryAddress: string; note: string; paymentMethod: OrderPaymentMethod;
+}
+export interface MerchantOrderItem { listingId: string; title: string; unitPrice: number; quantity: number; lineTotal: number }
+export interface MerchantOrder {
+  id: string; merchantId: string; merchantName: string; service: MerchantServiceKind; status: MerchantOrderStatus;
+  paymentMethod: OrderPaymentMethod; items: MerchantOrderItem[]; subtotal: number; deliveryFee: number; total: number;
+  deliveryAddress: string; note: string; createdAt: string; updatedAt: string;
+  /** Only filled for the merchant who delivers the order. */
+  customerName: string | null; customerPhone: string | null;
+}
 export interface BookRideRequest {
   pickupLocation: string; destination: string; pickupLatitude: number; pickupLongitude: number;
-  destinationLatitude: number; destinationLongitude: number;
+  destinationLatitude: number; destinationLongitude: number; vehicleType?: RideVehicleType;
 }
 export interface Ride extends BookRideRequest {
+  vehicleType: RideVehicleType;
   id: string; customerId: string; driverId: string | null; fare: number; pricingMode: string;
   status: RideStatus; createdAt: string; completedAt: string | null;
   merchantId?: string | null; merchantName?: string | null;
@@ -71,32 +90,44 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
   const assetUrl = (url: string) => url.startsWith("/") ? `${origin}${url}` : url;
   const withImage = <T extends { imageUrl: string }>(value: T): T => ({ ...value, imageUrl: assetUrl(value.imageUrl) });
   let session: AuthResponse | null = null;
+  let sessionVersion = 0;
+  let authAttempt = 0;
   const listeners = new Set<(session: AuthResponse | null) => void>();
   function setSession(next: AuthResponse | null) {
+    if (session?.accessToken !== next?.accessToken) sessionVersion++;
     session = next;
     listeners.forEach((listener) => listener(next));
   }
-  async function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
+  async function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal, authenticated = true): Promise<T> {
     if (session && Date.parse(session.expiresAt) <= Date.now()) setSession(null);
-    const requestToken = session?.accessToken;
+    const requestToken = authenticated ? session?.accessToken : undefined;
+    const version = sessionVersion;
     const timeout = AbortSignal.timeout(12000);
     const multipart = typeof FormData !== "undefined" && body instanceof FormData;
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
       method, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, cache: "no-store", credentials: "omit",
       headers: { ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }),
-        ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}) },
+        ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}) },
       body: body === undefined ? undefined : multipart ? body as FormData : JSON.stringify(body),
     });
     if (!response.ok) {
-      if (response.status === 401 && session?.accessToken === requestToken) setSession(null);
+      if (authenticated && response.status === 401 && session?.accessToken === requestToken) setSession(null);
       const payload: unknown = await response.json().catch(() => null);
       const problem = payload && typeof payload === "object" ? payload as ApiProblem : { title: response.statusText };
       throw new ApiError(response.status, problem);
     }
-    return response.json() as Promise<T>;
+    const result = await response.json() as T;
+    // Do not render private data from a request made before logout/account switching.
+    if (authenticated && requestToken && version !== sessionVersion)
+      throw new DOMException("The account changed while the request was pending.", "AbortError");
+    return result;
   }
   async function authenticate(path: string, body: unknown) {
-    const result = await request<AuthResponse>(path, "POST", body);
+    const attempt = ++authAttempt;
+    const version = sessionVersion;
+    const result = await request<AuthResponse>(path, "POST", body, undefined, false);
+    if (attempt !== authAttempt || version !== sessionVersion)
+      throw new DOMException("This sign-in attempt was cancelled.", "AbortError");
     setSession(result);
     return result.user;
   }
@@ -129,7 +160,12 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
       const data = await request<MerchantStorefront>(`/api/merchants/${encodeURIComponent(id)}`, "GET", undefined, signal);
       return { ...data, listings: data.listings.map(withImage) };
     },
-    logout: () => { setSession(null); },
+    placeOrder: (body: PlaceOrderRequest) => request<MerchantOrder>("/api/orders", "POST", body),
+    myOrders: (page = 1, signal?: AbortSignal) => request<MerchantOrder[]>(`/api/orders/mine?page=${page}`, "GET", undefined, signal),
+    cancelOrder: (id: string) => request<MerchantOrder>(`/api/orders/${encodeURIComponent(id)}/cancel`, "POST"),
+    merchantOrders: (page = 1, signal?: AbortSignal) => request<MerchantOrder[]>(`/api/merchants/orders?page=${page}`, "GET", undefined, signal),
+    updateMerchantOrder: (id: string, status: MerchantOrderStatus) => request<MerchantOrder>(`/api/merchants/orders/${encodeURIComponent(id)}/status`, "POST", { status }),
+    logout: () => { authAttempt++; setSession(null); },
     subscribeSession: (listener: (session: AuthResponse | null) => void) => {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -138,6 +174,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     getSession: () => session,
     /** Put back a saved login. Ignored if it has already expired. */
     restoreSession: (saved: unknown) => {
+      authAttempt++;
       const value = saved as Partial<AuthResponse> | null;
       const valid = value && typeof value.accessToken === "string" && value.accessToken.length > 0
         && typeof value.expiresAt === "string" && Date.parse(value.expiresAt) > Date.now()
