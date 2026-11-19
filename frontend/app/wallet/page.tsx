@@ -20,7 +20,7 @@ export default function WalletPage() {
   const [topUpAmount, setTopUpAmount] = useState<number | null>(null);
 
   const describe = (x: WalletTxn) =>
-    x.id === "welcome" ? t("wallet.welcome") : x.kind === "topup" ? t("wallet.topUpTxn") : x.description;
+    x.kind === "topup" ? t("wallet.topUpTxn") : x.description;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -53,8 +53,6 @@ export default function WalletPage() {
             </button>
           ))}
         </div>
-        <p className="mt-2 text-xs opacity-90">🏦 {t("topup.paidWith")}</p>
-        <p className="mt-3 text-xs opacity-80">{t("wallet.demo")}</p>
       </section>
 
       {/* History */}

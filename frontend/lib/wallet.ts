@@ -25,13 +25,12 @@ export interface WalletTxn {
 }
 interface WalletState { balance: number; txns: WalletTxn[] }
 
-export const STARTING_BALANCE = 20;
-const KEY_PREFIX = "grab-wallet-v2:";
+/** New wallets start empty: money only comes from top-ups. */
+export const STARTING_BALANCE = 0;
+// v3: wallets used to start with a $20 welcome bonus; changing the key resets everyone to $0.
+const KEY_PREFIX = "grab-wallet-v3:";
 
-const initialWallet = (): WalletState => ({
-  balance: STARTING_BALANCE,
-  txns: [{ id: "welcome", kind: "topup", amount: STARTING_BALANCE, description: "Welcome bonus", createdAt: "2026-01-01T00:00:00.000Z" }],
-});
+const initialWallet = (): WalletState => ({ balance: STARTING_BALANCE, txns: [] });
 
 // One saved store per account, created the first time that account's wallet is used.
 const stores = new Map<string, ReturnType<typeof createLocalStore<WalletState>>>();
@@ -45,9 +44,13 @@ function storeFor(userId: string) {
 const GUEST: WalletState = { balance: 0, txns: [] };
 const noWallet = { subscribe: () => () => {}, get: () => GUEST, getInitial: () => GUEST };
 
-// Old builds kept one shared wallet for everyone, including guests. Remove it.
+// Remove wallets saved by older builds: v1 was one shared wallet (even for guests),
+// v2 gave every account a $20 welcome bonus.
 if (typeof window !== "undefined") {
-  try { window.localStorage.removeItem("grab-wallet-v1"); } catch { /* ignore */ }
+  try {
+    const old = Object.keys(window.localStorage).filter((k) => k === "grab-wallet-v1" || k.startsWith("grab-wallet-v2:"));
+    old.forEach((k) => window.localStorage.removeItem(k));
+  } catch { /* ignore */ }
 }
 
 /**

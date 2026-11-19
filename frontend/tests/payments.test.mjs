@@ -66,6 +66,6 @@ test("a paid top-up is added to the wallet exactly once", () => withBrowser(asyn
   const payment = { method: "Bakong KHQR", reference: "TU-ABC" };
   assert.equal(wallet.topUp("user-1", 1, payment), true);
   assert.equal(wallet.topUp("user-1", 1, payment), false); // seen again (e.g. two tabs polling)
-  assert.equal(wallet.walletBalance("user-1"), 21);        // $20 welcome + $1
+  assert.equal(wallet.walletBalance("user-1"), 1);         // starts at $0, + $1 once
   assert.equal(wallet.topUp(null, 1, payment), false);     // guests still can't top up
 }));

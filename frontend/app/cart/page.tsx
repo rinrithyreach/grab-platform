@@ -200,9 +200,6 @@ export default function CartPage() {
           {addressError && (
             <p id="address-error" role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">{t("cart.addressInvalid")}</p>
           )}
-          {addresses.length === 0 && (
-            <p className="mt-1.5 text-xs text-muted"><Link href="/profile" className="text-brand underline">{t("cart.saveAddressHint")}</Link></p>
-          )}
         </div>
         <div>
           <span className="label">{t("cart.payment")}</span>
@@ -251,7 +248,6 @@ export default function CartPage() {
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-muted">{t("cart.tipNote")}</p>
         </div>
         {storeClosed && store.hours && (
           <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
@@ -290,7 +286,6 @@ export default function CartPage() {
           <div className="flex justify-between pt-1 text-base font-bold"><dt>{t("cart.total")}</dt><dd>{money(total)}</dd></div>
         </dl>
         <button type="submit" className="btn-primary w-full" disabled={storeClosed || (method === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
-        <p className="text-center text-xs text-muted">{t("cart.demo")}</p>
       </form>
     </div>
   );

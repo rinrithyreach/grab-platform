@@ -127,13 +127,11 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
               {t("topup.waiting")} · {mm}:{ss}
             </p>
             {provider.simulatePaid && (
-              <div className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-left text-xs">
-                <p><strong>{t("demo.title")}</strong> {t("topup.demoNote")}</p>
-                <button
-                  onClick={() => provider.simulatePaid!(topup.id).then(handleUpdate)}
-                  className="btn-outline mt-2 h-9 w-full text-sm"
-                >✅ {t("topup.simulate")}</button>
-              </div>
+              // Demo provider only: completes the top-up without a real bank payment.
+              <button
+                onClick={() => provider.simulatePaid!(topup.id).then(handleUpdate)}
+                className="btn-outline h-10 w-full text-sm"
+              >✅ {t("topup.simulate")}</button>
             )}
             <button onClick={cancel} className="text-sm text-muted underline hover:text-red-600">{t("topup.cancel")}</button>
           </div>

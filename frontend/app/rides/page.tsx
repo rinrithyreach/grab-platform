@@ -11,7 +11,6 @@ import { useRideService, type RideView } from "@/lib/rides";
 import { toast } from "@/lib/toast";
 import LoginRequired from "@/components/LoginRequired";
 import BackButton from "@/components/BackButton";
-import DemoModeNotice from "@/components/DemoModeNotice";
 
 const BADGE: Record<RideStatus, string> = {
   Pending: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -104,7 +103,6 @@ function MyRidesContent() {
         <h1 className="text-3xl font-bold">{t("rides.title")}</h1>
         {canLoad && <button onClick={() => load()} className="text-sm font-semibold text-brand">{t("rides.refresh")}</button>}
       </div>
-      {service?.mode === "demo" && <DemoModeNotice />}
 
       {!service || !ready ? <div className="mt-6"><RideSkeletons /></div> : !canLoad ? <LoginRequired what="loginRequired.seeRides" /> : (
         <div className="mt-6 space-y-4">

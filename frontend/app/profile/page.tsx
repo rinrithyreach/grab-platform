@@ -136,7 +136,6 @@ export default function ProfilePage() {
           ) : (
             <>
               <p className="text-lg font-bold">{t("profile.guest")}</p>
-              <p className="text-sm text-muted">{t("profile.guestText")}</p>
             </>
           )}
         </div>
@@ -158,7 +157,6 @@ export default function ProfilePage() {
       {/* Saved addresses */}
       <section className="card mt-4 p-5">
         <h2 className="text-lg font-bold">{t("profile.addresses")}</h2>
-        <p className="text-sm text-muted">{t("profile.addressesText")}</p>
         <ul className="divide-y divide-border">
           {LABELS.map((l) => (
             <AddressRow

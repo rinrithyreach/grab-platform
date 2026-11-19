@@ -48,7 +48,6 @@ export default function ExpressPage() {
         <div><h1 className="text-3xl font-bold">{t("express.title")}</h1><p className="mt-1 text-muted">{t("express.subtitle")}</p></div>
         <Link href="/deliveries" className="btn-outline">{t("nav.deliveries")}</Link>
       </div>
-      <p className="mt-4 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm"><strong>{t("demo.title")}</strong> {t("express.demo")}</p>
 
       {booked ? (
         <div className="card mx-auto mt-6 max-w-lg p-8 text-center" role="status">

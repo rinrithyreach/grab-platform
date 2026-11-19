@@ -28,13 +28,17 @@ test("food checkout charges the discounted wallet total once, persists history a
     // Guests can't pay with Wallet: nothing is charged and the cart is kept.
     assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Guest order"), { error: "loginRequired" });
     assert.equal(JSON.parse(window.localStorage.getItem("grab-shop-v1")).cart.lines.length, 1);
+    // New wallets start at $0, so paying with Wallet fails until the user tops up.
+    const wallet = await loadLib("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Too early", "user-2"), { error: "insufficient" });
+    assert.equal(wallet.topUp("user-1", 20), true);
     const placed = cart.placeOrder("House 12, Street 1", "Wallet", "Test order", "user-1");
     assert.ok(placed.order);
     assert.equal(placed.order.storeId, food.id);
-    assert.equal(JSON.parse(window.localStorage.getItem("grab-wallet-v2:user-1")).balance, Math.round((20 - placed.order.total) * 100) / 100);
-    const walletAfter = window.localStorage.getItem("grab-wallet-v2:user-1");
+    assert.equal(JSON.parse(window.localStorage.getItem("grab-wallet-v3:user-1")).balance, Math.round((20 - placed.order.total) * 100) / 100);
+    const walletAfter = window.localStorage.getItem("grab-wallet-v3:user-1");
     assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1"), { error: "empty" });
-    assert.equal(window.localStorage.getItem("grab-wallet-v2:user-1"), walletAfter);
+    assert.equal(window.localStorage.getItem("grab-wallet-v3:user-1"), walletAfter);
     const reloaded = await loadLib(...shopLibs);
     assert.equal(reloaded.reorder(placed.order, () => true), true);
     const state = JSON.parse(window.localStorage.getItem("grab-shop-v1"));
@@ -52,7 +56,7 @@ test("wallet rejects invalid amounts and cart rejects invalid quantities", async
       assert.equal(wallet.topUp("user-1", amount), false);
       assert.equal(wallet.payFromWallet("user-1", amount, "Invalid"), false);
     }
-    assert.equal(wallet.walletBalance("user-1"), 20);
+    assert.equal(wallet.walletBalance("user-1"), 0); // new wallets start empty
     const cart = await loadLib(...shopLibs);
     assert.equal(cart.addToCart("unknown", "unknown", () => true), false);
     for (const qty of [-1, 0, NaN, 0.5]) assert.equal(cart.addToCart("golden-noodle", "beef-noodle", () => true, [], qty), false);
@@ -72,9 +76,13 @@ test("only logged-in users have a wallet, and each account has its own", async (
     }
     assert.equal(window.localStorage.getItem("grab-wallet-v1"), null);
     // Accounts: separate balances
+    // Accounts start at $0 and have separate balances
+    assert.equal(wallet.walletBalance("alice"), 0);
+    assert.equal(wallet.payFromWallet("alice", 1, "Coffee"), false); // can't pay with an empty wallet
     assert.equal(wallet.topUp("alice", 30), true);
+    assert.equal(wallet.topUp("bob", 20), true);
     assert.equal(wallet.payFromWallet("bob", 5, "Coffee"), true);
-    assert.equal(wallet.walletBalance("alice"), 50);
+    assert.equal(wallet.walletBalance("alice"), 30);
     assert.equal(wallet.walletBalance("bob"), 15);
     assert.equal(wallet.payFromWallet("bob", 100, "Too much"), false);
     assert.equal(wallet.walletBalance("bob"), 15);
