@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "check:shared-api": "node --env-file-if-exists=.env.local scripts/check-shared-api.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -26,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "jsdom": "^29.1.1",
     "tailwindcss": "4.3.3",
     "typescript": "^5"
   }

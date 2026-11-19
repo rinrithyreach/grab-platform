@@ -3,6 +3,20 @@ import { loadLib } from "../tests/load-lib.mjs";
 
 // HTTP verification only. Run a production server first; this does not drive a browser.
 const base = process.env.SMOKE_BASE_URL ?? "http://localhost:3000";
+const proxy = await fetch(new URL("/backend/api/sync/status", base));
+assert.equal(proxy.status, 200, "Frontend proxy reaches the shared API/database");
+assert.match((await proxy.json()).storageId, /^[0-9a-f-]{36}$/i);
+assert.equal((await fetch(new URL("/backend/api/account-data", base))).status, 401, "Private snapshots require sign-in through the proxy");
+assert.equal((await fetch(new URL("/backend/api/deliveries/mine", base))).status, 401, "Parcel history requires sign-in");
+const deliveryQuote = await fetch(new URL("/backend/api/deliveries/quote", base), {
+  method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ pickupAddress: "University of Phnom Penh", pickupLatitude: 11.56, pickupLongitude: 104.92,
+    stops: [{ address: "Central Market, Phnom Penh", latitude: 11.57, longitude: 104.93,
+      parcelSize: "Small", weightKg: 2 }] }),
+});
+assert.equal(deliveryQuote.status, 200, "Express quote is available through the frontend proxy");
+const quote = await deliveryQuote.json();
+assert.ok(quote.totalFare > 0 && quote.pricingMode === "DemoStraightLineUsd", "The API supplies the parcel fare");
 const { STORES } = await loadLib("catalog", "hours");
 const active = STORES.filter((s) => s.kind === "food");
 const routes = ["/", "/food", "/express", "/deliveries", "/ride", "/rides", "/cart", "/orders", "/profile", "/wallet", "/login", "/register", "/merchant", "/merchant/register", "/partners/00000000-0000-0000-0000-000000000000", "/credits", ...active.map((s) => `/store/${s.id}`)];
@@ -18,8 +32,9 @@ for (const route of routes) {
   }
   if (route === "/express") assert.ok(html.includes("Send a parcel"), "Express form is rendered");
   if (route === "/merchant/register") {
-    for (const field of ["businessName", "ownerName", "contactPhone", "email", "address", "city", "category", "openingHours", "description"])
+    for (const field of ["businessName", "ownerName", "contactPhone", "email", "address", "city", "openingHours", "description"])
       assert.ok(html.includes(`name="${field}"`), `Merchant registration includes ${field}`);
+    assert.ok(!html.includes('name="category"'), "GrabFood registration does not ask for a specialty");
     for (const service of ["GrabRide", "GrabFood", "GrabExpress"])
       assert.ok(html.includes(`value="${service}"`), `Merchant registration offers ${service}`);
   }

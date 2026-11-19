@@ -15,6 +15,7 @@ public class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExcepti
         var (status, detail) = exception switch
         {
             ApiException e => (e.Status, e.Message),
+            BadHttpRequestException e => (e.StatusCode, "The request is invalid or exceeds the allowed size."),
             DbUpdateConcurrencyException => (409, "The record changed. Reload and retry."),
             DbUpdateException { InnerException: SqlException { Number: 2601 or 2627 } } => (409, "A record with these unique details already exists."),
             _ => (500, "An unexpected error occurred. Use the trace ID when reporting this error.")

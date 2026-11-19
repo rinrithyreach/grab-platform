@@ -2,11 +2,13 @@
 
 .NET 10 controller API with EF Core SQL Server, Windows Authentication, PasswordHasher, JWT roles, Swagger, and SQL-backed integration tests. Read [frontend analysis/API mapping](FRONTEND_ANALYSIS.md), [API contracts](API_DOCUMENTATION.md), and [database ERD](DATABASE_ERD.md).
 
-The frontend now provides Ride, Food and Express customer pages (Express replaces Mart). Authentication and live rides use this API. Food/Express and account extras remain browser demos pending backend endpoints. See the [frontend audit](../frontend/AUDIT.md) and [next implementation phase](IMPLEMENTATION_PLAN.md).
+The frontend provides Ride, Food and Express customer pages (Express replaces Mart). Authentication, live rides, merchant publishing and the Phase 1 parcel-delivery API use dedicated SQL tables. The current Express customer pages still use their demo store until frontend integration; older signed-in demo records remain in AccountData. See [shared setup](../SHARED_SETUP.md) for multiple PCs/phones, the [frontend audit](../frontend/AUDIT.md), and [implementation plan](IMPLEMENTATION_PLAN.md) for remaining fulfillment work.
+
+Apply the additive `ParcelDeliveries` migration before using `POST /api/deliveries` on another database: `dotnet ef database update --project backend`. It creates parcel and ordered-stop tables without moving or deleting older Express demo snapshots. Quotes and bookings compute USD demo fares on the server; courier claims and status/GPS updates require a GrabExpress merchant account. The customer pages have not yet switched to these endpoints.
 
 ## Local setup in Windows PowerShell
 
-Run commands from the repository root. This computer uses the SQL Server named instance **DESKTOP-DCDNJIN\MSSQLSERVER01** with Windows Authentication and the database **GrabPlatformDB**. Install the .NET 10 SDK, SQL Server Database Engine and SSMS on a new computer. Both appsettings.json and the local User Secrets connection override point to this selected instance. The JWT signing key stays in User Secrets; no credentials/signing keys are committed.
+Run commands from the repository root. This API host uses the SQL Server named instance **DESKTOP-DCDNJIN\MSSQLSERVER01** with Windows Authentication and the database **GrabPlatformDB**. The steps below are for the central API host or an isolated development installation. Frontend clones that should share data must connect to this central API; they do not need their own SQL Server or JWT key. Install the .NET 10 SDK, SQL Server Database Engine and SSMS when creating another independent API host. The JWT signing key stays in User Secrets; no credentials/signing keys are committed.
 
 Restore the committed dependency versions and EF tool:
 ```powershell
@@ -63,9 +65,15 @@ Open `http://localhost:3000` for the customer application. NEXT_PUBLIC_API_URL i
 
 ## Merchant publishing
 
-The navbar's **Merchant** link opens `http://localhost:3000/merchant`. Choose **GrabRide** to register using only name, phone number, password, motorcycle license plate and location. The name is the public rider name, and the phone is used for both sign-in and customer contact. License plates are stored privately and omitted from public feeds/storefronts. No store name, email, city, category, description, opening hours or password confirmation is requested for GrabRide. The rider profile editor also uses the shorter set of details.
+Live GrabRide tracking uses the additive `RideLiveLocation` migration (`dotnet ef database update --project backend`), applied to the current local database. After accepting, the merchant selects **Share live location** and grants browser GPS access. Customers see the approaching driver on the confirmation and My rides maps. GPS requires HTTPS or localhost and an open driver dashboard; stale positions are labelled paused. Only an assigned merchant/driver can update or stop sharing, and completion/cancellation clears the coordinates. See [API contracts](API_DOCUMENTATION.md) for the GPS endpoints.
 
-GrabFood/GrabExpress registration collects the business name, private owner name, public contact phone, optional business email, selling address, city, specialty, description, opening hours, sign-in phone and password. A separate phone is required if already registered as a customer. Merchant registration always assigns the Merchant role; customer registration still always assigns Customer. Merchants cannot use customer-only live ride endpoints.
+Each merchant account is limited to the service chosen at registration. Profile editing does not offer other services, and the API rejects attempts to change the registered service.
+
+The customer ride map reads `GET /api/merchants/ride-areas?page=1` to display registered GrabRide merchant areas without listings. The endpoint returns 100 public display names, saved addresses, vehicle types and work schedules per page; user IDs, account contact details, passwords and license plates are omitted. Saved GPS points and approximate administrative-area centres are resolved by the frontend. This does not report live driver positions, availability or assignment. Profile edits are visible on the map's next refresh. Apply the `RideVehicleTypes` migration before using vehicle-specific booking and dispatch; existing rides and GrabRide partners default to Motorcycle.
+
+The navbar's **Merchant** link opens `http://localhost:3000/merchant`. Choose **GrabRide** to register with name, phone number, password, vehicle type (Motorcycle, Rickshaw or Classic), license plate, location and a weekly work schedule. Monday–Sunday checkboxes enable start/end time inputs; unchecked days are days off. Hours use Cambodia time (UTC+7), and an end time earlier than the start ends the following day. The dashboard edits the schedule and rider details. Schedules persist in the existing `OpeningHours` column. GrabRide image uploads and listing writes return 400, its dashboard returns an empty listing list, and legacy GrabRide listings are excluded from public feeds, storefronts and banners. License plates remain private. Store name, email, city, category, description and password confirmation are unnecessary for GrabRide.
+
+GrabFood/GrabExpress registration collects the business name, private owner name, public contact phone, optional business email, selling address, city, description, opening hours, sign-in phone and password. GrabFood and GrabExpress use the GrabRide location picker for their store addresses. GrabFood and GrabExpress use the weekly day/time selector for opening hours. GrabFood's category/specialty field is omitted; new GrabFood stores receive the default `Food` category, while existing categories remain saved. An empty business schedule means no selected opening days; existing free-text hours remain accepted and visible until replaced. GrabExpress retains its specialty field. A separate phone is required if already registered as a customer. Merchant registration always assigns the Merchant role; customer registration still always assigns Customer. Merchants cannot use customer-only live ride endpoints.
 
 Apply the committed `MerchantPublishing` migration with `dotnet ef database update --project backend` on another computer. It adds Merchants, MerchantImages and MerchantListings without modifying existing accounts/bookings. This migration has been applied to this computer's selected SQL instance.
 
@@ -111,9 +119,27 @@ Postman uses Authorization → Bearer Token. See API_DOCUMENTATION.md for exact 
 
 ## Frontend integration strategy
 
+### GrabRide merchant dispatch
+
+GrabRide merchants retain the Merchant role and can receive customer requests through `GET /api/merchants/ride-requests`. `POST /api/merchants/ride-requests/{rideId}/response` records an explicit `{ "accept": true/false }` decision. Acceptance assigns `Rides.MerchantId` and changes status to Accepted. Declines persist per merchant and leave the ride available to others. Accepted merchants use the existing ride status endpoint to start, complete or cancel their own assignment. Customers see `merchantId` and the public `merchantName` in their own ride responses. Merchant ride list/detail endpoints are scoped to that merchant's assignments; Food/Express accounts cannot access dispatch.
+
+The `MerchantRideDispatch` migration adds a nullable merchant assignment and a response table without deleting existing bookings. The ride rowversion plus filtered unique indexes prevent two merchants claiming one ride or one merchant holding two active rides. Completion and cancellation release the active slot. Run `dotnet ef database update --project backend` before deploying this flow to another database; it has been applied locally. This grants no Driver/Admin role or admin onboarding privileges. The existing customer payment simulation works for completed merchant rides; driver reviews still require a Driver assignment.
+
+The frontend polls merchant inboxes and customer booking status every two seconds, plus on window focus. `/merchant` provides ride request and active ride controls. For manual testing, open `/ride` in a fresh browser tab and sign in with a separate customer account; sessions are stored per tab. Pending requests are broadcast to open GrabRide dashboards. Published work schedules are informational; they do not automatically gate receipt of requests.
+
+### Merchant product orders (shopping flow)
+
+Customers can now buy published GrabFood/GrabExpress listings: **storefront → Add to cart → `/cart` checkout → `/orders` live status**. The merchant receives the order on the **Orders** tab of `/merchant` and moves it Pending → Accepted → On the way → Delivered (or Rejects a new order / Cancels one it already accepted, any time before delivery). Customers may cancel while it is still Pending. Both sides refresh every five seconds. Prices are recalculated by the API from the database; see [API contracts](API_DOCUMENTATION.md#merchant-product-orders).
+
+The additive `MerchantOrders` migration creates `MerchantOrders` and `MerchantOrderItems` without changing existing data. Run `dotnet ef database update --project backend` on any other database; it has been applied to this computer's local instance. Restart the API after pulling so the new endpoints load.
+
+Manual test: register a GrabFood merchant, publish a listing, then in a **separate browser tab** register/sign in as a customer, open the merchant's page, add products, check out, and watch the status change as the merchant accepts it.
+
+### Browser sessions
+
 The frontend already creates one `createApiClient()` inside `AuthProvider`. Login/register send only `phoneNumber` and `password` as JSON and establish a bearer session; the provider persists that session in sessionStorage so refresh keeps the login, while closing the tab ends it. Logout, expiry and a 401 clear both the client and displayed user. Do not share an authenticated client as a server-side global. Session storage is a demo trade-off; production session hardening is separate work. There is no refresh-token flow or remote logout revocation.
 
-The client throws ApiError with status and validation details, aborts requests after a timeout, and checks a readable `/health` response before selecting the live ride service. Frontend Food/Express/wallet data is still local. See [current API mapping](FRONTEND_ANALYSIS.md) and [implementation plan](IMPLEMENTATION_PLAN.md).
+The client throws ApiError with status and validation details, aborts requests after a timeout, and checks a readable `/health` response. Signed-in Food/Express/wallet/account demo state now persists through the account-data endpoint; the browser retains a per-account retry cache. `GET /api/sync/status` checks the database and returns its persistent public Storage ID. See [shared setup](../SHARED_SETUP.md), [current API mapping](FRONTEND_ANALYSIS.md) and [implementation plan](IMPLEMENTATION_PLAN.md).
 
 ## Tests
 
@@ -142,6 +168,6 @@ Implemented: secure customer authentication, admin-only driver onboarding, scope
 
 Mocked deliberately: configurable flat USD development fare (default $5); no real route distance, geocoding, ETA, or transport pricing. Payments immediately create SimulatedSucceeded records; no money moves and no card details are collected.
 
-Not implemented in the backend: Food/Express order fulfillment/deliveries, addresses, favourites, wallet and store reviews. The merchant catalogue and homepage banners now use SQL-backed publishing; the original demo Food catalogue/cart and Express booking data remain local. Also pending: durable ride reviewed state, vehicle-based pricing, real routing/payment providers, live GPS updates, password reset/email verification, refresh tokens/revocation, and production deployment. The existing frontend does contain customer forms and pages; see the updated frontend analysis.
+Not implemented: normalized Food/Express fulfillment/dispatch, server-computed Food/Express totals, real wallet/payment processing, durable ride reviewed state in the ride DTO, vehicle-based live pricing, real routing, GPS tracking, password reset, refresh tokens/revocation and production deployment. Merchant publishing and signed-in demo Food/Express/account state are SQL-backed; existing simulations remain simulations. Guest data remains device-local. Cross-device access requires a reachable shared API host, which cloning does not provision automatically.
 
 Implementation references: [Microsoft JWT validation](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication?view=aspnetcore-10.0), [EF concurrency](https://learn.microsoft.com/en-us/ef/core/saving/concurrency), [EF migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying).

@@ -6,6 +6,7 @@ public interface IAuthService
     Task<AuthResponse> Register(RegisterRequest request, CancellationToken ct);
     Task<AuthResponse> RegisterMerchant(MerchantRegisterRequest request, CancellationToken ct);
     Task<AuthResponse> Login(LoginRequest request, CancellationToken ct);
+    Task<AuthResponse> AdminLogin(AdminLoginRequest request, CancellationToken ct);
     Task<UserDto> Me(Guid userId, CancellationToken ct);
     Task<UserDto> UpdateProfile(Guid userId, UpdateProfileRequest request, CancellationToken ct);
 }
@@ -15,6 +16,9 @@ public interface IRideService
     Task<List<RideDto>> List(Guid userId, Role role, bool mine, int page, CancellationToken ct);
     Task<RideDto> Get(Guid userId, Role role, Guid id, CancellationToken ct);
     Task<RideDto> Transition(Guid userId, Role role, Guid id, RideStatus status, CancellationToken ct);
+    Task<RideDto> UpdateLocation(Guid userId, Role role, Guid id, RideLocationRequest? location, CancellationToken ct);
+    Task<MerchantRideInboxDto> MerchantInbox(Guid userId, CancellationToken ct);
+    Task<MerchantRideInboxDto> MerchantRespond(Guid userId, Guid rideId, bool accept, CancellationToken ct);
 }
 public interface IDriverService
 {

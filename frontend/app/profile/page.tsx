@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { useState } from "react";
 import { errorMessage, useAuth } from "@/lib/auth";
 import type { User } from "@/lib/api";
@@ -58,7 +59,7 @@ function AddressRow({ label, icon, saved }: { label: AddressLabel; icon: string;
             <p className="font-semibold">{t(`profile.${label}`)}</p>
             <p className="truncate text-sm text-muted">{saved ?? t("profile.notSet")}</p>
           </div>
-          <button onClick={() => setEditing(true)} className="text-sm font-semibold text-brand">{t(saved ? "profile.edit" : "profile.add")}</button>
+          <button onClick={() => setEditing(true)} className="-m-2 rounded-lg p-2 text-sm font-semibold text-brand hover:bg-brand-soft">{t(saved ? "profile.edit" : "profile.add")}</button>
           {saved && <button onClick={() => { removeAddress(label); toast(t("profile.removed"), "info"); }} className="text-sm text-muted hover:text-red-600">{t("profile.remove")}</button>}
         </div>
       )}
@@ -100,6 +101,14 @@ function NameEditor({ user }: { user: User }) {
 }
 
 export default function ProfilePage() {
+  const { user, ready } = useAuth();
+  const { t } = useT();
+  if (user?.role === "Merchant") redirect("/merchant");
+  if (!ready) return <p role="status" className="mx-auto max-w-3xl px-4 py-8 text-muted">{t("merchant.loading")}</p>;
+  return <CustomerProfilePage />;
+}
+
+function CustomerProfilePage() {
   const { t } = useT();
   const { user, ready, logout } = useAuth();
   const { addresses } = useProfile();

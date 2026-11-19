@@ -21,4 +21,8 @@ public class RidesController(IRideService rides) : ApiControllerBase
     }
     [HttpPatch("{id:guid}/status")]
     public Task<RideDto> Status(Guid id, StatusRequest r, CancellationToken ct) => rides.Transition(UserId, UserRole, id, r.Status, ct);
+    [HttpPatch("{id:guid}/location"), Authorize(Roles = "Merchant,Driver")]
+    public Task<RideDto> Location(Guid id, RideLocationRequest r, CancellationToken ct) => rides.UpdateLocation(UserId, UserRole, id, r, ct);
+    [HttpDelete("{id:guid}/location"), Authorize(Roles = "Merchant,Driver")]
+    public Task<RideDto> StopSharing(Guid id, CancellationToken ct) => rides.UpdateLocation(UserId, UserRole, id, null, ct);
 }

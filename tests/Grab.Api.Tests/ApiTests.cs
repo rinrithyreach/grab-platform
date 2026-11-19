@@ -38,10 +38,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         {
             var admin = new User { FullName = "Test Admin", PhoneNumber = "+85510000001", Email = "admin@example.test", Role = Role.Admin };
             admin.PasswordHash = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>().HashPassword(admin, Password);
-            db.Users.Add(admin);
-            await db.SaveChangesAsync();
+            if (targetMigration is not null) await InsertLegacyUser(db, admin);
+            else { db.Users.Add(admin); await db.SaveChangesAsync(); }
         }
     }
+    // Migration tests deliberately run against a historical schema. Insert only
+    // columns that existed then rather than mapping today's full User model.
+    internal static Task<int> InsertLegacyUser(GrabDbContext db, User user) => db.Database.ExecuteSqlInterpolatedAsync($"""
+        INSERT INTO [Users] ([Id], [FullName], [Email], [PasswordHash], [PhoneNumber], [Role], [CreatedAt])
+        VALUES ({user.Id}, {user.FullName}, {user.Email}, {user.PasswordHash}, {user.PhoneNumber}, {user.Role.ToString()}, {user.CreatedAt})
+        """);
     public override async ValueTask DisposeAsync()
     {
         using (var scope = Services.CreateScope())

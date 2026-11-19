@@ -8,6 +8,21 @@ const source = await readFile(new URL("../lib/api.ts", import.meta.url), "utf8")
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
 const { createApiClient, ApiError } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 
+test("ride merchant areas load a public page through the configured API", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  const rows = [{ id: "rider", name: "Dara", address: "GPS: 11.55, 104.92", openingHours: "Mon 08:00-17:00" }];
+  globalThis.fetch = async (url, options) => { calls.push({ url, ...options }); return Response.json(rows); };
+  try {
+    const api = createApiClient("http://localhost:5000");
+    assert.deepEqual(await api.rideMerchantAreas(2, new AbortController().signal), rows);
+    assert.equal(calls[0].url, "http://localhost:5000/api/merchants/ride-areas?page=2");
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[0].headers.Authorization, undefined);
+    assert.ok(calls[0].signal instanceof AbortSignal);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("merchant sign-in survives refresh and uploads use multipart with bearer authentication", async () => {
   const originalFetch = globalThis.fetch;
   const user = { id: "merchant", fullName: "Dara", phoneNumber: "+85512345678", role: "Merchant" };
@@ -108,7 +123,7 @@ test("profile name updates notify the provider and persist in the saved session"
   const user = { id: "customer", fullName: "Customer", phoneNumber: "+85512345678", role: "Customer" };
   const saved = { accessToken: "same-token", expiresAt: new Date(Date.now() + 60000).toISOString(), user };
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, "http://localhost:5000/api/auth/me");
+    assert.equal(url, "/backend/api/auth/me");
     assert.equal(options.method, "PATCH");
     assert.equal(options.headers.Authorization, "Bearer same-token");
     assert.deepEqual(JSON.parse(options.body), { fullName: "Dara" });
@@ -141,7 +156,7 @@ test("a pending profile save cannot restore a session after sign-out", async () 
     const saving = api.updateProfile({ fullName: "Dara" });
     api.logout();
     finish(Response.json({ ...user, fullName: "Dara" }));
-    await saving;
+    await assert.rejects(saving, { name: "AbortError" });
     assert.equal(api.getSession(), null);
   } finally { globalThis.fetch = originalFetch; }
 });
@@ -233,4 +248,50 @@ test("a delayed 401 from an older session cannot log out a newer login", async (
     await assert.rejects(pending, e => e.status === 401);
     assert.equal(api.getSession().accessToken, "new-token");
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test("logout cancels an in-flight login and the latest sign-in attempt wins", async (t) => {
+  const pending = [];
+  t.mock.method(globalThis, "fetch", async () => new Promise((resolve) => pending.push(resolve)));
+  const api = createApiClient();
+  const auth = (token) => ({ accessToken: token, expiresAt: new Date(Date.now() + 60000).toISOString(),
+    user: { id: token, fullName: "Customer", phoneNumber: "012345678", role: "Customer" } });
+  const cancelled = api.login("012345678", "password");
+  api.logout();
+  pending.shift()(Response.json(auth("cancelled")));
+  await assert.rejects(cancelled, { name: "AbortError" });
+  assert.equal(api.getSession(), null);
+
+  const first = api.login("012345678", "password");
+  const second = api.login("098765432", "password");
+  pending[1](Response.json(auth("new-account")));
+  await second;
+  pending[0](Response.json(auth("old-account")));
+  await assert.rejects(first, { name: "AbortError" });
+  assert.equal(api.getSession().user.id, "new-account");
+});
+
+test("a delayed private response is discarded after switching accounts", async (t) => {
+  let finish;
+  t.mock.method(globalThis, "fetch", async () => new Promise((resolve) => { finish = resolve; }));
+  const api = createApiClient();
+  const session = (id) => ({ accessToken: id, expiresAt: new Date(Date.now() + 60000).toISOString(),
+    user: { id, fullName: "Customer", phoneNumber: "012345678", role: "Customer" } });
+  api.restoreSession(session("first"));
+  const loading = api.myOrders();
+  api.restoreSession(session("second"));
+  finish(Response.json([{ deliveryAddress: "Private address" }]));
+  await assert.rejects(loading, { name: "AbortError" });
+});
+
+test("failed sign-in does not send or invalidate the currently signed-in account token", async (t) => {
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    assert.equal(options.headers.Authorization, undefined);
+    return new Response(null, { status: 401 });
+  });
+  const api = createApiClient();
+  api.restoreSession({ accessToken: "current", expiresAt: new Date(Date.now() + 60000).toISOString(),
+    user: { id: "current", fullName: "Customer", phoneNumber: "012345678", role: "Customer" } });
+  await assert.rejects(api.login("098765432", "wrong-password"), { status: 401 });
+  assert.equal(api.getSession().accessToken, "current");
 });

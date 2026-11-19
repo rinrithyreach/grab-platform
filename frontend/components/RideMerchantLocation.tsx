@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { useT } from "@/lib/i18n";
+import { useT, type MessageKey } from "@/lib/i18n";
 import { PHNOM_PENH_DISTRICTS } from "@/lib/phnom-penh";
 import { DeviceLocationError, deviceRideLocation, getDeviceLocation, manualRideLocation, readDeviceRideLocation, rideLocationSelection, type LocationFailure } from "@/lib/merchant-location";
 
-export default function RideMerchantLocation({ value, onChange }: { value: string; onChange: (location: string) => void }) {
+export default function RideMerchantLocation({ value, onChange, label = "merchant.location" }: { value: string; onChange: (location: string) => void; label?: MessageKey }) {
   const { t, pick } = useT();
   const id = useId();
   const [selection, setSelection] = useState(() => rideLocationSelection(value));
@@ -42,7 +42,7 @@ export default function RideMerchantLocation({ value, onChange }: { value: strin
   }
 
   return <fieldset className="rounded-xl border border-border p-4 sm:p-5">
-    <legend className="px-1 text-sm font-semibold">{t("merchant.location")}</legend>
+    <legend className="px-1 text-sm font-semibold">{t(label)}</legend>
     <input type="hidden" name="address" value={value} />
     <div className="grid gap-3 sm:grid-cols-2">
       <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${mode === "auto" ? "border-brand bg-brand-soft" : "border-border"}`}>

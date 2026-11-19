@@ -2,11 +2,15 @@
 
 Scope: application pages, shared components, browser stores, pricing, translations, assets, API contracts, dependencies, production build, and the existing ASP.NET Core API. Service scope is **GrabRide, GrabFood, and GrabExpress**. Express replaces Mart at the user's request.
 
+Update, 18 November 2026: the backend now has the additive `ParcelDeliveries` migration and server-priced quote, booking, history, ownership, cancellation and courier lifecycle endpoints. The Express pages in this audit still run their explicit local simulation; API adapter, maps and live tracking remain later phases. Legacy snapshots have not been migrated or removed.
+
 ## Result
+
+Cross-device update: signed-in Food/Express/account state now persists through the API into SQL Server with a per-account browser cache/retry queue. Public merchant views/reviews and account snapshots refresh automatically. Guest data remains local until explicit import. Offline ride simulation is opt-in, so a failed API no longer silently creates isolated bookings. See [shared setup](../SHARED_SETUP.md) for the single central API/database requirement and Storage ID verification. Latest checks: 50 frontend tests, 19 SQL-backed backend tests, lint and production build pass.
 
 GrabRide merchant location now has device detection and a Phnom Penh district/sangkat picker, shared by registration and profile editing. The offline reference includes all 14 districts and 105 sangkats from the [NCDD gazetteer](https://db.ncdd.gov.kh/gazetteer/view/province.castle?pv=12), checked 16 November 2026. Eight additional automated checks cover geography integrity, parent/child selection, saved-location restoration, coordinate validation and geolocation success/failure cases. All 46 frontend tests, lint and production build/TypeScript pass. Geolocation is tested with a supplied provider; the actual browser permission dialog/device sensor and interactive layout have not been verified in a browser.
 
-The frontend compiles and its automated checks pass. It is a working university demo, with a partial API integration. Merchant profiles, photos, listings and homepage banners now use SQL Server. The original Food cart/orders, Express bookings, wallet, saved addresses, favourites, and store reviews still use browser storage.
+The frontend compiles and its automated checks pass. It is a working university demo. Merchant publishing and signed-in demo Food/Express/account records now persist in SQL Server; browser storage is a retry cache for signed-in users and local storage for guests. Existing price, payment and fulfillment simulations remain demo behavior.
 
 Browser control was unavailable in this session. No desktop/mobile screenshot review or browser interaction test was completed. Build, HTTP, and logic checks cannot establish that every responsive layout and keyboard interaction works visually.
 
@@ -17,13 +21,13 @@ Browser control was unavailable in this session. No desktop/mobile screenshot re
 | `/` | Service cards, search, favourites, featured restaurants, merchant offers, carousel | Local food catalogue; SQL-backed merchant offers and `GET /api/banners`, with service slides when no featured offers exist |
 | `/merchant`, `/merchant/register` | Merchant phone/password sign-in, registration, business profile, photo uploads, listing editor with customer preview, draft/publish controls | SQL-backed API with Merchant role and ownership checks |
 | `/partners/[id]` | Public business information, hours, contact details, published offers | SQL-backed public merchant API; owner/sign-in details omitted |
-| `/food`, `/store/[id]` | Search/filter/sort, menus, item options, cart, reviews | Local catalogue and browser reviews |
-| `/cart`, `/orders` | Promos, tips, address validation, demo payment, receipts, reorder, simulated tracking | Browser cart/orders/wallet |
-| `/express` | Sender/recipient contacts, street addresses, pickup/drop-off areas, parcel size/weight, estimate, confirmation | Browser-only Express adapter |
-| `/deliveries` | Parcel history, simulated statuses, map, cancellation before collection | Browser-only Express adapter |
-| `/ride`, `/rides` | Booking, tracking, cancellation, simulated payment, review | Existing API when health check succeeds; labelled browser demo otherwise |
+| `/food`, `/store/[id]` | Search/filter/sort, menus, item options, cart, reviews | Static demo catalogue; signed-in cart/reviews in SQL; public reviews refresh through the API |
+| `/cart`, `/orders` | Promos, tips, address validation, demo payment, receipts, reorder, simulated tracking | Signed-in SQL account snapshot with a browser retry cache; guests local |
+| `/express` | Sender/recipient contacts, street addresses, pickup/drop-off areas, parcel size/weight, estimate, confirmation | Signed-in SQL account snapshot; quote/timeline still simulated; guests local |
+| `/deliveries` | Parcel history, simulated statuses, map, cancellation before collection | Signed-in SQL account snapshot; guests local |
+| `/ride`, `/rides` | Booking, tracking, cancellation, simulated payment, review | Existing ride API by default; isolated offline simulation requires explicit opt-in |
 | `/login`, `/register` | Real customer authentication | Existing API; no fake offline account creation |
-| `/profile`, `/wallet` | Account display, addresses, preferences, demo balance/top-ups/history | API user; browser addresses/preferences/wallet |
+| `/profile`, `/wallet` | Account display, addresses, preferences, demo balance/top-ups/history | API user plus signed-in SQL account snapshot; guests local |
 | `/credits`, unknown URLs | Attributions and not-found UI | Static |
 | `/mart` | Redirects to `/express` | Compatibility route |
 

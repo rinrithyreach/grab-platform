@@ -4,7 +4,8 @@ import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
 import { canCancelDelivery, deliveryQuote, deliveryStatus, validateDelivery, type Delivery, type DeliveryRequest } from "./express-pricing";
 
-// Separate from food orders; this adapter can later call /api/deliveries.
+// Separate from food orders; the shared store persists signed-in demo state
+// through /api/account-data. Dedicated fulfillment endpoints remain future work.
 const store = createLocalStore<{ deliveries: Delivery[] }>("grab-express-demo-v1", { deliveries: [] },
   (value): value is { deliveries: Delivery[] } => {
     const deliveries = (value as { deliveries?: unknown })?.deliveries;

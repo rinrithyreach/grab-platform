@@ -15,6 +15,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(o =>
+{
+    o.AddServerHeader = false;
+    o.Limits.MaxRequestBodySize = 2_200_000; // Includes the bounded multipart image upload.
+});
 builder.Services.AddOptions<JwtSettings>().BindConfiguration("Jwt")
     .Validate(s => Encoding.UTF8.GetByteCount(s.SigningKey) >= 32, "Set Jwt:SigningKey using User Secrets or environment (32+ bytes).")
     .Validate(s => s.ExpiryMinutes is >= 5 and <= 120 && !string.IsNullOrWhiteSpace(s.Issuer) && !string.IsNullOrWhiteSpace(s.Audience), "Invalid JWT configuration.")
@@ -23,11 +28,20 @@ var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new();
 builder.Services.AddDbContext<GrabDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection.")));
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
+builder.Services.AddScoped<PlatformSettingsService>();
+builder.Services.AddScoped<AdminAccountService>();
+builder.Services.AddScoped<AdminTeamService>();
+builder.Services.AddScoped<AdminAccessService>();
+builder.Services.AddScoped<AdminRoleService>();
 builder.Services.AddScoped<IRideService, RideService>();
 builder.Services.AddScoped<IDriverService, DriverService>();
 builder.Services.AddScoped<ICommerceService, CommerceService>();
 builder.Services.AddScoped<MerchantService>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<DeliveryService>();
+builder.Services.AddScoped<AdminService>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
@@ -47,18 +61,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     {
         if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out var id)) { context.Fail("Invalid subject."); return; }
         var db = context.HttpContext.RequestServices.GetRequiredService<GrabDbContext>();
-        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, context.HttpContext.RequestAborted);
-        if (user is null || user.Role.ToString() != context.Principal?.FindFirst("role")?.Value) context.Fail("Account changed. Sign in again.");
+        var user = await db.Users.AsNoTracking().Where(x => x.Id == id).Select(x => new { x.IsActive, x.Role, x.SecurityVersion })
+            .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+        var version = context.Principal?.FindFirst("ver")?.Value;
+        var validVersion = version is null ? 0 : int.TryParse(version, out var parsed) ? parsed : -1;
+        if (user is null || !user.IsActive || user.SecurityVersion != validVersion || user.Role.ToString() != context.Principal?.FindFirst("role")?.Value)
+            context.Fail("Account changed. Sign in again.");
     }};
 });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(o => o.AddPolicy("frontend", p => p.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:3000"])
-    .WithHeaders("Content-Type", "Authorization").WithMethods("GET", "POST", "PATCH")));
+    .WithHeaders("Content-Type", "Authorization").WithMethods("GET", "POST", "PATCH", "DELETE")));
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
     o.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("delivery-quote", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("delivery-booking", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
@@ -68,6 +90,22 @@ builder.Services.AddSwaggerGen(o =>
     o.AddSecurityRequirement(document => new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", document)] = [] });
 });
 var app = builder.Build();
+// Apply even to authentication failures and exception responses. API data includes
+// access tokens, addresses and GPS positions and must not be retained by caches.
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        context.Response.Headers.XFrameOptions = "DENY";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        if (context.Request.Path.StartsWithSegments("/api")
+            && !context.Request.Path.StartsWithSegments("/api/merchant-images"))
+            context.Response.Headers.CacheControl = "no-store";
+        return Task.CompletedTask;
+    });
+    await next(context);
+});
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
@@ -75,7 +113,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();
 }
-else app.UseHttpsRedirection();
+else
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 app.UseCors("frontend");
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -83,6 +125,35 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
+if (args.Contains("--provision-admin-stdin"))
+{
+    if (!app.Environment.IsDevelopment()) throw new InvalidOperationException("Local admin provisioning requires Development mode.");
+    // Credentials arrive through stdin, never source code, command-line arguments or logs.
+    var input = await Console.In.ReadLineAsync() ?? throw new InvalidOperationException("Admin credentials are required on stdin.");
+    var credentials = System.Text.Json.JsonSerializer.Deserialize<Grab.Api.DTOs.AdminLoginRequest>(input,
+        new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))
+        ?? throw new InvalidOperationException("Invalid admin credentials.");
+    var email = credentials.Email.Trim().ToLowerInvariant();
+    if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email) || email.Length > 254
+        || credentials.Password.Length is < 12 or > 128) throw new InvalidOperationException("Use a valid email and a 12-128 character password.");
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<GrabDbContext>();
+    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+    var existing = await db.Users.SingleOrDefaultAsync(x => x.Email == email);
+    if (existing is not null)
+    {
+        if (existing.Role != Role.Admin || !existing.IsActive || hasher.VerifyHashedPassword(existing, existing.PasswordHash, credentials.Password) == PasswordVerificationResult.Failed)
+            throw new InvalidOperationException("This email already belongs to an account; no credentials or permissions were changed.");
+        Console.WriteLine("Administrator already provisioned.");
+        return;
+    }
+    var admin = new User { Email = email, PhoneNumber = "admin-" + Guid.NewGuid().ToString("N")[..20], FullName = "Super Administrator", Role = Role.Admin };
+    admin.PasswordHash = hasher.HashPassword(admin, credentials.Password);
+    db.Users.Add(admin);
+    await db.SaveChangesAsync();
+    Console.WriteLine("Administrator provisioned successfully.");
+    return;
+}
 if (args.Contains("--bootstrap-admin"))
 {
     using var scope = app.Services.CreateScope();

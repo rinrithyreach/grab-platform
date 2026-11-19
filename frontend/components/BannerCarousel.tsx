@@ -91,10 +91,18 @@ export default function BannerCarousel() {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    api.banners(ctrl.signal)
+    let busy = false;
+    const refresh = () => {
+      if (busy) return;
+      busy = true;
+      void api.banners(ctrl.signal)
       .then((list) => setBanners(Array.isArray(list) ? list.filter((b) => b?.imageUrl) : []))
-      .catch(() => { /* backend unavailable: keep placeholders */ });
-    return () => ctrl.abort();
+      .catch(() => { /* backend unavailable: keep existing slides */ }).finally(() => { busy = false; });
+    };
+    refresh();
+    const timer = setInterval(() => { if (document.visibilityState !== "hidden") refresh(); }, 5000);
+    window.addEventListener("focus", refresh);
+    return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [api]);
 
   const slides = [

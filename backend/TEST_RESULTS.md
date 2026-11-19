@@ -1,5 +1,13 @@
 # Executed verification
 
+## Shared API/database synchronization — 16 November 2026
+
+- Frontend: 50 tests passed; lint and production build/TypeScript passed. New tests exercise separate device stores through a shared transport, offline retry, guest-data import, account isolation, delayed responses after switching accounts, independent-section merging and conflicting-edit protection.
+- Backend: 19 SQL-backed tests passed, 0 failed/skipped. Additional integration scenarios cover separate authenticated clients reading the same snapshot, other-account/anonymous isolation, SQL persistence, stale/simultaneous write rejection, supported-section validation, public review privacy, matching Storage IDs on one database and different IDs on independently migrated databases.
+- Applied additive SharedAccountData and SharedStorageIdentity migrations to the selected local SQL instance. Existing account, ride and merchant tables/records are retained.
+- Running frontend/API verification passed: 22 production page routes, existing redirects/not-found checks and six raw/optimized photos; `/backend/api/sync/status` reached SQL through the frontend proxy, and private snapshots returned 401 anonymously. Direct and proxied requests returned the same Storage ID. `npm run check:shared-api` passed.
+- No development test accounts/reviews/orders were added. Tests use isolated disposable databases. No public hosting, firewall modifications or actual second physical device/browser verification was performed. Cross-device access still requires configuring a reachable central API URL; cloning does not create that host.
+
 ## Simplified GrabRide registration — 16 November 2026
 
 - GrabRide registration renders exactly five data inputs: name, phone number, password, motorcycle license plate and location. Render checks confirm no extra business fields or password confirmation; Food/Express retain their business forms.

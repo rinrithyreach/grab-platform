@@ -11,6 +11,8 @@ import { useRideService, type RideView } from "@/lib/rides";
 import { toast } from "@/lib/toast";
 import LoginRequired from "@/components/LoginRequired";
 import BackButton from "@/components/BackButton";
+import CustomerRideTracking from "@/components/CustomerRideTracking";
+import MerchantRideNavigation from "@/components/MerchantRideNavigation";
 
 const BADGE: Record<RideStatus, string> = {
   Pending: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -58,7 +60,11 @@ function MyRidesContent() {
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "history">("active");
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshed, setRefreshed] = useState(false);
   const acting = useRef(false);
+  const manualRefreshing = useRef(false);
+  const loadVersion = useRef(0);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const canLoad = !!service && ready && (service.mode === "demo" || !!user);
 
@@ -66,30 +72,56 @@ function MyRidesContent() {
   const placeName = (name: string) => { const p = PLACES.find((x) => x.name === name); return p ? pick(p.name, p.km) : name; };
 
   const load = useCallback((signal?: AbortSignal) => {
-    if (!service) return Promise.resolve();
+    if (!service) return Promise.resolve(false);
+    const version = ++loadVersion.current;
     return Promise.all([service.myRides(signal), service.mode === "live" && user?.role !== "Customer" ? Promise.resolve([]) : service.myPayments(signal)]).then(([r, p]) => {
-      if (signal?.aborted) return;
+      if (signal?.aborted || version !== loadVersion.current) return false;
       setRides(r);
       setPaid(new Set(p.map((x) => x.rideId)));
       setError("");
+      return true;
     }).catch((err) => {
-      if (!signal?.aborted) setError(errorMessage(err, t));
+      if (!signal?.aborted && version === loadVersion.current) setError(errorMessage(err, t));
+      return false;
     });
   }, [service, t, user?.role]);
 
-  // Load now, then refresh every 5 seconds while a ride is still active (live tracking).
-  const hasActive = !!rides?.some((r) => ACTIVE.includes(r.status));
+  useEffect(() => {
+    if (!refreshed) return;
+    const timer = window.setTimeout(() => setRefreshed(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [refreshed]);
+
+  // Refresh even an empty list so bookings made on another device appear here.
   useEffect(() => {
     if (!canLoad) return;
     const ctrl = new AbortController();
-    load(ctrl.signal);
-    const id = hasActive ? setInterval(() => load(ctrl.signal), 5000) : undefined;
-    return () => { ctrl.abort(); clearInterval(id); };
-  }, [canLoad, load, hasActive]);
+    let loading = false;
+    const refresh = async () => {
+      if (loading || manualRefreshing.current || acting.current || document.visibilityState === "hidden") return;
+      loading = true;
+      try { await load(ctrl.signal); }
+      finally { loading = false; }
+    };
+    void refresh();
+    const id = setInterval(refresh, 2000);
+    window.addEventListener("focus", refresh);
+    return () => { ctrl.abort(); clearInterval(id); window.removeEventListener("focus", refresh); };
+  }, [canLoad, load]);
+
+  async function refreshNow() {
+    if (manualRefreshing.current || acting.current) return;
+    manualRefreshing.current = true;
+    setRefreshing(true);
+    setRefreshed(false);
+    try { if (await load()) setRefreshed(true); }
+    finally { manualRefreshing.current = false; setRefreshing(false); }
+  }
 
   async function act(fn: () => Promise<unknown>, done: string) {
     if (acting.current) return;
     acting.current = true;
+    loadVersion.current += 1;
     setBusy(true);
     setError("");
     try { await fn(); toast(done); await load(); } catch (err) { setError(errorMessage(err, t)); }
@@ -101,10 +133,11 @@ function MyRidesContent() {
       <BackButton href="/" />
       <div className="flex items-end justify-between">
         <h1 className="text-3xl font-bold">{t("rides.title")}</h1>
-        {canLoad && <button onClick={() => load()} className="text-sm font-semibold text-brand">{t("rides.refresh")}</button>}
+        {canLoad && <button type="button" onClick={() => void refreshNow()} disabled={refreshing || busy} aria-busy={refreshing} className="btn-outline h-9 cursor-pointer px-3 text-sm text-brand">{t(refreshing ? "rides.refreshing" : "rides.refresh")}</button>}
       </div>
+      {refreshed && <p role="status" className="mt-2 text-right text-xs text-muted">{t("rides.refreshed")}</p>}
 
-      {!service || !ready ? <div className="mt-6"><RideSkeletons /></div> : !canLoad ? <LoginRequired what="loginRequired.seeRides" /> : (
+      {!service || !ready ? <div className="mt-6"><RideSkeletons /></div> : !canLoad ? <LoginRequired what="loginRequired.seeRides" returnTo="/rides" /> : (
         <div className="mt-6 space-y-4">
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
           {rides === null && !error && <RideSkeletons />}
@@ -143,9 +176,11 @@ function MyRidesContent() {
                 <div className="min-w-0">
                   <p className="font-semibold">{placeName(r.pickupLocation)} → {placeName(r.destination)}</p>
                   <p className="text-sm text-muted">{new Date(r.createdAt).toLocaleString(dateLocale)}</p>
-                  {(r.vehicle || (r.driverName && r.status !== "Pending")) && (
+                  {r.merchantName && <p className="mt-1 text-sm text-brand">{t("ride.acceptedByMerchant", { name: r.merchantName })}</p>}
+                  {(r.vehicle || r.vehicleType || (r.driverName && r.status !== "Pending")) && (
                     <p className="mt-1 text-sm text-muted">
                       {r.vehicle && <>{VEHICLE[r.vehicle].emoji} {t(VEHICLE[r.vehicle].name)}</>}
+                      {!r.vehicle && r.vehicleType && <>{t(r.vehicleType === "Motorcycle" ? "ride.moto" : r.vehicleType === "Rickshaw" ? "ride.tuktuk" : "ride.car")}</>}
                       {r.driverName && r.status !== "Pending" && <> · {t("rides.driver", { name: r.driverName })}</>}
                     </p>
                   )}
@@ -159,6 +194,8 @@ function MyRidesContent() {
                 </div>
               </div>
 
+              {(service?.mode === "demo" || user?.role === "Customer") && <CustomerRideTracking ride={r} demo={service?.mode === "demo"} />}
+              {service?.mode === "live" && user?.role === "Driver" && (r.status === "Accepted" || r.status === "InProgress") && <MerchantRideNavigation ride={r} />}
               <div className="mt-4 flex flex-wrap gap-2">
                 {(r.status === "Pending" || r.status === "Accepted") && (
                   <button className="btn-outline h-9 text-sm" disabled={busy} onClick={() => act(() => service!.cancel(r.id), t("rides.cancelled"))}>

@@ -2,7 +2,8 @@
 
 /**
  * Store reviews. A few sample reviews ship with the demo; reviews written by the user
- * (from "Rate your order" on My orders) are saved in the browser and added on top.
+ * (from "Rate your order" on My orders) sync through the account-data API;
+ * other customers' public reviews are refreshed from /api/store-reviews.
  */
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
@@ -34,19 +35,30 @@ const SAMPLE: Review[] = [
   { id: "s10", storeId: "home-plus", name: "Sok", rating: 4, comment: "Good prices on detergent.", km: "តម្លៃសាប៊ូបោកខោអាវសមរម្យ។", createdAt: "2026-10-12T07:30:00Z" },
 ];
 
-const store = createLocalStore<{ reviews: Review[] }>("grab-reviews-v1", { reviews: [] });
+function validReviews(value: unknown): value is { reviews: Review[] } {
+  const reviews = (value as { reviews?: Review[] })?.reviews;
+  return Array.isArray(reviews) && reviews.every((r) => r && typeof r.id === "string"
+    && typeof r.storeId === "string" && typeof r.name === "string" && typeof r.comment === "string"
+    && typeof r.createdAt === "string" && Number.isFinite(Date.parse(r.createdAt))
+    && Number.isInteger(r.rating) && r.rating >= 1 && r.rating <= 5
+    && (r.orderId === undefined || typeof r.orderId === "string") && (r.km === undefined || typeof r.km === "string"));
+}
+const store = createLocalStore<{ reviews: Review[] }>("grab-reviews-v1", { reviews: [] }, validReviews);
+const publicStore = createLocalStore<{ reviews: Review[] }>("grab-public-reviews-v1", { reviews: [] }, validReviews);
+export function setPublicStoreReviews(reviews: Review[]) { if (validReviews({ reviews })) publicStore.set({ reviews }); }
 const useUserReviews = () => useSyncExternalStore(store.subscribe, store.get, store.getInitial).reviews;
 
 export function addReview(review: Omit<Review, "id" | "createdAt">) {
   store.update((s) => ({
-    reviews: [{ ...review, id: `r-${Date.now().toString(36)}`, createdAt: new Date().toISOString() }, ...s.reviews],
+    reviews: [{ ...review, id: `r-${crypto.randomUUID()}`, createdAt: new Date().toISOString() }, ...s.reviews],
   }));
 }
 
 /** All reviews for a store (newest first) plus the average rating and count. */
 export function useStoreReviews(storeId: string) {
   const mine = useUserReviews();
-  const reviews = [...mine.filter((r) => r.storeId === storeId), ...SAMPLE.filter((r) => r.storeId === storeId)];
+  const shared = useSyncExternalStore(publicStore.subscribe, publicStore.get, publicStore.getInitial).reviews;
+  const reviews = [...mine.filter((r) => r.storeId === storeId), ...shared.filter((r) => r.storeId === storeId), ...SAMPLE.filter((r) => r.storeId === storeId)];
   const base = STORES.find((s) => s.id === storeId)?.rating ?? 0;
   // Blend the catalogue rating (worth ~20 past reviews) with the reviews shown here.
   const weight = 20;

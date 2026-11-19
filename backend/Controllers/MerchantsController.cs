@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Grab.Api.Controllers;
 
 [ApiController, Route("api/merchants")]
-public class MerchantsController(MerchantService merchants, IAuthService auth) : ApiControllerBase
+public class MerchantsController(MerchantService merchants, IAuthService auth, IRideService rides) : ApiControllerBase
 {
     [HttpPost("register"), EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponse>> Register(MerchantRegisterRequest r, CancellationToken ct) =>
@@ -32,6 +32,12 @@ public class MerchantsController(MerchantService merchants, IAuthService auth) :
     [Authorize(Roles = "Merchant"), HttpPatch("me")]
     public Task<MerchantProfileDto> UpdateProfile(MerchantProfileRequest r, CancellationToken ct) => merchants.UpdateProfile(UserId, r, ct);
 
+    [Authorize(Roles = "Merchant"), HttpGet("ride-requests")]
+    public Task<MerchantRideInboxDto> RideRequests(CancellationToken ct) => rides.MerchantInbox(UserId, ct);
+
+    [Authorize(Roles = "Merchant"), HttpPost("ride-requests/{id:guid}/response")]
+    public Task<MerchantRideInboxDto> RespondRide(Guid id, MerchantRideResponseRequest r, CancellationToken ct) => rides.MerchantRespond(UserId, id, r.Accept, ct);
+
     [Authorize(Roles = "Merchant"), HttpPost("images"), RequestSizeLimit(MerchantService.MaxImageBytes + 65536)]
     public Task<MerchantImageDto> Upload(IFormFile file, CancellationToken ct) => merchants.Upload(UserId, file, ct);
 
@@ -44,6 +50,9 @@ public class MerchantsController(MerchantService merchants, IAuthService auth) :
 
     [HttpGet("offers")]
     public Task<List<MerchantOfferDto>> Offers(MerchantServiceKind? service, CancellationToken ct, int page = 1) => merchants.Offers(service, page, ct);
+
+    [HttpGet("ride-areas")]
+    public Task<List<RideMerchantAreaDto>> RideAreas(CancellationToken ct, int page = 1) => merchants.RideAreas(page, ct);
 
     [HttpGet("{id:guid}")]
     public Task<MerchantStorefrontDto> Storefront(Guid id, CancellationToken ct) => merchants.Storefront(id, ct);

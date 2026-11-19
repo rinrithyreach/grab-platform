@@ -1,6 +1,6 @@
 "use client";
 
-/** Stores the user has hearted ❤️, saved in the browser. */
+/** Favourite stores. Signed-in changes sync through the shared account-data API. */
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
 

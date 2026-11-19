@@ -3,6 +3,7 @@ export const enExpress = {
   "nav.deliveries": "My deliveries",
   "home.expressText": "Send documents and parcels across the city.",
   "express.title": "GrabExpress — Send a parcel",
+  "express.sendParcel": "Send a parcel",
   "express.subtitle": "Door-to-door parcel delivery in Phnom Penh.",
   "express.sender": "Sender",
   "express.recipient": "Recipient",
@@ -38,7 +39,7 @@ export const enExpress = {
   "express.status.Delivered": "Delivered",
   "express.status.Cancelled": "Cancelled",
   "express.cancelError": "This parcel has already been picked up and cannot be cancelled.",
-  "ride.liveVehicle": "The current API assigns the vehicle and sets a development fare after booking.",
+  "ride.liveVehicle": "Your selected vehicle type is sent to matching partners. The API sets a development fare after booking.",
   "ride.customerOnly": "Ride booking is available to customer accounts.",
 };
 
@@ -47,6 +48,7 @@ export const kmExpress: Record<keyof typeof enExpress, string> = {
   "nav.deliveries": "ការដឹកកញ្ចប់របស់ខ្ញុំ",
   "home.expressText": "ផ្ញើឯកសារ និងកញ្ចប់ទូទាំងទីក្រុង។",
   "express.title": "GrabExpress — ផ្ញើកញ្ចប់",
+  "express.sendParcel": "ផ្ញើកញ្ចប់",
   "express.subtitle": "ដឹកកញ្ចប់ពីផ្ទះមួយទៅផ្ទះមួយនៅភ្នំពេញ។",
   "express.sender": "អ្នកផ្ញើ",
   "express.recipient": "អ្នកទទួល",

@@ -3,6 +3,7 @@ using Grab.Api.DTOs;
 using Grab.Api.Middleware;
 using Grab.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace Grab.Api.Services;
 
@@ -19,6 +20,22 @@ public class MerchantService(GrabDbContext db)
         return text;
     }
 
+    private static string RideWorkingHours(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        if (value.Length > 200) throw new ApiException(400, "Working hours must contain at most 200 characters.");
+        string[] days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        var shifts = new Dictionary<string, string>();
+        foreach (var part in value.Split(';'))
+        {
+            var match = Regex.Match(part.Trim(), @"^(?<day>Mon|Tue|Wed|Thu|Fri|Sat|Sun) (?<start>(?:[01]\d|2[0-3]):[0-5]\d)-(?<end>(?:[01]\d|2[0-3]):[0-5]\d)$");
+            if (!match.Success || match.Groups["start"].Value == match.Groups["end"].Value
+                || !shifts.TryAdd(match.Groups["day"].Value, match.Value))
+                throw new ApiException(400, "Choose each working day once and enter different start and end times in HH:mm format.");
+        }
+        return string.Join("; ", days.Where(shifts.ContainsKey).Select(day => shifts[day]));
+    }
+
     public static void ApplyProfile(Merchant merchant, MerchantProfileRequest r)
     {
         if (!Enum.IsDefined(r.Service)) throw new ApiException(400, "Choose GrabRide, GrabFood or GrabExpress.");
@@ -27,26 +44,34 @@ public class MerchantService(GrabDbContext db)
         merchant.ContactPhone = PhoneNumbers.Normalize(r.ContactPhone) ?? throw new ApiException(400, "Enter a valid public contact phone number.");
         if (r.Service == MerchantServiceKind.GrabRide)
         {
-            var plate = Text(r.MotorcycleLicensePlate, 2, 30, "Motorcycle license plate");
-            if (plate.Any(char.IsControl)) throw new ApiException(400, "Enter a motorcycle license plate without control characters.");
+            if (r.VehicleType.HasValue && !Enum.IsDefined(r.VehicleType.Value))
+                throw new ApiException(400, "Choose Motorcycle, Rickshaw or Classic.");
+            var vehicleType = r.VehicleType ?? (Enum.TryParse<RideVehicleType>(merchant.Category, out var current)
+                && Enum.IsDefined(current) ? current : RideVehicleType.Motorcycle);
+            var plate = Text(r.MotorcycleLicensePlate, 2, 30, "Vehicle license plate");
+            if (plate.Any(char.IsControl)) throw new ApiException(400, "Enter a vehicle license plate without control characters.");
             merchant.MotorcycleLicensePlate = plate.ToUpperInvariant();
             merchant.BusinessName = merchant.OwnerName;
             merchant.Address = Text(r.Address, 2, 300, "Location");
             merchant.Email = null;
             merchant.City = "";
-            merchant.Category = "Motorcycle";
+            merchant.Category = vehicleType.ToString();
             merchant.Description = "";
-            merchant.OpeningHours = "";
+            merchant.OpeningHours = RideWorkingHours(r.OpeningHours);
             return;
         }
+        if (r.VehicleType.HasValue) throw new ApiException(400, "Vehicle type applies only to GrabRide partners.");
         merchant.MotorcycleLicensePlate = null;
         merchant.BusinessName = Text(r.BusinessName, 2, 120, "Business name");
         merchant.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim();
         merchant.Address = Text(r.Address, 5, 300, "Business address");
         merchant.City = Text(r.City, 2, 100, "City");
-        merchant.Category = Text(r.Category, 2, 100, "Category");
+        merchant.Category = r.Service == MerchantServiceKind.GrabFood && string.IsNullOrWhiteSpace(r.Category)
+            ? string.IsNullOrWhiteSpace(merchant.Category) ? "Food" : merchant.Category
+            : Text(r.Category, 2, 100, "Category");
         merchant.Description = Text(r.Description, 10, 1500, "Business description");
-        merchant.OpeningHours = Text(r.OpeningHours, 3, 200, "Opening hours");
+        merchant.OpeningHours = string.IsNullOrWhiteSpace(r.OpeningHours)
+            ? "" : Text(r.OpeningHours, 3, 200, "Opening hours");
     }
 
     private async Task<Merchant> Mine(Guid userId, CancellationToken ct) =>
@@ -56,7 +81,8 @@ public class MerchantService(GrabDbContext db)
     public static MerchantPublicDto PublicProfile(Merchant m) => new(m.Id, m.Service, m.BusinessName,
         m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours);
     private static MerchantProfileDto Profile(Merchant m) => new(m.Id, m.Service, m.BusinessName,
-        m.OwnerName, m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours, m.MotorcycleLicensePlate);
+        m.OwnerName, m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours, m.MotorcycleLicensePlate,
+        m.Service == MerchantServiceKind.GrabRide && Enum.TryParse<RideVehicleType>(m.Category, out var type) ? type : null);
     private static MerchantListingDto Listing(MerchantListing l) => new(l.Id, l.Title, l.Description,
         l.Price, l.ImageId, ImageUrl(l.ImageId), l.IsPublished, l.ShowInSlideshow, l.UpdatedAt);
     private static MerchantOfferDto Offer(MerchantListing l) => new(l.Id, l.Title, l.Description,
@@ -65,6 +91,7 @@ public class MerchantService(GrabDbContext db)
     public async Task<MerchantDashboardDto> Dashboard(Guid userId, CancellationToken ct)
     {
         var merchant = await Mine(userId, ct);
+        if (merchant.Service == MerchantServiceKind.GrabRide) return new(Profile(merchant), []);
         var listings = await db.MerchantListings.AsNoTracking().Where(x => x.MerchantId == merchant.Id)
             .OrderByDescending(x => x.UpdatedAt).ToListAsync(ct);
         return new(Profile(merchant), listings.Select(Listing).ToList());
@@ -73,6 +100,8 @@ public class MerchantService(GrabDbContext db)
     public async Task<MerchantProfileDto> UpdateProfile(Guid userId, MerchantProfileRequest r, CancellationToken ct)
     {
         var merchant = await Mine(userId, ct);
+        if (r.Service != merchant.Service)
+            throw new ApiException(400, "Your merchant account can only use the service chosen at registration.");
         ApplyProfile(merchant, r);
         await db.SaveChangesAsync(ct);
         return Profile(merchant);
@@ -81,6 +110,8 @@ public class MerchantService(GrabDbContext db)
     public async Task<MerchantImageDto> Upload(Guid userId, IFormFile file, CancellationToken ct)
     {
         var merchant = await Mine(userId, ct);
+        if (merchant.Service == MerchantServiceKind.GrabRide)
+            throw new ApiException(400, "GrabRide partners manage working days and hours instead of listings.");
         if (file.Length is < 12 or > MaxImageBytes) throw new ApiException(400, "Choose a JPG, PNG or WebP image up to 2 MB.");
         if (await db.MerchantImages.CountAsync(x => x.MerchantId == merchant.Id, ct) >= 200)
             throw new ApiException(409, "The limit of 200 uploaded images has been reached.");
@@ -101,6 +132,8 @@ public class MerchantService(GrabDbContext db)
     public async Task<MerchantListingDto> SaveListing(Guid userId, Guid? id, MerchantListingRequest r, CancellationToken ct)
     {
         var merchant = await Mine(userId, ct);
+        if (merchant.Service == MerchantServiceKind.GrabRide)
+            throw new ApiException(400, "GrabRide partners manage working days and hours instead of listings.");
         var listing = id.HasValue
             ? await db.MerchantListings.SingleOrDefaultAsync(x => x.Id == id && x.MerchantId == merchant.Id, ct)
                 ?? throw new ApiException(404, "Listing was not found.")
@@ -127,16 +160,28 @@ public class MerchantService(GrabDbContext db)
     {
         if (page < 1 || page > 10000 || (service.HasValue && !Enum.IsDefined(service.Value)))
             throw new ApiException(400, "Invalid service or page.");
-        var query = db.MerchantListings.AsNoTracking().Include(x => x.Merchant).Where(x => x.IsPublished);
+        var query = db.MerchantListings.AsNoTracking().Include(x => x.Merchant).Where(x => x.IsPublished && x.Merchant.Service != MerchantServiceKind.GrabRide
+            && db.Users.Any(u => u.Id == x.Merchant.UserId && u.IsActive));
         if (service.HasValue) query = query.Where(x => x.Merchant.Service == service);
         var rows = await query.OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Skip((page - 1) * 24).Take(24).ToListAsync(ct);
         return rows.Select(Offer).ToList();
     }
 
+    public async Task<List<RideMerchantAreaDto>> RideAreas(int page, CancellationToken ct)
+    {
+        if (page < 1 || page > 10000) throw new ApiException(400, "Invalid page.");
+        return await db.Merchants.AsNoTracking()
+            .Where(m => m.Service == MerchantServiceKind.GrabRide && db.Users.Any(u => u.Id == m.UserId && u.Role == Role.Merchant && u.IsActive))
+            .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id).Skip((page - 1) * 100).Take(100)
+            .Select(m => new RideMerchantAreaDto(m.Id, m.BusinessName, m.Address, m.OpeningHours,
+                m.Category == "Rickshaw" ? RideVehicleType.Rickshaw : m.Category == "Classic" ? RideVehicleType.Classic : RideVehicleType.Motorcycle)).ToListAsync(ct);
+    }
+
     public async Task<MerchantStorefrontDto> Storefront(Guid id, CancellationToken ct)
     {
-        var merchant = await db.Merchants.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+        var merchant = await db.Merchants.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && db.Users.Any(u => u.Id == x.UserId && u.IsActive), ct)
             ?? throw new ApiException(404, "This merchant is not available.");
+        if (merchant.Service == MerchantServiceKind.GrabRide) throw new ApiException(404, "GrabRide partners do not have listings.");
         var rows = await db.MerchantListings.AsNoTracking().Include(x => x.Merchant)
             .Where(x => x.MerchantId == id && x.IsPublished).OrderByDescending(x => x.UpdatedAt).ToListAsync(ct);
         if (rows.Count == 0) throw new ApiException(404, "This merchant has no published listings yet.");
@@ -146,7 +191,8 @@ public class MerchantService(GrabDbContext db)
     public async Task<List<BannerDto>> Banners(CancellationToken ct)
     {
         var rows = await db.MerchantListings.AsNoTracking().Include(x => x.Merchant)
-            .Where(x => x.IsPublished && x.ShowInSlideshow).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Take(12).ToListAsync(ct);
+            .Where(x => x.IsPublished && x.ShowInSlideshow && x.Merchant.Service != MerchantServiceKind.GrabRide
+                && db.Users.Any(u => u.Id == x.Merchant.UserId && u.IsActive)).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Take(12).ToListAsync(ct);
         return rows.Select(x => new BannerDto(x.Id, ImageUrl(x.ImageId), x.Title,
             $"{x.Merchant.BusinessName} · {x.Merchant.Service} · {(x.Merchant.Service == MerchantServiceKind.GrabRide ? x.Merchant.Address : x.Merchant.City)} · ${x.Price:0.00}", $"/partners/{x.MerchantId}")).ToList();
     }

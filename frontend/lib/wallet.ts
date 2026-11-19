@@ -3,12 +3,14 @@
 /**
  * Demo wallet (like GrabPay). No real money: top-ups just add to the number.
  *
- * Only logged-in users have a wallet. Each account gets its own wallet, saved in the
- * browser under that account's id ("grab-wallet-v2:<userId>"), so two people using the
- * same computer never share a balance. Guests have no wallet: they can't see a balance,
- * top up, or pay with it — every function below refuses when there is no user id.
+ * Only logged-in users have a wallet. While someone is logged in, "grab-wallet-v1" is
+ * stored inside their account (see lib/local-store.ts) and synced through the
+ * account-data API, so every account has its own balance. Guests have no wallet: they
+ * can't see a balance, top up, or pay with it — every function below refuses without a user id.
+ *
+ * Wallets start at $0; money only comes from top-ups (see lib/payments.ts).
  */
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
 import { canPayWithWallet } from "./pricing";
 
@@ -25,55 +27,56 @@ export interface WalletTxn {
 }
 interface WalletState { balance: number; txns: WalletTxn[] }
 
-/** New wallets start empty: money only comes from top-ups. */
+/** New wallets start empty. */
 export const STARTING_BALANCE = 0;
-// v3: wallets used to start with a $20 welcome bonus; changing the key resets everyone to $0.
-const KEY_PREFIX = "grab-wallet-v3:";
 
-const initialWallet = (): WalletState => ({ balance: STARTING_BALANCE, txns: [] });
+// The key name must stay "grab-wallet-v1": the backend's account-data API only accepts known keys.
+const store = createLocalStore<WalletState>("grab-wallet-v1", { balance: STARTING_BALANCE, txns: [] }, (value): value is WalletState => {
+  const wallet = value as WalletState;
+  return !!wallet && Number.isFinite(wallet.balance) && wallet.balance >= 0 && Number.isSafeInteger(Math.round(wallet.balance * 100))
+    && Array.isArray(wallet.txns) && wallet.txns.every((txn) => txn && typeof txn.id === "string"
+      && ["topup", "payment", "refund"].includes(txn.kind) && Number.isFinite(txn.amount)
+      && typeof txn.description === "string" && typeof txn.createdAt === "string" && Number.isFinite(Date.parse(txn.createdAt)));
+});
 
-// One saved store per account, created the first time that account's wallet is used.
-const stores = new Map<string, ReturnType<typeof createLocalStore<WalletState>>>();
-function storeFor(userId: string) {
-  let s = stores.get(userId);
-  if (!s) { s = createLocalStore<WalletState>(KEY_PREFIX + userId, initialWallet()); stores.set(userId, s); }
-  return s;
+const round = (n: number) => Math.round(n * 100) / 100;
+const txnId = () => `TX-${crypto.randomUUID()}`;
+
+/**
+ * Older versions gave every wallet a $20 "welcome" bonus. Remove it (and its $20)
+ * wherever it's still saved, keeping real top-ups and payments.
+ */
+function withoutWelcomeBonus(s: WalletState): WalletState {
+  const bonus = s.txns.find((x) => x.id === "welcome");
+  if (!bonus) return s;
+  return { balance: Math.max(0, round(s.balance - bonus.amount)), txns: s.txns.filter((x) => x !== bonus) };
 }
+const current = () => withoutWelcomeBonus(store.get());
 
-// What guests "see": no balance, no history, and nothing can change it.
+// What guests "see": no balance, no history.
 const GUEST: WalletState = { balance: 0, txns: [] };
 const noWallet = { subscribe: () => () => {}, get: () => GUEST, getInitial: () => GUEST };
 
-// Remove wallets saved by older builds: v1 was one shared wallet (even for guests),
-// v2 gave every account a $20 welcome bonus.
-if (typeof window !== "undefined") {
-  try {
-    const old = Object.keys(window.localStorage).filter((k) => k === "grab-wallet-v1" || k.startsWith("grab-wallet-v2:"));
-    old.forEach((k) => window.localStorage.removeItem(k));
-  } catch { /* ignore */ }
-}
-
 /**
- * The wallet of the given account: pass `user?.id` from useAuth().
+ * The wallet of the logged-in user: pass `user?.id` from useAuth().
  * For guests (no id) `hasWallet` is false, the balance is 0 and there's no history.
  */
 export function useWallet(userId: string | null | undefined) {
-  const s = userId ? storeFor(userId) : noWallet;
-  const state = useSyncExternalStore(s.subscribe, s.get, s.getInitial);
+  const s = userId ? store : noWallet;
+  const raw = useSyncExternalStore(s.subscribe, s.get, s.getInitial);
+  const state = useMemo(() => withoutWelcomeBonus(raw), [raw]);
   return { ...state, hasWallet: !!userId };
 }
 
-/** Current balance of an account (0 for guests). */
-export const walletBalance = (userId: string | null | undefined) => (userId ? storeFor(userId).get().balance : 0);
+/** Current balance of the logged-in user (0 for guests). */
+export const walletBalance = (userId: string | null | undefined) => (userId ? current().balance : 0);
 
-const round = (n: number) => Math.round(n * 100) / 100;
-const txnId = () => `TX-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 100)}`;
-
-function add(userId: string, kind: WalletTxn["kind"], amount: number, description: string, extra: Pick<WalletTxn, "method" | "reference"> = {}) {
-  storeFor(userId).update((s) => ({
+function add(kind: WalletTxn["kind"], amount: number, description: string, extra: Pick<WalletTxn, "method" | "reference"> = {}) {
+  const s = current();
+  store.set({
     balance: round(s.balance + amount),
     txns: [{ id: txnId(), kind, amount: round(amount), description, createdAt: new Date().toISOString(), ...extra }, ...s.txns],
-  }));
+  });
 }
 
 /**
@@ -82,15 +85,16 @@ function add(userId: string, kind: WalletTxn["kind"], amount: number, descriptio
  * seen twice — e.g. two browser tabs polling — is only credited once).
  */
 export function topUp(userId: string | null | undefined, amount: number, payment: { method?: string; reference?: string } = {}) {
-  if (!userId || !Number.isFinite(amount) || amount <= 0) return false;
-  if (payment.reference && storeFor(userId).get().txns.some((x) => x.reference === payment.reference)) return false;
-  add(userId, "topup", amount, "Top up", payment);
+  if (!userId || !Number.isFinite(amount) || round(amount) <= 0
+    || !Number.isSafeInteger(Math.round((current().balance + amount) * 100))) return false;
+  if (payment.reference && current().txns.some((x) => x.reference === payment.reference)) return false;
+  add("topup", amount, "Top up", payment);
   return true;
 }
 
 /** Pays from the wallet. Returns false (and charges nothing) for guests or if the balance is too low. */
 export function payFromWallet(userId: string | null | undefined, amount: number, description: string) {
-  if (!userId || amount <= 0 || !canPayWithWallet(storeFor(userId).get().balance, amount)) return false;
-  add(userId, "payment", -amount, description);
+  if (!userId || round(amount) <= 0 || !Number.isSafeInteger(Math.round(amount * 100)) || !canPayWithWallet(current().balance, amount)) return false;
+  add("payment", -amount, description);
   return true;
 }

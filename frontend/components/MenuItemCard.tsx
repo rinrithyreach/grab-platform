@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { money } from "@/lib/brand";
-import { getStore, type MenuItem } from "@/lib/catalog";
+import type { MenuItem } from "@/lib/catalog";
 import { addToCart, lineKey, setQty, useShop } from "@/lib/cart";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
@@ -28,8 +28,7 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
   const plainQty = inThisStore ? cart.lines.find((l) => lineKey(l) === plainKey)?.qty ?? 0 : 0;
 
   function add(options: string[] = [], qty = 1) {
-    const added = addToCart(storeId, item.id, (otherId) =>
-      window.confirm(t("cart.replace", { store: getStore(otherId)?.name ?? "" })), options, qty);
+    const added = addToCart(storeId, item.id, (otherName) => window.confirm(t("cart.replace", { store: otherName })), options, qty);
     if (added) toast(t("store.added", { name }));
     return added;
   }

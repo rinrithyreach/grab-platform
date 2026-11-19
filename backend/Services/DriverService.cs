@@ -8,14 +8,16 @@ namespace Grab.Api.Services;
 public class DriverService(GrabDbContext db) : IDriverService
 {
     public Task<List<DriverDto>> Available(CancellationToken ct) =>
-        (from d in db.Drivers.AsNoTracking() join u in db.Users on d.UserId equals u.Id where d.IsAvailable
+        (from d in db.Drivers.AsNoTracking() join u in db.Users on d.UserId equals u.Id where d.IsAvailable && u.IsActive
          orderby d.Id select new DriverDto(d.Id, u.FullName, d.VehicleType, d.VehiclePlate, d.IsAvailable, d.CurrentLatitude, d.CurrentLongitude))
         .Take(100).ToListAsync(ct);
     public async Task<DriverDto> Create(DriverRequest r, CancellationToken ct)
     {
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == r.UserId, ct) ?? throw new ApiException(404, "User not found.");
-        if (user.Role != Role.Customer || await db.Rides.AnyAsync(x => x.CustomerId == user.Id, ct))
-            throw new ApiException(409, "Use a dedicated customer account with no ride history for driver onboarding.");
+        if (user.Role != Role.Customer || await db.Rides.AnyAsync(x => x.CustomerId == user.Id, ct)
+            || await db.MerchantOrders.AnyAsync(x => x.CustomerId == user.Id, ct)
+            || await db.ParcelDeliveries.AnyAsync(x => x.CustomerId == user.Id, ct))
+            throw new ApiException(409, "Use a dedicated customer account with no ride or order history for driver onboarding.");
         if (string.IsNullOrWhiteSpace(r.VehicleType) || string.IsNullOrWhiteSpace(r.VehiclePlate)) throw new ApiException(400, "Vehicle details are required.");
         var d = new Driver { UserId = user.Id, VehicleType = r.VehicleType.Trim(), VehiclePlate = r.VehiclePlate.Trim().ToUpperInvariant() };
         user.Role = Role.Driver;

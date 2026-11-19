@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Cart + order history, saved in the browser (localStorage).
+ * Cart + order history. Signed-in state syncs through the account-data API;
+ * localStorage is the retry cache. Guest state stays local until imported.
  * A tiny external store read with useSyncExternalStore so the server render
  * (empty cart) and the first client render always match.
  * The price maths lives in lib/pricing.ts.
@@ -9,6 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { getItem, getStore } from "./catalog";
 import { createLocalStore } from "./local-store";
+import { clearPartnerCart, partnerCart, putPartnerItem, type PartnerOffer } from "./partner-cart";
 import { cartDetails, lineKey, PROMO_CODES, type Cart, type Order, type PaymentMethod } from "./pricing";
 import { payFromWallet } from "./wallet";
 
@@ -37,17 +39,30 @@ export function useShop() {
 }
 
 /**
+ * One store per cart, across the food cart and the partner cart.
+ * Returns false when the user keeps their other cart.
+ */
+function leavePartnerCart(confirmReplace: (otherStoreName: string) => boolean) {
+  const partner = partnerCart();
+  if (!partner.lines.length) return true;
+  if (!confirmReplace(partner.merchantName)) return false;
+  clearPartnerCart();
+  return true;
+}
+
+/**
  * Add one of an item (with its chosen options) to the cart.
  * The cart holds one store at a time. If it has items from another store,
- * `confirmReplace(otherStoreId)` decides whether to start a new cart.
+ * `confirmReplace(otherStoreName)` decides whether to start a new cart.
  * Returns false if the user declined.
  */
-export function addToCart(storeId: string, itemId: string, confirmReplace: (otherStoreId: string) => boolean, options: string[] = [], qty = 1) {
-  const state = shop.get();
+export function addToCart(storeId: string, itemId: string, confirmReplace: (otherStoreName: string) => boolean, options: string[] = [], qty = 1) {
   if (getStore(storeId)?.kind !== "food" || !getItem(storeId, itemId) || !Number.isSafeInteger(qty) || qty <= 0) return false;
+  if (!leavePartnerCart(confirmReplace)) return false;
+  const state = shop.get();
   let { cart } = state;
   if (cart.storeId && cart.storeId !== storeId && cart.lines.length > 0) {
-    if (!confirmReplace(cart.storeId)) return false;
+    if (!confirmReplace(getStore(cart.storeId)?.name ?? "")) return false;
     cart = { storeId: null, lines: [] };
   }
   const key = lineKey({ itemId, options });
@@ -96,16 +111,39 @@ export function removePromoCode() {
   shop.set({ ...state, cart: { ...state.cart, promoCode: undefined } });
 }
 
-/** Put a past order's items back in the cart ("Order again"). Returns false if the user declined to replace the cart. */
-export function reorder(order: Order, confirmReplace: (otherStoreId: string) => boolean) {
-  const state = shop.get();
-  const { cart } = state;
-  if (cart.lines.length && cart.storeId && cart.storeId !== order.storeId && !confirmReplace(cart.storeId)) return false;
+/**
+ * Put a past order's items back in the cart ("Order again").
+ * Returns "declined" if the user kept their current cart, "unavailable" if none of the items are sold any more.
+ */
+export function reorder(order: Order, confirmReplace: (otherStoreName: string) => boolean): "ok" | "declined" | "unavailable" {
   const lines = order.lines
     .filter((l) => getItem(order.storeId, l.itemId))
     .map((l) => ({ itemId: l.itemId, qty: l.qty, ...(l.optionIds?.length ? { options: l.optionIds } : {}) }));
-  shop.set({ ...state, cart: { storeId: lines.length ? order.storeId : null, lines } });
-  return lines.length > 0;
+  if (!lines.length) return "unavailable";
+  if (!leavePartnerCart(confirmReplace)) return "declined";
+  const state = shop.get();
+  const { cart } = state;
+  if (cart.lines.length && cart.storeId && cart.storeId !== order.storeId && !confirmReplace(getStore(cart.storeId)?.name ?? "")) return "declined";
+  shop.set({ ...state, cart: { storeId: order.storeId, lines } });
+  return "ok";
+}
+
+/**
+ * Add a merchant partner's product to the cart (one store per cart, like addToCart).
+ * Returns "ok", "declined" (user kept their other cart) or "limit" (quantity/line limit reached).
+ */
+export function addPartnerItem(offer: PartnerOffer, confirmReplace: (otherStoreName: string) => boolean, qty = 1): "ok" | "declined" | "limit" {
+  const { cart } = shop.get();
+  if (cart.lines.length) {
+    if (!confirmReplace(getStore(cart.storeId ?? "")?.name ?? "")) return "declined";
+    clearCart();
+  }
+  const partner = partnerCart();
+  if (partner.lines.length && partner.merchantId !== offer.merchant.id) {
+    if (!confirmReplace(partner.merchantName)) return "declined";
+    clearPartnerCart();
+  }
+  return putPartnerItem(offer, qty) ? "ok" : "limit";
 }
 
 /**
@@ -119,7 +157,7 @@ export function placeOrder(address: string, payment: PaymentMethod, note: string
   if (payment === "Wallet" && !userId) return { error: "loginRequired" };
   if (payment === "Wallet" && !payFromWallet(userId, total, store.name)) return { error: "insufficient" };
   const order: Order = {
-    id: `ORD-${Date.now().toString(36).toUpperCase()}`,
+    id: `ORD-${crypto.randomUUID()}`,
     storeId: store.id, storeName: store.name,
     lines: lines.map(({ itemId, name, price, qty, options, optionIds }) => ({ itemId, name, price, qty, options, optionIds })),
     subtotal, discount,

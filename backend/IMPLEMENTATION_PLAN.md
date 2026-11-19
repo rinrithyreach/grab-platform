@@ -2,6 +2,8 @@
 
 Prepared after the [frontend audit](../frontend/AUDIT.md), 16 November 2026. This is a plan for the next implementation phase; endpoints marked proposed do not exist yet.
 
+Update: merchant publishing, homepage banners and SQL-backed account snapshot synchronization have since been implemented. Signed-in Food/Express/account demo state persists through `GET/PATCH /api/account-data`, with public store reviews and a shared-storage diagnostic endpoint. Express Phase 1 now has additive `ParcelDeliveries`/`DeliveryStops` tables and a server-priced delivery API. The current Express customer pages still use the demo store; frontend integration, road pricing, merchant courier UI and tracking remain in Phases 2–4. See [shared setup](../SHARED_SETUP.md).
+
 ## Keep the existing stack
 
 The repository already has ASP.NET Core 10 controllers, EF Core 10 with SQL Server, JWT authentication, role checks, Swagger, migrations and SQL-backed integration tests. The Next.js frontend already calls the auth/ride endpoints through `frontend/lib/api.ts` and a per-browser `AuthProvider`. Extend this implementation rather than creating a second backend.
@@ -36,7 +38,7 @@ Do not reset the existing database or regenerate `InitialCreate`. Add new migrat
 |---|---|---|
 | Auth | `POST /api/auth/register`, `POST /api/auth/login`, `GET/PATCH /api/auth/me` (own profile name) | Decide session refresh/logout requirements |
 | Ride | `/api/rides`, `/api/rides/mine`, `/api/rides/{id}`, `/api/rides/{id}/status` | Fare quotes, supported vehicle type, durable reviewed/payment state |
-| Express | None | `POST /api/deliveries/quote`, `POST /api/deliveries`, `GET /api/deliveries/mine`, `GET /api/deliveries/{id}`, `PATCH /api/deliveries/{id}/status` |
+| Express | Phase 1: quote, create, mine, details, cancel, courier inbox/claim/status/stop/COD/location endpoints | Frontend adapter and customer/courier interfaces in Phases 2–4 |
 | Food catalogue | None | `GET /api/stores`, `GET /api/stores/{slug}`, `GET /api/stores/{slug}/items` |
 | Food orders | None | `POST /api/orders/quote`, `POST /api/orders`, `GET /api/orders/mine`, `GET /api/orders/{id}`, `PATCH /api/orders/{id}/status` |
 | Food reviews | None | `GET /api/stores/{slug}/reviews`, `POST /api/orders/{id}/review` |
@@ -51,7 +53,7 @@ Extend the CORS method allow-list when adding PUT/DELETE. Apply authorization an
 
 | Entities | Required relationships/data |
 |---|---|
-| `DeliveryQuote`, `ParcelDelivery` | Customer, optional courier, contact/address snapshots, pickup/drop-off coordinates, parcel size, decimal weight, quote expiry, decimal fare, status, timestamps, rowversion |
+| `ParcelDelivery`, `DeliveryStop` (Phase 1 complete) | Customer, optional courier, contact/address snapshots, ordered drop-offs, coordinates, size, decimal weight, fare breakdown, COD, insurance, status, timestamps and rowversion. Quotes are recalculated rather than stored. |
 | `Store`, `MenuItem`, `OptionGroup`, `OptionChoice` | Stable slug/code, bilingual labels, decimal prices, store timezone/hours, availability, option requirements |
 | `FoodOrder`, `FoodOrderLine`, line option snapshots | Customer/store, address and note snapshot, item quantities/options, price breakdown, status/timestamps, rowversion |
 | `Promotion`, promotion usage | Eligibility, minimum spend, discount cap, usage limits; first-order eligibility comes from SQL history |
@@ -64,7 +66,7 @@ Use `decimal` with explicit precision for currency/weight; UTC timestamps and st
 
 The demo form stores landmark indexes (`pickupPlace`, `dropoffPlace`). These indexes are frontend implementation details: translate them into named locations and latitude/longitude before sending a real API request. Sender/recipient each need a name, phone and full street address. The backend validates parcel size/weight and computes the charge; it never trusts a client-supplied fare or status.
 
-A quote response should include an ID, distance/fare breakdown and expiry. Booking references the quote, returns the authoritative delivery ID/status/fare and supports a unique request key to prevent duplicate bookings. History exposes server status/timestamps, not a timer inferred from `createdAt`. Real geocoding/routing/GPS is a separate integration from this assignment's simulated workflow.
+A Phase 1 quote response includes a distance/fare breakdown and five-minute display expiry; booking recalculates the price instead of trusting or referencing a quote ID. A unique booking request key remains future work. The API exposes server status/timestamps, while the current customer history still uses a demo timer until its adapter is replaced. Road-route pricing, courier proof, and recipient tracking are separate phases.
 
 Food uses the same pattern: submit store/item IDs, quantities, valid option IDs, address, payment method, promo and tip; receive server-calculated totals. Store and wallet updates must complete within a transaction. Payment APIs remain simulated until a payment provider is explicitly integrated.
 

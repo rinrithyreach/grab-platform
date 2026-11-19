@@ -1,21 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { BRAND, PROJECT, SOCIAL_LINKS } from "@/lib/brand";
 import { cartDetails, useShop } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { useHydratedPathname } from "@/lib/navigation";
 import { SOCIAL_ICON_PATHS } from "./social-icon-paths";
+import { usePlatformSettings } from "@/lib/platform";
 
 function FooterLinks({ title, links }: { title: MessageKey; links: { href: string; label: string }[] }) {
   const { t } = useT();
   return (
     <div>
       <p className="font-semibold">{t(title)}</p>
-      <ul className="mt-3 space-y-2 text-sm text-muted">
+      <ul className="mt-2 space-y-0.5 text-sm text-muted">
         {links.map((l) => (
-          <li key={l.href}><Link href={l.href} className="hover:text-brand">{l.label}</Link></li>
+          <li key={l.href}><Link href={l.href} className="inline-block py-1 hover:text-brand">{l.label}</Link></li>
         ))}
       </ul>
     </div>
@@ -25,10 +26,14 @@ function FooterLinks({ title, links }: { title: MessageKey; links: { href: strin
 export default function Footer() {
   const { t } = useT();
   const { user } = useAuth();
-  const pathname = usePathname();
+  const platform = usePlatformSettings();
+  const merchant = user?.role === "Merchant";
+  const pathname = useHydratedPathname();
   const { cart } = useShop();
   // Store pages show a floating "View cart" bar; leave room so it doesn't cover the footer.
   const cartBarVisible = pathname.startsWith("/store/") && cartDetails(cart).count > 0;
+
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
 
   return (
     <footer className={`mt-16 border-t border-border bg-surface ${cartBarVisible ? "pb-24" : ""}`}>
@@ -58,8 +63,10 @@ export default function Footer() {
             { href: "/deliveries", label: t("nav.deliveries") },
             { href: "/cart", label: t("nav.cart") },
             { href: "/wallet", label: t("nav.wallet") },
-            { href: "/profile", label: t("nav.profile") },
-            { href: "/merchant", label: t("nav.merchant") },
+            ...(merchant ? [{ href: "/merchant", label: t("nav.myMerchant") }] : [
+              { href: "/profile", label: t("nav.profile") },
+              { href: "/merchant", label: t("nav.merchant") },
+            ]),
             ...(user ? [] : [
               { href: "/login", label: t("nav.login") },
               { href: "/register", label: t("footer.signUp") },
@@ -70,6 +77,12 @@ export default function Footer() {
         <div className="col-span-2 lg:col-span-1">
           <p className="font-semibold">{t("footer.contact")}</p>
           <p className="mt-3 text-sm text-muted">{t("footer.contactText")}</p>
+          {platform && <address className="mt-3 space-y-1 break-words text-sm not-italic text-muted">
+            {platform.supportEmail && <a className="block py-1 hover:text-brand" href={`mailto:${platform.supportEmail}`}>{platform.supportEmail}</a>}
+            {platform.supportPhone && <a className="block py-1 hover:text-brand" href={`tel:${platform.supportPhone}`}>{platform.supportPhone}</a>}
+            {platform.supportHours && <p>{platform.supportHours}</p>}
+            {platform.officeAddress && <p>{platform.officeAddress}</p>}
+          </address>}
           <ul className="mt-4 flex flex-wrap gap-2">
             {SOCIAL_LINKS.map((s) => (
               <li key={s.network}>

@@ -3,7 +3,7 @@
 /**
  * One interface for ride pages, with two implementations:
  *  - "live": the real backend through lib/api.ts (needs login)
- *  - "demo": used automatically when the backend can't be reached. Rides are saved in the
+ *  - "demo": available only when explicitly enabled and the backend can't be reached. Rides are saved in the
  *    browser and a pretend driver accepts → drives → completes the trip over about a minute.
  */
 import { useEffect, useMemo } from "react";
@@ -12,6 +12,7 @@ import { useAuth } from "./auth";
 import { createLocalStore } from "./local-store";
 
 export type VehicleId = "bike" | "tuk" | "car";
+export const rideVehicleType = { bike: "Motorcycle", tuk: "Rickshaw", car: "Classic" } as const;
 
 /** A ride as the pages show it. Demo rides also know their vehicle and driver name. */
 export type RideView = Ride & { vehicle?: VehicleId; driverName?: string; reviewed?: boolean };
@@ -65,7 +66,7 @@ const demoService: RideService = {
   async bookRide(body, vehicle, km) {
     const id = `demo-${Date.now().toString(36)}`;
     const ride: DemoRide = {
-      ...body, id, customerId: "demo-user", vehicle,
+      ...body, vehicleType: rideVehicleType[vehicle], id, customerId: "demo-user", vehicle,
       driverId: `driver-${id}`, driverName: DRIVERS[Math.floor(Math.random() * DRIVERS.length)],
       fare: demoFare(vehicle, km), pricingMode: "Demo", status: "Pending",
       createdAt: new Date().toISOString(), completedAt: null,
@@ -112,7 +113,7 @@ async function allPages<T>(fetchPage: (page: number) => Promise<T[]>, signal?: A
 function liveService(api: ReturnType<typeof useAuth>["api"]): RideService {
   return {
     mode: "live",
-    bookRide: (body) => api.bookRide(body), // the backend sets the fare; it doesn't take a vehicle type yet
+    bookRide: (body, vehicle) => api.bookRide({ ...body, vehicleType: rideVehicleType[vehicle] }),
     myRides: (signal) => allPages((page) => api.myRides(page, signal), signal),
     myPayments: (signal) => allPages((page) => api.myPayments(page, signal), signal),
     cancel: (id) => api.updateRideStatus(id, "Cancelled"),
@@ -130,5 +131,5 @@ export function useRideService(): RideService | null {
   // Ride pages are the only ones that need to know if the backend is running.
   useEffect(() => { checkOnline(); }, [checkOnline]);
   // Memoized so pages can safely use the service in effect dependency lists.
-  return useMemo(() => (online === null ? null : online ? liveService(api) : demoService), [api, online]);
+  return useMemo(() => (online === null ? null : online || process.env.NEXT_PUBLIC_ENABLE_DEMO_RIDES !== "true" ? liveService(api) : demoService), [api, online]);
 }
