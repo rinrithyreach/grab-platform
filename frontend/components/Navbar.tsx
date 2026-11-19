@@ -29,8 +29,8 @@ export default function Navbar() {
   const { t } = useT();
   const { user, logout } = useAuth();
   const merchant = user?.role === "Merchant";
-  const accountHref = merchant ? "/merchant" : "/profile";
-  const accountLabel = t(merchant ? "nav.myMerchant" : "nav.profile");
+  const accountHref = user?.role === "Admin" ? "/admin" : merchant ? "/merchant" : "/profile";
+  const accountLabel = user?.role === "Admin" ? "Admin dashboard" : t(merchant ? "nav.myMerchant" : "nav.profile");
   const links = merchant ? LINKS.filter((link) => link.href !== "/merchant") : LINKS;
   const savedName = user?.fullName.trim();
   const greetingName = savedName && savedName !== "Customer" ? savedName : user?.phoneNumber ?? "";
@@ -76,6 +76,8 @@ export default function Navbar() {
   }, [open]);
 
   const row = "flex w-full items-center justify-between border-b border-border px-5 py-4 text-left text-sm font-semibold uppercase tracking-wider";
+
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
 
   return (
     <>

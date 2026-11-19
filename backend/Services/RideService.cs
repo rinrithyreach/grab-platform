@@ -6,7 +6,7 @@ using Grab.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Grab.Api.Services;
-public class RideService(GrabDbContext db, IConfiguration config) : IRideService
+public class RideService(GrabDbContext db, IConfiguration config, PlatformSettingsService platform) : IRideService
 {
     private static RideVehicleType MerchantVehicleType(Merchant merchant) =>
         Enum.TryParse<RideVehicleType>(merchant.Category, out var selected) && Enum.IsDefined(selected)
@@ -65,6 +65,7 @@ public class RideService(GrabDbContext db, IConfiguration config) : IRideService
 
     public async Task<RideDto> Book(Guid customerId, BookRideRequest r, CancellationToken ct)
     {
+        await platform.RequireService(MerchantServiceKind.GrabRide, ct);
         if (string.IsNullOrWhiteSpace(r.PickupLocation) || string.IsNullOrWhiteSpace(r.Destination))
             throw new ApiException(400, "Pickup and destination are required.");
         if (!double.IsFinite(r.PickupLatitude) || r.PickupLatitude is < -90 or > 90

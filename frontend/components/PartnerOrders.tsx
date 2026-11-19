@@ -8,6 +8,7 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { addPartnerItem } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { merchantProductTitle } from "@/lib/merchant-content";
 import { toast } from "@/lib/toast";
 
 const STEPS: { status: MerchantOrderStatus; label: MessageKey }[] = [
@@ -55,7 +56,7 @@ export function PartnerOrderList({ orders, error, placed, onChanged }: {
   orders: MerchantOrder[]; error: boolean; placed: string | null; onChanged: (order: MerchantOrder) => void;
 }) {
   const { api } = useAuth();
-  const { t, dateLocale } = useT();
+  const { t, lang, dateLocale } = useT();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const placedOrder = placed ? orders.find((o) => o.id === placed) : undefined;
@@ -116,7 +117,7 @@ export function PartnerOrderList({ orders, error, placed, onChanged }: {
               <p className={`mt-2 text-sm ${ended ? "font-medium text-red-600 dark:text-red-400" : ""}`} aria-live="polite">{t(`orders.status.${o.status}`)}</p>
               <dl className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
                 {o.items.map((i) => (
-                  <div key={i.listingId} className="flex justify-between gap-4"><dt>{i.quantity} × {i.title}</dt><dd className="shrink-0">{money(i.lineTotal)}</dd></div>
+                  <div key={i.listingId} className="flex justify-between gap-4"><dt>{i.quantity} × {merchantProductTitle(i.title, lang, o.service)}</dt><dd className="shrink-0">{money(i.lineTotal)}</dd></div>
                 ))}
                 <div className="flex justify-between gap-4 text-muted"><dt>{t("cart.deliveryFee")}</dt><dd>{money(o.deliveryFee)}</dd></div>
               </dl>

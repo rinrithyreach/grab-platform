@@ -42,7 +42,7 @@ public class CommerceService(GrabDbContext db) : ICommerceService
     public async Task<List<ReviewDto>> Reviews(Guid driverId, int page, CancellationToken ct)
     {
         if (!await db.Drivers.AnyAsync(x => x.Id == driverId, ct)) throw new ApiException(404, "Driver not found.");
-        var rows = await db.Reviews.AsNoTracking().Where(x => x.DriverId == driverId).OrderBy(x => x.Id).Skip((page - 1) * 50).Take(50).ToListAsync(ct);
+        var rows = await db.Reviews.AsNoTracking().Where(x => x.DriverId == driverId && !x.IsHidden).OrderBy(x => x.Id).Skip((page - 1) * 50).Take(50).ToListAsync(ct);
         return rows.Select(x => x.Dto()).ToList();
     }
 }

@@ -153,3 +153,7 @@ body {
     display: none;
   }
 }
+
+/* Horizontal product rails: swipe on touch, arrow buttons on desktop, no heavy native scrollbar. */
+.rail-scroll { scrollbar-width: none; }
+.rail-scroll::-webkit-scrollbar { display: none; }

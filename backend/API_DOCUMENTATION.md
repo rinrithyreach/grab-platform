@@ -29,6 +29,18 @@ The browser caches pending changes per account, polls every five seconds while v
 | PATCH | `/api/rides/{id}/status` | State machine below | 200 Ride |
 | PATCH | `/api/rides/{id}/location` | Assigned GrabRide Merchant or Driver; Accepted/InProgress only | 200 Ride |
 | DELETE | `/api/rides/{id}/location` | Assigned GrabRide Merchant or Driver; stop sharing on an active ride | 200 Ride |
+| POST | `/api/deliveries/quote` | Anonymous; server-priced parcel estimate, 60 requests/minute/IP | 200 DeliveryQuote |
+| POST | `/api/deliveries` | Customer; server reprices and stores the delivery, 10 bookings/minute/IP | 201 ParcelDelivery, Location header |
+| GET | `/api/deliveries/mine?page=1` | Customer's own deliveries, 50/page | 200 ParcelDelivery[] |
+| GET | `/api/deliveries/{id}` | Customer owner, assigned GrabExpress courier, or Admin; otherwise 404 | 200 ParcelDelivery |
+| PATCH | `/api/deliveries/{id}/cancel` | Customer owner; before pickup only | 200 ParcelDelivery |
+| GET | `/api/deliveries/courier/inbox` | GrabExpress merchant; pending motorcycle offers omit contact details | 200 DeliveryCourierInbox |
+| POST | `/api/deliveries/{id}/accept` | GrabExpress merchant; one active job, rowversion-protected claim | 200 ParcelDelivery |
+| PATCH | `/api/deliveries/{id}/status` | Assigned courier; Accepted → PickedUp → InTransit | 200 ParcelDelivery |
+| PATCH | `/api/deliveries/{id}/stops/{stopId}/status` | Assigned courier; ordered Delivered/Failed stops; final stop completes delivery | 200 ParcelDelivery |
+| POST | `/api/deliveries/{id}/stops/{stopId}/cod/collected` | Assigned courier; confirm COD collection before delivery | 200 ParcelDelivery |
+| POST | `/api/deliveries/{id}/stops/{stopId}/cod/paid-out` | Assigned courier; confirm sender payout after delivery | 200 ParcelDelivery |
+| PATCH/DELETE | `/api/deliveries/{id}/location` | Assigned courier during active job; share/stop sharing GPS | 200 ParcelDelivery |
 | GET | `/api/drivers/available` | Authenticated; up to 100, no private contact details | 200 Driver[] |
 | POST | `/api/drivers` | Admin only; dedicated Customer account with no ride history; sets Driver role | 201 Driver |
 | POST | `/api/payments` | Customer owner; completed ride; one payment per ride | 201 Payment |
@@ -38,6 +50,28 @@ The browser caches pending changes per account, polls every five seconds while v
 | GET | `/health` | Anonymous; process liveness only, does not probe SQL | 200 `{ "status": "ok" }` |
 
 Paged lists return at most 50 records per page, with an empty array at the end; page must be 1–100000. No total-count wrapper. Driver pending queue necessarily contains pickup/destination details for acceptance; other customers cannot see them.
+
+## Parcel delivery API — Phase 1
+
+`POST /api/deliveries/quote` and `POST /api/deliveries` accept the same route and parcel fields. Booking additionally requires pickup/recipient names and valid phone numbers, descriptions, and `prohibitedItemsAcknowledged: true`. The quote is an estimate valid for five minutes; booking always recalculates on the server. Client-supplied `status`, `distanceKm`, or fare fields are ignored. Example:
+
+```json
+{
+  "pickupAddress": "University of Phnom Penh", "pickupLatitude": 11.56, "pickupLongitude": 104.92,
+  "pickupName": "Sender Sokha", "pickupPhone": "012345678",
+  "serviceType": "Instant", "vehicleType": "Motorcycle", "paymentMethod": "CashAtPickup",
+  "insuranceTier": "Basic", "prohibitedItemsAcknowledged": true,
+  "stops": [{ "address": "Central Market, Phnom Penh", "latitude": 11.57, "longitude": 104.93,
+    "recipientName": "Recipient Dara", "recipientPhone": "012345679", "description": "Books",
+    "parcelSize": "Small", "weightKg": 2, "codAmount": 0 }]
+}
+```
+
+Stops stay in the supplied order (one to five). Sizes are `Documents` (up to 0.5 kg), `Small` (3 kg), `Medium` (10 kg), and `Large` (50 kg). Motorcycle accepts up to 10 kg and Medium size, Rickshaw up to 30 kg, and Car up to 50 kg. `SameDay` is motorcycle-only. `Scheduled` requires `scheduledPickupAt` 30 minutes to seven days ahead; display/input times in Cambodia time (UTC+7). Each recipient's COD amount is at most $200. Insurance tiers `Basic`, `Standard`, `Premium` add $0, $0.20, $0.35; coverage limits are demo values to be surfaced in Phase 2.
+
+The current demo tariff uses straight-line distance, not a road quote: Instant $1.50 + $0.45/km, SameDay $1.00 + $0.30/km, Scheduled $1.50 + $0.40/km, plus parcel size, vehicle, $0.50 per extra stop, insurance, and $0.25 per COD stop. The response breaks out each component in USD with `pricingMode: "DemoStraightLineUsd"`. Payment choices are recorded, but no real money moves. Wallet debit/refund and road-route pricing are not yet connected. The existing `/express` and `/deliveries` pages still use the clearly labelled demo store until the frontend phase.
+
+Only the owner, assigned courier, or Admin can read the full delivery. Pending courier offers exclude sender/recipient phones and parcel descriptions. Existing GrabExpress merchant profiles have no registered vehicle, so they can accept motorcycle deliveries only until courier registration is upgraded. Claims are protected by rowversion and a filtered unique active-courier index. Customer cancellation is free before pickup and releases the courier's slot. After pickup, the courier updates stops in order; COD collection must be confirmed before a COD stop can be delivered. Courier GPS is visible in authorized delivery details only while the job is active. Proof photos and recipient tracking links are reserved for later phases.
 
 ## Requests
 
@@ -183,16 +217,15 @@ GrabFood/GrabExpress merchant registration body (replace placeholders locally):
     "ownerName": "Dara Sok",
     "contactPhone": "012345678",
     "email": null,
-    "address": "House 12, Street 271",
+    "address": "Tonle Basak, Khan Chamkar Mon, Phnom Penh",
     "city": "Phnom Penh",
-    "category": "Khmer food",
     "description": "Fresh Khmer meals cooked daily.",
-    "openingHours": "Mon–Sat, 7 AM–8 PM"
+    "openingHours": "Mon 08:00-20:00; Sat 08:00-20:00"
   }
 }
 ```
 
-Profile PATCH uses the same fields inside `profile` as its top-level body. Business/owner names: 2–120 characters; address: 5–300; city/category: 2–100; description: 10–1500; opening hours: 3–200. Contact phone is normalized. Email is optional and validated when present. Invalid/whitespace-only required data is rejected.
+Profile PATCH uses the same fields inside `profile` as its top-level body. Business/owner names: 2–120 characters; address: 5–300; city: 2–100; description: 10–1500; opening hours: empty or 3-200 characters for GrabFood and GrabExpress. Category/specialty is required only for GrabExpress; new GrabFood stores default to `Food`, and omitting it on an existing GrabFood profile preserves the saved category. GrabFood and GrabExpress frontends store selected weekly shifts in the existing `openingHours` field; previously saved text hours remain accepted. GrabFood and GrabExpress frontends store the chosen or detected location in `address`. Contact phone is normalized. Email is optional and validated when present. Invalid/whitespace-only required data is rejected.
 
 Upload JPG, PNG or WebP files up to 2 MB. MIME types are inferred from file signatures; SVG and arbitrary files are rejected. Image URLs are API-relative, and the frontend resolves them against `NEXT_PUBLIC_API_URL`. Uploaded photos are publicly accessible even while a listing is a draft. There are at most 200 images and 100 listings per merchant.
 

@@ -10,8 +10,17 @@ import { matchesSearch } from "@/lib/search";
 
 const MAX_STORES = 4;
 const MAX_ITEMS = 6;
+/** One-tap suggestions: the most common cuisines in the catalog, so every suggestion has results. */
+const POPULAR = (() => {
+  const counts = new Map<string, { en: string; km?: string; n: number }>();
+  for (const s of STORES.filter((x) => x.kind === "food")) {
+    const entry = counts.get(s.cuisine) ?? { en: s.cuisine, km: s.km?.cuisine, n: 0 };
+    entry.n++; counts.set(s.cuisine, entry);
+  }
+  return [...counts.values()].sort((a, b) => b.n - a.n).slice(0, 5);
+})();
 
-export default function GlobalSearch() {
+export default function GlobalSearch({ className = "mx-auto mt-10 max-w-3xl px-4" }: { className?: string }) {
   const { t, pick } = useT();
   const [q, setQ] = useState("");
   const resultsId = useId();
@@ -23,7 +32,7 @@ export default function GlobalSearch() {
     : [];
 
   return (
-    <section className="mx-auto mt-10 max-w-3xl px-4" role="search">
+    <section className={className} role="search">
       <label htmlFor="global-search" className="sr-only">{t("search.label")}</label>
       <div className="relative">
         <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg" aria-hidden>🔍</span>
@@ -38,6 +47,10 @@ export default function GlobalSearch() {
           autoComplete="off"
         />
       </div>
+      {!query && POPULAR.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted">{t("home.popular")}</span>
+        {POPULAR.map((p) => { const label = pick(p.en, p.km); return <button key={p.en} type="button" onClick={() => setQ(label)} className="rounded-full border border-border bg-surface px-3 py-1 font-medium transition hover:border-brand hover:text-brand">{label}</button>; })}
+      </div>}
 
       <div id={resultsId} aria-live="polite">
         {query && (

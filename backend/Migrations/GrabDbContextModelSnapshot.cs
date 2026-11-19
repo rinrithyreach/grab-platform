@@ -43,6 +43,229 @@ namespace Grab.Api.Migrations
                     b.ToTable("AccountData");
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.AdminAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("AdminAudits");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.AdminProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AdminRoleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AvatarContentType")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<byte[]>("AvatarData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("Bio")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("CompactTables")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ContactPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("PasswordChangedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("RefreshSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("AdminRoleId");
+
+                    b.ToTable("AdminProfiles");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.AdminRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("Permissions")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("AdminRoles");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.DeliveryStop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<decimal>("CodAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<bool>("CodCollected")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CodPaidOut")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("ParcelSize")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ProofPhotoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("RecipientPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("WeightKg")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProofPhotoId");
+
+                    b.HasIndex("DeliveryId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("DeliveryStops", t =>
+                        {
+                            t.HasCheckConstraint("CK_DeliveryStops_Values", "[Position] BETWEEN 1 AND 5 AND [WeightKg] > 0 AND [CodAmount] BETWEEN 0 AND 200");
+                        });
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Driver", b =>
                 {
                     b.Property<Guid>("Id")
@@ -339,6 +562,168 @@ namespace Grab.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.ParcelDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("BaseFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("CodAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("CodFee")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<double?>("CourierLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("CourierLocationAccuracy")
+                        .HasColumnType("float");
+
+                    b.Property<DateTimeOffset?>("CourierLocationUpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<double?>("CourierLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<Guid?>("CourierMerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DistanceFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<double>("DistanceKm")
+                        .HasColumnType("float");
+
+                    b.Property<decimal>("ExtraStopFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("InsuranceFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("InsuranceTier")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("PickedUpAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PickupAddress")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<double>("PickupLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("PickupLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("PickupName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("PickupPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid?>("PickupProofPhotoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PricingMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset?>("ScheduledPickupAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ServiceType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("SizeFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("TotalFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("VehicleFare")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("VehicleType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourierMerchantId")
+                        .IsUnique()
+                        .HasFilter("[CourierMerchantId] IS NOT NULL AND [Status] IN (N'Accepted', N'PickedUp', N'InTransit')");
+
+                    b.HasIndex("PickupProofPhotoId");
+
+                    b.HasIndex("CustomerId", "CreatedAt");
+
+                    b.HasIndex("Status", "VehicleType", "CreatedAt");
+
+                    b.ToTable("ParcelDeliveries", t =>
+                        {
+                            t.HasCheckConstraint("CK_ParcelDeliveries_Fare", "[TotalFare] = [BaseFare] + [DistanceFare] + [VehicleFare] + [SizeFare] + [ExtraStopFare] + [InsuranceFare] + [CodFee] AND [TotalFare] >= 0 AND [CodAmount] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -371,6 +756,79 @@ namespace Grab.Api.Migrations
                     b.ToTable("Payments");
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.PlatformSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Announcement")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("AnnouncementEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CustomerRegistrationEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ExpressEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("FoodEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MaintenanceMessage")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("MaintenanceMode")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("MerchantRegistrationEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("OfficeAddress")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("RidesEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SupportEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("SupportHours")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("SupportPhone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PlatformSettings");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Review", b =>
                 {
                     b.Property<Guid>("Id")
@@ -386,6 +844,9 @@ namespace Grab.Api.Migrations
 
                     b.Property<Guid>("DriverId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit");
 
                     b.Property<int>("Rating")
                         .HasColumnType("int");
@@ -571,6 +1032,14 @@ namespace Grab.Api.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("LastLoginAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -584,6 +1053,10 @@ namespace Grab.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("SecurityVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -604,6 +1077,34 @@ namespace Grab.Api.Migrations
                         .HasForeignKey("Grab.Api.Models.AccountData", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.AdminProfile", b =>
+                {
+                    b.HasOne("Grab.Api.Models.AdminRole", null)
+                        .WithMany()
+                        .HasForeignKey("AdminRoleId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Grab.Api.Models.User", null)
+                        .WithOne()
+                        .HasForeignKey("Grab.Api.Models.AdminProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.DeliveryStop", b =>
+                {
+                    b.HasOne("Grab.Api.Models.ParcelDelivery", null)
+                        .WithMany("Stops")
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Grab.Api.Models.MerchantImage", null)
+                        .WithMany()
+                        .HasForeignKey("ProofPhotoId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Grab.Api.Models.Driver", b =>
@@ -682,6 +1183,27 @@ namespace Grab.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.ParcelDelivery", b =>
+                {
+                    b.HasOne("Grab.Api.Models.Merchant", "CourierMerchant")
+                        .WithMany()
+                        .HasForeignKey("CourierMerchantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Grab.Api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Grab.Api.Models.MerchantImage", null)
+                        .WithMany()
+                        .HasForeignKey("PickupProofPhotoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CourierMerchant");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Payment", b =>
                 {
                     b.HasOne("Grab.Api.Models.Ride", null)
@@ -751,6 +1273,11 @@ namespace Grab.Api.Migrations
             modelBuilder.Entity("Grab.Api.Models.MerchantOrder", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.ParcelDelivery", b =>
+                {
+                    b.Navigation("Stops");
                 });
 #pragma warning restore 612, 618
         }

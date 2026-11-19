@@ -5,6 +5,10 @@ namespace Grab.Api.Data;
 
 public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(options)
 {
+    public DbSet<AdminAudit> AdminAudits => Set<AdminAudit>();
+    public DbSet<AdminProfile> AdminProfiles => Set<AdminProfile>();
+    public DbSet<AdminRole> AdminRoles => Set<AdminRole>();
+    public DbSet<PlatformSettings> PlatformSettings => Set<PlatformSettings>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<Ride> Rides => Set<Ride>();
@@ -16,10 +20,41 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
     public DbSet<MerchantImage> MerchantImages => Set<MerchantImage>();
     public DbSet<MerchantOrder> MerchantOrders => Set<MerchantOrder>();
     public DbSet<MerchantOrderItem> MerchantOrderItems => Set<MerchantOrderItem>();
+    public DbSet<ParcelDelivery> ParcelDeliveries => Set<ParcelDelivery>();
+    public DbSet<DeliveryStop> DeliveryStops => Set<DeliveryStop>();
     public DbSet<AccountData> AccountData => Set<AccountData>();
     public DbSet<SharedStorageIdentity> SharedStorageIdentities => Set<SharedStorageIdentity>();
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<User>().Property(x => x.IsActive).HasDefaultValue(true);
+        b.Entity<User>().Property(x => x.SecurityVersion).IsConcurrencyToken();
+        b.Entity<AdminProfile>().HasKey(x => x.UserId);
+        b.Entity<AdminProfile>().HasOne<User>().WithOne().HasForeignKey<AdminProfile>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<AdminProfile>().Property(x => x.ContactPhone).HasMaxLength(30);
+        b.Entity<AdminProfile>().Property(x => x.JobTitle).HasMaxLength(100);
+        b.Entity<AdminProfile>().Property(x => x.Bio).HasMaxLength(500);
+        b.Entity<AdminProfile>().Property(x => x.AvatarContentType).HasMaxLength(30);
+        b.Entity<AdminProfile>().Property(x => x.Version).IsRowVersion();
+        // Restrict: a role cannot be deleted while administrators are assigned to it.
+        b.Entity<AdminProfile>().HasOne<AdminRole>().WithMany().HasForeignKey(x => x.AdminRoleId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<AdminRole>().Property(x => x.Name).HasMaxLength(60);
+        b.Entity<AdminRole>().HasIndex(x => x.Name).IsUnique();
+        b.Entity<AdminRole>().Property(x => x.Description).HasMaxLength(300);
+        b.Entity<AdminRole>().Property(x => x.Permissions).HasMaxLength(1000);
+        b.Entity<AdminRole>().Property(x => x.Version).IsRowVersion();
+        b.Entity<PlatformSettings>().Property(x => x.Id).ValueGeneratedNever();
+        b.Entity<PlatformSettings>().Property(x => x.SupportEmail).HasMaxLength(254);
+        b.Entity<PlatformSettings>().Property(x => x.SupportPhone).HasMaxLength(30);
+        b.Entity<PlatformSettings>().Property(x => x.SupportHours).HasMaxLength(120);
+        b.Entity<PlatformSettings>().Property(x => x.OfficeAddress).HasMaxLength(300);
+        b.Entity<PlatformSettings>().Property(x => x.Announcement).HasMaxLength(300);
+        b.Entity<PlatformSettings>().Property(x => x.MaintenanceMessage).HasMaxLength(300);
+        b.Entity<PlatformSettings>().Property(x => x.Version).IsRowVersion();
+        b.Entity<AdminAudit>().Property(x => x.ActorName).HasMaxLength(120);
+        b.Entity<AdminAudit>().Property(x => x.Resource).HasMaxLength(40);
+        b.Entity<AdminAudit>().Property(x => x.Action).HasMaxLength(100);
+        b.Entity<AdminAudit>().Property(x => x.Reason).HasMaxLength(300);
+        b.Entity<AdminAudit>().HasIndex(x => x.CreatedAt);
         b.Entity<AccountData>().HasKey(x => x.UserId);
         b.Entity<AccountData>().HasOne<User>().WithOne().HasForeignKey<AccountData>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<AccountData>().Property(x => x.Version).IsConcurrencyToken();
@@ -102,5 +137,45 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
         b.Entity<MerchantOrderItem>().Property(x => x.Title).HasMaxLength(120);
         b.Entity<MerchantOrderItem>().Property(x => x.UnitPrice).HasPrecision(12, 2);
         b.Entity<MerchantOrderItem>().ToTable(t => t.HasCheckConstraint("CK_MerchantOrderItems_Quantity", "[Quantity] BETWEEN 1 AND 50 AND [UnitPrice] > 0"));
+
+        b.Entity<ParcelDelivery>().HasOne<User>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ParcelDelivery>().HasOne(x => x.CourierMerchant).WithMany().HasForeignKey(x => x.CourierMerchantId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ParcelDelivery>().HasOne<MerchantImage>().WithMany().HasForeignKey(x => x.PickupProofPhotoId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ParcelDelivery>().HasMany(x => x.Stops).WithOne().HasForeignKey(x => x.DeliveryId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ParcelDelivery>().HasIndex(x => new { x.CustomerId, x.CreatedAt });
+        b.Entity<ParcelDelivery>().HasIndex(x => new { x.Status, x.VehicleType, x.CreatedAt });
+        b.Entity<ParcelDelivery>().HasIndex(x => x.CourierMerchantId).IsUnique()
+            .HasFilter("[CourierMerchantId] IS NOT NULL AND [Status] IN (N'Accepted', N'PickedUp', N'InTransit')");
+        b.Entity<ParcelDelivery>().Property(x => x.Version).IsRowVersion();
+        b.Entity<ParcelDelivery>().Property(x => x.ServiceType).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ParcelDelivery>().Property(x => x.VehicleType).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ParcelDelivery>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ParcelDelivery>().Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ParcelDelivery>().Property(x => x.InsuranceTier).HasConversion<string>().HasMaxLength(20);
+        b.Entity<ParcelDelivery>().Property(x => x.PickupName).HasMaxLength(120);
+        b.Entity<ParcelDelivery>().Property(x => x.PickupPhone).HasMaxLength(30);
+        b.Entity<ParcelDelivery>().Property(x => x.PickupAddress).HasMaxLength(300);
+        b.Entity<ParcelDelivery>().Property(x => x.PricingMode).HasMaxLength(40);
+        foreach (var property in new[] { nameof(ParcelDelivery.BaseFare), nameof(ParcelDelivery.DistanceFare),
+            nameof(ParcelDelivery.VehicleFare), nameof(ParcelDelivery.SizeFare), nameof(ParcelDelivery.ExtraStopFare),
+            nameof(ParcelDelivery.InsuranceFare), nameof(ParcelDelivery.CodFee), nameof(ParcelDelivery.TotalFare),
+            nameof(ParcelDelivery.CodAmount) })
+            b.Entity<ParcelDelivery>().Property<decimal>(property).HasPrecision(12, 2);
+        b.Entity<ParcelDelivery>().ToTable(t => t.HasCheckConstraint("CK_ParcelDeliveries_Fare",
+            "[TotalFare] = [BaseFare] + [DistanceFare] + [VehicleFare] + [SizeFare] + [ExtraStopFare] + [InsuranceFare] + [CodFee] AND [TotalFare] >= 0 AND [CodAmount] >= 0"));
+
+        b.Entity<DeliveryStop>().HasOne<MerchantImage>().WithMany().HasForeignKey(x => x.ProofPhotoId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<DeliveryStop>().HasIndex(x => new { x.DeliveryId, x.Position }).IsUnique();
+        b.Entity<DeliveryStop>().Property(x => x.RecipientName).HasMaxLength(120);
+        b.Entity<DeliveryStop>().Property(x => x.RecipientPhone).HasMaxLength(30);
+        b.Entity<DeliveryStop>().Property(x => x.Address).HasMaxLength(300);
+        b.Entity<DeliveryStop>().Property(x => x.Description).HasMaxLength(300);
+        b.Entity<DeliveryStop>().Property(x => x.FailureReason).HasMaxLength(300);
+        b.Entity<DeliveryStop>().Property(x => x.ParcelSize).HasConversion<string>().HasMaxLength(20);
+        b.Entity<DeliveryStop>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Entity<DeliveryStop>().Property(x => x.WeightKg).HasPrecision(8, 2);
+        b.Entity<DeliveryStop>().Property(x => x.CodAmount).HasPrecision(12, 2);
+        b.Entity<DeliveryStop>().ToTable(t => t.HasCheckConstraint("CK_DeliveryStops_Values",
+            "[Position] BETWEEN 1 AND 5 AND [WeightKg] > 0 AND [CodAmount] BETWEEN 0 AND 200"));
     }
 }

@@ -45,7 +45,8 @@ function ProfileEditor({ initial, onSaved }: { initial: MerchantProfile; onSaved
   const [error, setError] = useState("");
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (profile.service === "GrabRide" && !profile.address.trim()) { setError(t("merchant.location.required")); return; }
+    if (!profile.address.trim()) { setError(t("merchant.location.required")); return; }
+    if (profile.service !== "GrabRide" && profile.openingHours !== initial.openingHours && !validRideWorkSchedule(profile.openingHours)) { setError(t("merchant.workInvalid")); return; }
     setBusy(true); setError("");
     try {
       onSaved(await api.updateMerchantProfile({ ...profile, email: profile.email?.trim() || null,

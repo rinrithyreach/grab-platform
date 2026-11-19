@@ -129,7 +129,7 @@ export default function RidePage() {
                 <div>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">🟢 {t("ride.pickup")}</span>
-                    <button type="button" onClick={detectLocation} disabled={detecting || busy} aria-busy={detecting} aria-describedby={locationError ? "ride-location-hint ride-location-error" : "ride-location-hint"} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand disabled:opacity-50">
+                    <button type="button" onClick={detectLocation} disabled={detecting || busy} aria-busy={detecting} aria-describedby={locationError ? "ride-location-hint ride-location-error" : "ride-location-hint"} className="-my-1.5 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-brand hover:bg-brand-soft disabled:opacity-50">
                       <span aria-hidden>⌖</span>{t(detecting ? "ride.detectingLocation" : "ride.detectLocation")}
                     </button>
                   </div>

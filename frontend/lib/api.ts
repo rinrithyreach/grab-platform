@@ -2,6 +2,8 @@
  * saves it to sessionStorage (cleared when the tab closes) so a page refresh keeps you logged in.
  * Never put a JWT signing key in NEXT_PUBLIC_ variables.
  */
+import type { AdminOverview, AdminPage, AdminResource } from "./admin";
+import type { AdminActivity, AdminProfile, AdminRoles, AdminSettings, AdminTeamMember, CreateAdmin, CreateUser, PlatformSettings, SaveAdminProfile, SaveAdminRole } from "./admin-settings";
 export type Role = "Customer" | "Driver" | "Admin" | "Merchant";
 export type RideStatus = "Pending" | "Accepted" | "InProgress" | "Completed" | "Cancelled";
 export interface User { id: string; fullName: string; phoneNumber: string; role: Role }
@@ -131,7 +133,39 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     setSession(result);
     return result.user;
   }
+  async function changeAdminAccount(path: string, method: string, body?: unknown) {
+    const token = session?.accessToken;
+    const result = await request<{ profile: AdminProfile; session: AuthResponse }>(path, method, body);
+    if (session?.accessToken === token && session?.user.id === result.session.user.id) setSession(result.session);
+    return result.profile;
+  }
   return {
+    platformSettings: (signal?: AbortSignal) => request<PlatformSettings>("/api/platform/settings", "GET", undefined, signal, false),
+    adminSettings: (signal?: AbortSignal) => request<AdminSettings>("/api/admin/settings", "GET", undefined, signal),
+    saveAdminSettings: (body: PlatformSettings & { version: string; reason: string }) => request<AdminSettings>("/api/admin/settings", "PATCH", body),
+    adminProfile: (signal?: AbortSignal) => request<AdminProfile>("/api/admin/profile", "GET", undefined, signal),
+    saveAdminProfile: (body: SaveAdminProfile) => changeAdminAccount("/api/admin/profile", "PATCH", body),
+    changeAdminPassword: (body: { currentPassword: string; newPassword: string; confirmPassword: string }) => changeAdminAccount("/api/admin/profile/password", "POST", body),
+    revokeAdminSessions: () => changeAdminAccount("/api/admin/profile/revoke-sessions", "POST"),
+    uploadAdminAvatar: (file: File) => { const form = new FormData(); form.append("file", file); return request<AdminProfile>("/api/admin/profile/avatar", "POST", form); },
+    removeAdminAvatar: () => request<AdminProfile>("/api/admin/profile/avatar", "DELETE"),
+    adminActivity: (signal?: AbortSignal) => request<AdminActivity[]>("/api/admin/profile/activity", "GET", undefined, signal),
+    adminTeam: (signal?: AbortSignal) => request<AdminTeamMember[]>("/api/admin/team", "GET", undefined, signal),
+    createAdmin: (body: CreateAdmin) => request<{ id: string }>("/api/admin/team", "POST", body),
+    setAdminStatus: (id: string, isActive: boolean, reason: string) => request<{ saved: boolean }>(`/api/admin/team/${encodeURIComponent(id)}`, "PATCH", { isActive, reason }),
+    setAdminRole: (id: string, adminRoleId: string | null, reason: string) => request<{ saved: boolean }>(`/api/admin/team/${encodeURIComponent(id)}/role`, "PATCH", { adminRoleId, reason }),
+    adminRoles: (signal?: AbortSignal) => request<AdminRoles>("/api/admin/roles", "GET", undefined, signal),
+    createAdminRole: (body: SaveAdminRole) => request<{ id: string }>("/api/admin/roles", "POST", body),
+    updateAdminRole: (id: string, body: SaveAdminRole) => request<{ saved: boolean }>(`/api/admin/roles/${encodeURIComponent(id)}`, "PUT", body),
+    deleteAdminRole: (id: string, reason: string) => request<{ saved: boolean }>(`/api/admin/roles/${encodeURIComponent(id)}/delete`, "POST", { reason }),
+    adminCreateUser: (body: CreateUser) => request<{ id: string }>("/api/admin/users", "POST", body),
+    revokeAdminMemberSessions: (id: string, reason: string) => request<{ saved: boolean }>(`/api/admin/team/${encodeURIComponent(id)}/revoke-sessions`, "POST", { reason }),
+    adminLogin: (email: string, password: string) => authenticate("/api/auth/admin/login", { email, password }),
+    adminOverview: (signal?: AbortSignal) => request<AdminOverview>("/api/admin/overview", "GET", undefined, signal),
+    adminList: (resource: AdminResource, page = 1, search = "", filter = "", signal?: AbortSignal) => request<AdminPage>(`/api/admin/${resource}?${new URLSearchParams({ page: String(page), search, filter })}`, "GET", undefined, signal),
+    adminUpdate: (resource: "users" | "merchants" | "listings", id: string, body: unknown) => request<{ saved: boolean }>(`/api/admin/${resource}/${encodeURIComponent(id)}`, "PATCH", body),
+    adminAction: (resource: AdminResource, id: string, action: string, reason: string) => request<{ saved: boolean }>(`/api/admin/${resource}/${encodeURIComponent(id)}/actions`, "POST", { action, reason }),
+    adminCreateDriver: (body: { userId: string; vehicleType: string; vehiclePlate: string; reason: string }) => request<Driver>("/api/admin/drivers", "POST", body),
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
     accountData: (signal?: AbortSignal) => request<AccountData>("/api/account-data", "GET", undefined, signal),
     saveAccountData: (body: AccountData, signal?: AbortSignal) => request<AccountData>("/api/account-data", "PATCH", body, signal),

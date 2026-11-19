@@ -60,16 +60,18 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
     return structuredClone(page === 1 ? rows : [unknown]);
   } });
   const i18n = data("const t = (key, vars) => key + (vars ? ' ' + JSON.stringify(vars) : ''); export const useT = () => ({t});");
+  const schedule = await compile("../lib/ride-work-schedule.ts");
   const areas = await compile("../lib/ride-merchant-areas.ts", {
     "./merchant-location": await compile("../lib/merchant-location.ts", { "./phnom-penh": await compile("../lib/phnom-penh.ts") }),
     "./merchant-area-centres": await compile("../lib/merchant-area-centres.ts"),
   });
   const RideMap = await compile("../components/RideMap.tsx", { leaflet: leaf, "@/lib/i18n": i18n, "@/lib/ride-merchant-areas": areas,
+    "@/lib/ride-work-schedule": schedule,
     "@/lib/ride-motion": await compile("../lib/ride-motion.ts"),
     "@/lib/use-ride-route": data("export const useRideRoute = () => ({route: null, loading: false, failed: false});"),
   });
   const Component = (await import(await compile("../components/RideMerchantMap.tsx", {
-    "@/lib/auth": auth, "@/lib/i18n": i18n, "@/lib/ride-merchant-areas": areas, "./RideMap": RideMap,
+    "@/lib/auth": auth, "@/lib/i18n": i18n, "@/lib/ride-merchant-areas": areas, "@/lib/ride-work-schedule": schedule, "./RideMap": RideMap,
   }))).default;
   const container = dom.window.document.getElementById("root");
   root = createRoot(container);
@@ -86,7 +88,7 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   assert.equal(shared.popup.querySelectorAll("strong").length, 2);
   assert.equal(shared.popup.querySelector("img"), null);
   assert.ok(shared.popup.textContent.includes(rows[1].name));
-  assert.ok(shared.popup.textContent.includes(rows[0].openingHours));
+  assert.ok(shared.popup.textContent.includes("merchant.day.Mon 08:00–17:00"));
   assert.ok(views.at(-1).some((point) => point[0] === 11.55 && point[1] === 104.92));
   assert.ok(container.textContent.includes("Unmapped Rider"));
   assert.ok(container.textContent.includes("ride.merchantAreaMissing"));
@@ -98,7 +100,7 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   rows[0].openingHours = "Sun 18:00-02:00";
   await act(async () => dom.window.dispatchEvent(new dom.window.Event("focus")));
   const moved = markers().find((marker) => marker.position[0] === 11.6);
-  assert.ok(moved.popup.textContent.includes("Sun 18:00-02:00"));
+  assert.ok(moved.popup.textContent.includes("merchant.day.Sun 18:00–02:00"));
   assert.ok(views.length > viewCount, "A changed registration location is brought into view");
 
   fail = true;
@@ -149,10 +151,12 @@ test("the customer map moves the real GPS marker without resetting the view and 
   `);
   const { markers, circles, views, pans, tiles, groups, handlers } = await import(leaf);
   const i18n = data("const t = (key, vars) => key + (vars ? ' ' + JSON.stringify(vars) : ''); export const useT = () => ({t});");
+  const schedule = await compile("../lib/ride-work-schedule.ts");
   const routing = data("export const calls = []; export const useRideRoute = (from, to, enabled, phase) => { calls.push({from,to,enabled,phase}); return {route: null, loading: false, failed: enabled}; };");
   const { calls: routingCalls } = await import(routing);
   const map = await compile("../components/RideMap.tsx", {
     leaflet: leaf, "@/lib/i18n": i18n,
+    "@/lib/ride-work-schedule": schedule,
     "@/lib/ride-merchant-areas": data("export const groupRideMerchantAreas = () => []; export const rideMerchantPopup = () => null;"),
     "@/lib/ride-motion": await compile("../lib/ride-motion.ts"),
     "@/lib/use-ride-route": routing,

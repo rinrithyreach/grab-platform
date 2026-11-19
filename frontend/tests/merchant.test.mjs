@@ -33,7 +33,8 @@ async function registration(service) {
   ])}; export const EMPTY_MERCHANT_PROFILE = ${JSON.stringify(profile)}; export const merchantRegistrationProfile = () => ({});`);
   const location = await locationComponent();
   const schedule = await scheduleComponent();
-  const fields = await component("../components/MerchantProfileFields.tsx", { "@/lib/i18n": translationStub, "@/lib/merchant": merchantStub, "./RideMerchantLocation": location, "./RideWorkSchedule": schedule });
+  const fields = await component("../components/MerchantProfileFields.tsx", { "@/lib/i18n": translationStub, "@/lib/merchant": merchantStub,
+    "@/lib/ride-work-schedule": await component("../lib/ride-work-schedule.ts", {}), "./RideMerchantLocation": location, "./RideWorkSchedule": schedule });
   const page = await component("../app/merchant/register/page.tsx", {
     "@/components/MerchantProfileFields": fields, "@/lib/i18n": translationStub, "@/lib/merchant": merchantStub,
     "@/lib/auth": dataModule('export const useAuth = () => ({ api: {} }); export const errorMessage = () => "";'),
@@ -77,15 +78,36 @@ test("GrabRide registration includes rider details and seven working-day checkbo
     assert.ok(html.includes(`merchant.day.${day}`));
 });
 
-test("Food and Express registration retain their business fields and password confirmation", async () => {
-  for (const service of ["GrabFood", "GrabExpress"]) {
-    const html = await registration(service);
-    for (const field of ["businessName", "ownerName", "contactPhone", "email", "address", "city", "category", "openingHours", "description"])
-      assert.ok(html.includes(`name="${field}"`), `${service}: ${field}`);
-    assert.ok(html.includes('id="merchant-confirm-password"'));
-    assert.ok(!html.includes('name="motorcycleLicensePlate"'));
-    assert.ok(!html.includes('name="workingDay"'));
-  }
+test("GrabFood registration offers location detection or selection and weekly opening hours", async () => {
+  const html = await registration("GrabFood");
+  for (const field of ["businessName", "ownerName", "contactPhone", "email", "address", "city", "openingHours", "description"])
+    assert.ok(html.includes(`name="${field}"`), `GrabFood: ${field}`);
+  assert.ok(!html.includes('name="category"'), "GrabFood does not ask for a specialty");
+  assert.ok(html.includes('name="address" type="hidden"') || html.includes('type="hidden" name="address"'));
+  assert.ok(html.includes('name="ride-location-mode"'));
+  assert.ok(html.includes("merchant.address"));
+  assert.equal([...html.matchAll(/name="workingDay"/g)].length, 7);
+  assert.equal([...html.matchAll(/type="time"/g)].length, 14);
+  assert.ok(html.includes('name="selectAllWorkingDays"'));
+  assert.ok(html.includes('id="merchant-confirm-password"'));
+});
+
+test("GrabExpress registration offers location selection and weekly opening hours", async () => {
+  const html = await registration("GrabExpress");
+  for (const field of ["businessName", "ownerName", "contactPhone", "email", "address", "city", "category", "openingHours", "description"])
+    assert.ok(html.includes(`name="${field}"`), `GrabExpress: ${field}`);
+  assert.ok(html.includes('name="address" type="hidden"') || html.includes('type="hidden" name="address"'));
+  assert.ok(html.includes('name="ride-location-mode"'));
+  assert.ok(html.includes('value="auto"'));
+  assert.ok(html.includes('value="manual"'));
+  assert.ok(html.includes('name="openingHours" type="hidden"') || html.includes('type="hidden" name="openingHours"'));
+  assert.ok(!html.includes('id="merchant-openingHours"'));
+  assert.equal([...html.matchAll(/name="workingDay"/g)].length, 7);
+  assert.equal([...html.matchAll(/type="time"/g)].length, 14);
+  assert.ok(html.includes('name="selectAllWorkingDays"'));
+  assert.ok(!html.includes('id="merchant-address"'));
+  assert.ok(html.includes('id="merchant-confirm-password"'));
+  assert.ok(!html.includes('name="motorcycleLicensePlate"'));
 });
 
 test("GrabRide registration sends rider details without hidden business requirements", () => {
@@ -114,6 +136,7 @@ test("GrabRide dashboard saves and restores checked days and times without listi
   (await import(authStub)).setApi(api);
   const fields = await component("../components/MerchantProfileFields.tsx", {
     "@/lib/i18n": translationStub, "@/lib/merchant": await component("../lib/merchant.ts", {}),
+    "@/lib/ride-work-schedule": await component("../lib/ride-work-schedule.ts", {}),
     "./RideMerchantLocation": await locationComponent(), "./RideWorkSchedule": await scheduleComponent(),
   });
   const Dashboard = (await import(await component("../components/MerchantDashboard.tsx", {
@@ -184,9 +207,22 @@ test("GrabRide dashboard saves and restores checked days and times without listi
     assert.ok([...container.querySelectorAll("button")].some((button) => button.textContent.startsWith("merchant.orders")), `${service} shows its orders tab`);
     await act(async () => [...container.querySelectorAll("button")].find((button) => button.textContent === "merchant.listings").click());
     assert.ok(container.textContent.includes("merchant.newListing"), `${service} keeps listing tools`);
-    assert.ok(!container.querySelector('input[name="workingDay"]'));
     await act(async () => [...container.querySelectorAll("button")].find((button) => button.textContent === "merchant.profile").click());
     assert.ok(!container.querySelector('input[name="merchant-service"]'), `${service} profile keeps its registered service`);
+    assert.ok(container.querySelector('input[name="ride-location-mode"]'), `${service} profile offers location selection`);
+    assert.equal(container.querySelectorAll('input[name="workingDay"]').length, 7);
+    assert.ok(container.textContent.includes("merchant.legacyHours"));
+    await submit(0);
+    assert.equal(updates.at(-1).openingHours, "Mon–Sat 7 AM–8 PM", `Saving another ${service} field preserves old text hours`);
+    await act(async () => container.querySelector('input[value="Sun"]').click());
+    await submit(0);
+    assert.equal(updates.at(-1).openingHours, "Sun 08:00-17:00", `Selecting a day replaces old ${service} text hours`);
+    if (service === "GrabExpress") {
+      assert.ok(container.querySelector('input[name="category"]'));
+    }
+    if (service === "GrabFood") {
+      assert.equal(container.querySelector('input[name="category"]'), null);
+    }
   }
 });
 

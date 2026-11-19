@@ -40,7 +40,7 @@ export default function StoreView({ store }: { store: Store }) {
           <h1 className="text-2xl font-bold sm:text-3xl">{store.name}</h1>
           <p className="mt-1 text-muted">{pick(store.cuisine, store.km?.cuisine)} · {"$".repeat(store.priceLevel)}</p>
           <p className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-            <a href="#reviews" className="hover:text-brand">⭐ {average.toFixed(1)} <span className="text-muted">({t("reviews.count", { n: count })})</span></a>
+            <a href="#reviews" className="-my-1.5 inline-block py-1.5 hover:text-brand">⭐ {average.toFixed(1)} <span className="text-muted">({t("reviews.count", { n: count })})</span></a>
             <span>🕒 {t("store.min", { n: store.etaMinutes })}</span>
             <span className={closed ? "font-semibold text-red-600 dark:text-red-400" : "text-muted"}>
               {closed ? t("hours.closed") : t("hours.openNow")} · {hoursText}

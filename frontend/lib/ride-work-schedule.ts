@@ -19,7 +19,7 @@ export function writeRideWorkSchedule(shifts: RideWorkShift[]): string {
 }
 
 export function validRideWorkSchedule(value: string): boolean {
-  if (!value.trim()) return true; // No checked days means the rider is taking time off.
+  if (!value.trim()) return true; // No checked days means the merchant has no scheduled working days.
   const seen = new Set<string>();
   return value.length <= 200 && value.split(";").every((part) => {
     const match = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) ((?:[01]\d|2[0-3]):[0-5]\d)-((?:[01]\d|2[0-3]):[0-5]\d)$/.exec(part.trim());
@@ -27,4 +27,11 @@ export function validRideWorkSchedule(value: string): boolean {
     seen.add(match[1]);
     return true;
   });
+}
+
+/** Show stored weekday codes in the visitor's language without changing saved data. */
+export function formatRideWorkSchedule(value: string, dayLabel: (day: RideWorkDay) => string): string {
+  if (!validRideWorkSchedule(value)) return value; // Legacy free-text business hours.
+  return readRideWorkSchedule(value).filter((shift) => shift.enabled)
+    .map((shift) => `${dayLabel(shift.day)} ${shift.start}–${shift.end}`).join("; ");
 }

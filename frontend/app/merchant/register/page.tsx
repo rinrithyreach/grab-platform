@@ -26,8 +26,8 @@ export default function MerchantRegisterPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const phoneNumber = normalizePhoneNumber(phone);
-    if (ride && !profile.address.trim()) { setError(t("merchant.location.required")); return; }
-    if (ride && !validRideWorkSchedule(profile.openingHours)) { setError(t("merchant.workInvalid")); return; }
+    if (!profile.address.trim()) { setError(t("merchant.location.required")); return; }
+    if (!validRideWorkSchedule(profile.openingHours)) { setError(t("merchant.workInvalid")); return; }
     if (!phoneNumber || (!ride && !normalizePhoneNumber(profile.contactPhone))) { setError(t("auth.phoneInvalid")); return; }
     if (!ride && password !== confirm) { setError(t("merchant.passwordMismatch")); return; }
     setBusy(true); setError("");

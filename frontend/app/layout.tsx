@@ -10,6 +10,8 @@ import AccountSync from "@/components/AccountSync";
 import Footer from "@/components/Footer";
 import Toaster from "@/components/Toaster";
 import SkipLink from "@/components/SkipLink";
+import LocalizedTitle from "@/components/LocalizedTitle";
+import PlatformStatus from "@/components/PlatformStatus";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,9 +62,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         <SettingsScript />
         <AuthProvider>
+          <Suspense fallback={null}><LocalizedTitle /></Suspense>
           <SkipLink />
           <Suspense fallback={<div className="h-16 border-b border-border bg-surface" aria-busy="true" />}><Navbar /></Suspense>
           <AccountSync />
+          <Suspense fallback={null}><PlatformStatus /></Suspense>
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
           <Toaster />

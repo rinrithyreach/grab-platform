@@ -61,7 +61,10 @@ function MyRidesContent() {
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "history">("active");
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshed, setRefreshed] = useState(false);
   const acting = useRef(false);
+  const manualRefreshing = useRef(false);
   const loadVersion = useRef(0);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const canLoad = !!service && ready && (service.mode === "demo" || !!user);
@@ -70,17 +73,25 @@ function MyRidesContent() {
   const placeName = (name: string) => { const p = PLACES.find((x) => x.name === name); return p ? pick(p.name, p.km) : name; };
 
   const load = useCallback((signal?: AbortSignal) => {
-    if (!service) return Promise.resolve();
+    if (!service) return Promise.resolve(false);
     const version = ++loadVersion.current;
     return Promise.all([service.myRides(signal), service.mode === "live" && user?.role !== "Customer" ? Promise.resolve([]) : service.myPayments(signal)]).then(([r, p]) => {
-      if (signal?.aborted || version !== loadVersion.current) return;
+      if (signal?.aborted || version !== loadVersion.current) return false;
       setRides(r);
       setPaid(new Set(p.map((x) => x.rideId)));
       setError("");
+      return true;
     }).catch((err) => {
       if (!signal?.aborted && version === loadVersion.current) setError(errorMessage(err, t));
+      return false;
     });
   }, [service, t, user?.role]);
+
+  useEffect(() => {
+    if (!refreshed) return;
+    const timer = window.setTimeout(() => setRefreshed(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [refreshed]);
 
   // Refresh even an empty list so bookings made on another device appear here.
   useEffect(() => {
@@ -88,7 +99,7 @@ function MyRidesContent() {
     const ctrl = new AbortController();
     let loading = false;
     const refresh = async () => {
-      if (loading || acting.current || document.visibilityState === "hidden") return;
+      if (loading || manualRefreshing.current || acting.current || document.visibilityState === "hidden") return;
       loading = true;
       try { await load(ctrl.signal); }
       finally { loading = false; }
@@ -98,6 +109,15 @@ function MyRidesContent() {
     window.addEventListener("focus", refresh);
     return () => { ctrl.abort(); clearInterval(id); window.removeEventListener("focus", refresh); };
   }, [canLoad, load]);
+
+  async function refreshNow() {
+    if (manualRefreshing.current || acting.current) return;
+    manualRefreshing.current = true;
+    setRefreshing(true);
+    setRefreshed(false);
+    try { if (await load()) setRefreshed(true); }
+    finally { manualRefreshing.current = false; setRefreshing(false); }
+  }
 
   async function act(fn: () => Promise<unknown>, done: string) {
     if (acting.current) return;
@@ -114,8 +134,9 @@ function MyRidesContent() {
       <BackButton href="/" />
       <div className="flex items-end justify-between">
         <h1 className="text-3xl font-bold">{t("rides.title")}</h1>
-        {canLoad && <button onClick={() => load()} className="text-sm font-semibold text-brand">{t("rides.refresh")}</button>}
+        {canLoad && <button type="button" onClick={() => void refreshNow()} disabled={refreshing || busy} aria-busy={refreshing} className="btn-outline h-9 cursor-pointer px-3 text-sm text-brand">{t(refreshing ? "rides.refreshing" : "rides.refresh")}</button>}
       </div>
+      {refreshed && <p role="status" className="mt-2 text-right text-xs text-muted">{t("rides.refreshed")}</p>}
       {service?.mode === "demo" && <DemoModeNotice />}
 
       {!service || !ready ? <div className="mt-6"><RideSkeletons /></div> : !canLoad ? <LoginRequired what="loginRequired.seeRides" returnTo="/rides" /> : (
@@ -161,7 +182,7 @@ function MyRidesContent() {
                   {(r.vehicle || r.vehicleType || (r.driverName && r.status !== "Pending")) && (
                     <p className="mt-1 text-sm text-muted">
                       {r.vehicle && <>{VEHICLE[r.vehicle].emoji} {t(VEHICLE[r.vehicle].name)}</>}
-                      {!r.vehicle && r.vehicleType && <>{r.vehicleType}</>}
+                      {!r.vehicle && r.vehicleType && <>{t(r.vehicleType === "Motorcycle" ? "ride.moto" : r.vehicleType === "Rickshaw" ? "ride.tuktuk" : "ride.car")}</>}
                       {r.driverName && r.status !== "Pending" && <> · {t("rides.driver", { name: r.driverName })}</>}
                     </p>
                   )}

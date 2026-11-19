@@ -1,0 +1,33 @@
+export default function AdminIcon({ name, size = 20 }: { name: string; size?: number }) {
+  const paths: Record<string, React.ReactNode> = {
+    profile: <><circle cx="12" cy="8" r="4" /><path d="M4 22v-2a8 8 0 0 1 16 0v2" /></>,
+    settings: <><path d="m9 3-.7 2.4-2.4 1L3.5 6l-2 3.5 1.7 1.8v2.8l-1.7 1.8 2 3.5 2.4-.4 2.4 1L9 22h4l.7-2.4 2.4-1 2.4.4 2-3.5-1.7-1.8v-2.8l1.7-1.8-2-3.5-2.4.4-2.4-1L13 3H9Z" /><circle cx="11" cy="12.5" r="3" /></>,
+    camera: <><path d="M3 7h4l2-3h6l2 3h4v14H3V7Z" /><circle cx="12" cy="13" r="4" /></>,
+    support: <><path d="M4 14V10a8 8 0 0 1 16 0v4M4 12H2v7h4v-7H4Zm16 0h2v7h-4v-7h2ZM18 19c0 3-4 3-6 3" /></>,
+    announcement: <><path d="M3 10v6h5l11 5V5L8 10H3Zm5 6 2 6H6l-2-6M22 10v6" /></>,
+    overview: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
+    users: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5" /></>,
+    merchants: <><path d="m3 9 2-6h14l2 6M4 10v11h16V10M9 21v-7h6v7" /><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" /></>,
+    listings: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 12h8M8 17h4" /></>,
+    rides: <><path d="m4 10 2-6h12l2 6M3 16v-6h18v6H3Zm2 0v4m14-4v4M7 13h1m8 0h1" /></>,
+    orders: <><path d="M5 7h14l1 14H4L5 7Zm3 0V5a4 4 0 0 1 8 0v2" /></>,
+    deliveries: <><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10v9M3 8l9 5 9-5M8 5l9 5" /></>,
+    drivers: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" /><path d="m5 6 5 4m9-4-5 4m-2 5v6" /></>,
+    payments: <><rect x="2" y="5" width="20" height="14" rx="3" /><path d="M2 10h20M6 15h3" /></>,
+    reviews: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
+    audit: <><path d="M4 5h16M4 12h16M4 19h10" /><circle cx="19" cy="19" r="2" /></>,
+    search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></>,
+    refresh: <><path d="M20 7v5h-5M4 17v-5h5M5 7a8 8 0 0 1 13-2l2 3M4 16l2 3a8 8 0 0 0 13-2" /></>,
+    export: <><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5" /></>,
+    external: <><path d="M14 3h7v7m0-7L10 14M10 4H4v16h16v-6" /></>,
+    shield: <><path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6l8-4Z" /><path d="m8 12 3 3 5-6" /></>,
+    logout: <><path d="M9 4H3v16h6m6-13 5 5-5 5M8 12h12" /></>,
+    close: <path d="m6 6 12 12M6 18 18 6" />,
+    menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+    plus: <path d="M12 5v14M5 12h14" />,
+    team: <><circle cx="9" cy="7" r="3" /><path d="M3 20v-1a6 6 0 0 1 9-5.2" /><path d="m17 11 4 2v3c0 2.5-4 5-4 5s-4-2.5-4-5v-3l4-2Z" /></>,
+    activity: <path d="M3 12h4l3-8 4 16 3-8h4" />,
+    roles: <><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.7-8.7M17 6l2.5 2.5M14.5 8.5 17 11" /></>,
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.overview}</svg>;
+}

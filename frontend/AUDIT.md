@@ -2,6 +2,8 @@
 
 Scope: application pages, shared components, browser stores, pricing, translations, assets, API contracts, dependencies, production build, and the existing ASP.NET Core API. Service scope is **GrabRide, GrabFood, and GrabExpress**. Express replaces Mart at the user's request.
 
+Update, 18 November 2026: the backend now has the additive `ParcelDeliveries` migration and server-priced quote, booking, history, ownership, cancellation and courier lifecycle endpoints. The Express pages in this audit still run their explicit local simulation; API adapter, maps and live tracking remain later phases. Legacy snapshots have not been migrated or removed.
+
 ## Result
 
 Cross-device update: signed-in Food/Express/account state now persists through the API into SQL Server with a per-account browser cache/retry queue. Public merchant views/reviews and account snapshots refresh automatically. Guest data remains local until explicit import. Offline ride simulation is opt-in, so a failed API no longer silently creates isolated bookings. See [shared setup](../SHARED_SETUP.md) for the single central API/database requirement and Storage ID verification. Latest checks: 50 frontend tests, 19 SQL-backed backend tests, lint and production build pass.

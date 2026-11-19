@@ -7,6 +7,7 @@ Services: **GrabRide, GrabFood and GrabExpress** (Express replaces Mart).
 **Using multiple PCs or phones?** Follow [shared API/database setup](SHARED_SETUP.md). All devices must point to the same API/database; cloning code alone does not copy or synchronize SQL data. Signed-in application data now persists through the API, with automatic refresh, offline retry and conflict protection.
 
 - [Run the frontend](frontend/README.md)
+- [Super-admin dashboard and setup](ADMIN_DASHBOARD.md)
 - [Frontend audit and verification](frontend/AUDIT.md)
 - [Security review, fixes and remaining limitations](SECURITY_AUDIT.md)
 - [Run the ASP.NET Core / Entity Framework API](backend/README.md)

@@ -13,10 +13,11 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Grab.Api.Services;
-public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOptions<JwtSettings> settings) : IAuthService
+public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOptions<JwtSettings> settings, PlatformSettingsService platform) : IAuthService
 {
     public async Task<AuthResponse> Register(RegisterRequest r, CancellationToken ct)
     {
+        await platform.RequireRegistration(false, ct);
         var phone = PhoneNumbers.Normalize(r.PhoneNumber)
             ?? throw new ApiException(400, "Enter a valid phone number, for example 012345678 or +85512345678.");
         if (await db.Users.AnyAsync(x => x.PhoneNumber == phone, ct)) throw new ApiException(409, "Phone number is already registered. Sign in instead.");
@@ -34,7 +35,7 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
         // Run a hash verification even for unknown phone numbers to reduce timing differences.
         var candidate = user ?? new User { PasswordHash = hasher.HashPassword(new User(), Guid.NewGuid().ToString()) };
         var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, r.Password);
-        if (user is null || result == PasswordVerificationResult.Failed) throw new ApiException(401, "Invalid phone number or password.");
+        if (user is null || !user.IsActive || result == PasswordVerificationResult.Failed) throw new ApiException(401, "Invalid phone number or password.");
         if (result == PasswordVerificationResult.SuccessRehashNeeded)
         {
             user.PasswordHash = hasher.HashPassword(user, r.Password);
@@ -42,8 +43,25 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
         }
         return Token(user);
     }
+    public async Task<AuthResponse> AdminLogin(AdminLoginRequest r, CancellationToken ct)
+    {
+        var email = r.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email && x.Role == Role.Admin, ct);
+        var candidate = user ?? new User { PasswordHash = hasher.HashPassword(new User(), Guid.NewGuid().ToString()) };
+        var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, r.Password);
+        if (user is null || !user.IsActive || result == PasswordVerificationResult.Failed)
+            throw new ApiException(401, "Invalid administrator email or password.");
+        if (result == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = hasher.HashPassword(user, r.Password);
+        }
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return Token(user);
+    }
     public async Task<AuthResponse> RegisterMerchant(MerchantRegisterRequest r, CancellationToken ct)
     {
+        await platform.RequireRegistration(true, ct);
         var phone = PhoneNumbers.Normalize(r.PhoneNumber)
             ?? throw new ApiException(400, "Enter a valid sign-in phone number.");
         if (await db.Users.AnyAsync(x => x.PhoneNumber == phone, ct))
@@ -72,12 +90,12 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
         await db.SaveChangesAsync(ct);
         return user.Dto();
     }
-    private AuthResponse Token(User u)
+    internal AuthResponse Token(User u)
     {
         var s = settings.Value;
         var expires = DateTimeOffset.UtcNow.AddMinutes(s.ExpiryMinutes);
         var token = new JwtSecurityToken(s.Issuer, s.Audience,
-            [new Claim("sub", u.Id.ToString()), new Claim("role", u.Role.ToString()), new Claim("jti", Guid.NewGuid().ToString())],
+            [new Claim("sub", u.Id.ToString()), new Claim("role", u.Role.ToString()), new Claim("ver", u.SecurityVersion.ToString()), new Claim("jti", Guid.NewGuid().ToString())],
             expires: expires.UtcDateTime,
             signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(s.SigningKey)), SecurityAlgorithms.HmacSha256));
         return new(new JwtSecurityTokenHandler().WriteToken(token), expires, u.Dto());

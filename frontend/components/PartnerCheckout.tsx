@@ -8,6 +8,7 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { isValidAddress } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
+import { merchantProductTitle } from "@/lib/merchant-content";
 import { clearPartnerCart, clearSubmittedPartnerCart, MAX_PARTNER_QTY, partnerTotals, refreshPartnerCart, setPartnerQty, usePartnerCart } from "@/lib/partner-cart";
 import { useProfile } from "@/lib/profile";
 import { toast } from "@/lib/toast";
@@ -27,7 +28,7 @@ const qtyBtn = "grid h-8 w-8 place-items-center rounded-full border border-borde
  */
 export default function PartnerCheckout() {
   const router = useRouter();
-  const { t } = useT();
+  const { t, lang } = useT();
   const { api, user, ready } = useAuth();
   const cart = usePartnerCart();
   const { addresses } = useProfile();
@@ -109,13 +110,13 @@ export default function PartnerCheckout() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {l.imageUrl ? <img src={l.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-brand-soft" aria-hidden>🛍️</span>}
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{l.title}</p>
+                <p className="truncate font-medium">{merchantProductTitle(l.title, lang)}</p>
                 <p className="text-sm text-muted">{t("cart.each", { price: money(l.price) })}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <button type="button" onClick={() => setPartnerQty(l.listingId, l.qty - 1)} aria-label={`${t("store.decrease")}: ${l.title}`} className={qtyBtn}>−</button>
+                <button type="button" onClick={() => setPartnerQty(l.listingId, l.qty - 1)} aria-label={`${t("store.decrease")}: ${merchantProductTitle(l.title, lang)}`} className={qtyBtn}>−</button>
                 <span className="w-5 text-center font-semibold">{l.qty}</span>
-                <button type="button" onClick={() => setPartnerQty(l.listingId, l.qty + 1)} disabled={l.qty >= MAX_PARTNER_QTY} aria-label={`${t("store.increase")}: ${l.title}`} className={qtyBtn}>+</button>
+                <button type="button" onClick={() => setPartnerQty(l.listingId, l.qty + 1)} disabled={l.qty >= MAX_PARTNER_QTY} aria-label={`${t("store.increase")}: ${merchantProductTitle(l.title, lang)}`} className={qtyBtn}>+</button>
               </div>
               <p className="w-16 shrink-0 text-right font-semibold">{money(l.price * l.qty)}</p>
             </li>

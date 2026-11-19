@@ -147,8 +147,20 @@ export function useAuth() {
   return hydrated ? ctx : { ...ctx, user: null, ready: false, online: null };
 }
 
-/** Turns an API/network error into text. Server messages come from the backend (English). */
-export function errorMessage(err: unknown, t: (key: "error.network" | "error.generic") => string) {
+/** Keep server errors in the selected UI language; API details are authored in English. */
+export function errorMessage(err: unknown, t: (key: "error.network" | "error.generic" | "error.validation" | "error.unauthorized" | "error.forbidden" | "error.notFound" | "error.conflict" | "error.rateLimit" | "error.server") => string) {
   if (err instanceof TypeError || (err instanceof DOMException && err.name === "TimeoutError")) return t("error.network");
+  if (typeof document !== "undefined" && document.documentElement.lang === "km") {
+    if (err instanceof ApiError) {
+      if (err.status === 400 || err.status === 422) return t("error.validation");
+      if (err.status === 401) return t("error.unauthorized");
+      if (err.status === 403) return t("error.forbidden");
+      if (err.status === 404) return t("error.notFound");
+      if (err.status === 409) return t("error.conflict");
+      if (err.status === 429) return t("error.rateLimit");
+      if (err.status >= 500) return t("error.server");
+    }
+    return t("error.generic");
+  }
   return err instanceof Error && err.message ? err.message : t("error.generic");
 }

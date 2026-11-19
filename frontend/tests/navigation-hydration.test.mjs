@@ -47,6 +47,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "@/lib/brand": dataModule("export const BRAND = {name: 'Grab'}; export const PROJECT = {year: 2026}; export const SOCIAL_LINKS = [];"),
       "./SettingsMenu": dataModule("export default () => null;"),
       "./social-icon-paths": dataModule("export const SOCIAL_ICON_PATHS = {};"),
+      "@/lib/platform": dataModule("export const usePlatformSettings = () => null;"),
     };
     const Navbar = (await import(await compile("../components/Navbar.tsx", imports))).default;
     const Footer = (await import(await compile("../components/Footer.tsx", imports))).default;

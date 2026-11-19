@@ -13,6 +13,9 @@ public class User
     public string PasswordHash { get; set; } = "";
     public string PhoneNumber { get; set; } = "";
     public Role Role { get; set; } = Role.Customer;
+    public bool IsActive { get; set; } = true;
+    public int SecurityVersion { get; set; }
+    public DateTimeOffset? LastLoginAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 public class Driver
@@ -61,6 +64,7 @@ public class Payment
 }
 public class Review
 {
+    public bool IsHidden { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid RideId { get; set; }
     public Guid CustomerId { get; set; }

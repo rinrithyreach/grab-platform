@@ -46,9 +46,9 @@ export default function ExpressPage() {
       <BackButton href="/" />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-3xl font-bold">{t("express.title")}</h1><p className="mt-1 text-muted">{t("express.subtitle")}</p></div>
-        <Link href="/deliveries" className="btn-outline">{t("nav.deliveries")}</Link>
+        <div className="flex flex-wrap gap-2"><a href="#send-parcel" className="btn-primary">📦 {t("express.sendParcel")}</a><Link href="/deliveries" className="btn-outline">{t("nav.deliveries")}</Link></div>
       </div>
-      <p className="mt-4 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm"><strong>{t("demo.title")}</strong> {t("express.demo")}</p>
+      <MerchantOffers service="GrabExpress" />
 
       {booked ? (
         <div className="card mx-auto mt-6 max-w-lg p-8 text-center" role="status">
@@ -62,7 +62,7 @@ export default function ExpressPage() {
           </div>
         </div>
       ) : (
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div id="send-parcel" className="mt-6 grid scroll-mt-20 gap-6 lg:grid-cols-2">
           <form onSubmit={submit} className="card min-w-0 space-y-6 p-5 sm:p-6">
             <fieldset className="space-y-3">
               <legend className="mb-3 text-lg font-bold">{t("express.sender")}</legend>
@@ -108,7 +108,6 @@ export default function ExpressPage() {
           </aside>
         </div>
       )}
-      <MerchantOffers service="GrabExpress" />
     </div>
   );
 }

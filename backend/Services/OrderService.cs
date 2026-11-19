@@ -10,7 +10,7 @@ namespace Grab.Api.Services;
 /// Customer orders for merchant listings. Prices always come from the database at
 /// checkout, never from the browser, and are copied onto the order lines.
 /// </summary>
-public class OrderService(GrabDbContext db)
+public class OrderService(GrabDbContext db, PlatformSettingsService platform)
 {
     private const int PageSize = 20;
 
@@ -72,9 +72,10 @@ public class OrderService(GrabDbContext db)
         var address = Address(r.DeliveryAddress);
         var note = Note(r.Note);
 
-        var merchant = await db.Merchants.SingleOrDefaultAsync(x => x.Id == r.MerchantId, ct)
+        var merchant = await db.Merchants.SingleOrDefaultAsync(x => x.Id == r.MerchantId && db.Users.Any(u => u.Id == x.UserId && u.IsActive), ct)
             ?? throw new ApiException(404, "This store is not available.");
         if (merchant.Service == MerchantServiceKind.GrabRide) throw new ApiException(400, "GrabRide partners do not sell products.");
+        await platform.RequireService(merchant.Service, ct);
         if (merchant.UserId == customerId) throw new ApiException(400, "You cannot order from your own store.");
 
         var ids = quantities.Keys.ToList();

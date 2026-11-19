@@ -66,9 +66,12 @@ public class MerchantService(GrabDbContext db)
         merchant.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim();
         merchant.Address = Text(r.Address, 5, 300, "Business address");
         merchant.City = Text(r.City, 2, 100, "City");
-        merchant.Category = Text(r.Category, 2, 100, "Category");
+        merchant.Category = r.Service == MerchantServiceKind.GrabFood && string.IsNullOrWhiteSpace(r.Category)
+            ? string.IsNullOrWhiteSpace(merchant.Category) ? "Food" : merchant.Category
+            : Text(r.Category, 2, 100, "Category");
         merchant.Description = Text(r.Description, 10, 1500, "Business description");
-        merchant.OpeningHours = Text(r.OpeningHours, 3, 200, "Opening hours");
+        merchant.OpeningHours = string.IsNullOrWhiteSpace(r.OpeningHours)
+            ? "" : Text(r.OpeningHours, 3, 200, "Opening hours");
     }
 
     private async Task<Merchant> Mine(Guid userId, CancellationToken ct) =>
@@ -157,7 +160,8 @@ public class MerchantService(GrabDbContext db)
     {
         if (page < 1 || page > 10000 || (service.HasValue && !Enum.IsDefined(service.Value)))
             throw new ApiException(400, "Invalid service or page.");
-        var query = db.MerchantListings.AsNoTracking().Include(x => x.Merchant).Where(x => x.IsPublished && x.Merchant.Service != MerchantServiceKind.GrabRide);
+        var query = db.MerchantListings.AsNoTracking().Include(x => x.Merchant).Where(x => x.IsPublished && x.Merchant.Service != MerchantServiceKind.GrabRide
+            && db.Users.Any(u => u.Id == x.Merchant.UserId && u.IsActive));
         if (service.HasValue) query = query.Where(x => x.Merchant.Service == service);
         var rows = await query.OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Skip((page - 1) * 24).Take(24).ToListAsync(ct);
         return rows.Select(Offer).ToList();
@@ -167,7 +171,7 @@ public class MerchantService(GrabDbContext db)
     {
         if (page < 1 || page > 10000) throw new ApiException(400, "Invalid page.");
         return await db.Merchants.AsNoTracking()
-            .Where(m => m.Service == MerchantServiceKind.GrabRide && db.Users.Any(u => u.Id == m.UserId && u.Role == Role.Merchant))
+            .Where(m => m.Service == MerchantServiceKind.GrabRide && db.Users.Any(u => u.Id == m.UserId && u.Role == Role.Merchant && u.IsActive))
             .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id).Skip((page - 1) * 100).Take(100)
             .Select(m => new RideMerchantAreaDto(m.Id, m.BusinessName, m.Address, m.OpeningHours,
                 m.Category == "Rickshaw" ? RideVehicleType.Rickshaw : m.Category == "Classic" ? RideVehicleType.Classic : RideVehicleType.Motorcycle)).ToListAsync(ct);
@@ -175,7 +179,7 @@ public class MerchantService(GrabDbContext db)
 
     public async Task<MerchantStorefrontDto> Storefront(Guid id, CancellationToken ct)
     {
-        var merchant = await db.Merchants.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+        var merchant = await db.Merchants.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && db.Users.Any(u => u.Id == x.UserId && u.IsActive), ct)
             ?? throw new ApiException(404, "This merchant is not available.");
         if (merchant.Service == MerchantServiceKind.GrabRide) throw new ApiException(404, "GrabRide partners do not have listings.");
         var rows = await db.MerchantListings.AsNoTracking().Include(x => x.Merchant)
@@ -187,7 +191,8 @@ public class MerchantService(GrabDbContext db)
     public async Task<List<BannerDto>> Banners(CancellationToken ct)
     {
         var rows = await db.MerchantListings.AsNoTracking().Include(x => x.Merchant)
-            .Where(x => x.IsPublished && x.ShowInSlideshow && x.Merchant.Service != MerchantServiceKind.GrabRide).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Take(12).ToListAsync(ct);
+            .Where(x => x.IsPublished && x.ShowInSlideshow && x.Merchant.Service != MerchantServiceKind.GrabRide
+                && db.Users.Any(u => u.Id == x.Merchant.UserId && u.IsActive)).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Take(12).ToListAsync(ct);
         return rows.Select(x => new BannerDto(x.Id, ImageUrl(x.ImageId), x.Title,
             $"{x.Merchant.BusinessName} · {x.Merchant.Service} · {(x.Merchant.Service == MerchantServiceKind.GrabRide ? x.Merchant.Address : x.Merchant.City)} · ${x.Price:0.00}", $"/partners/{x.MerchantId}")).ToList();
     }

@@ -11,6 +11,8 @@ public class AuthController(IAuthService auth) : ApiControllerBase
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest r, CancellationToken ct) => StatusCode(201, await auth.Register(r, ct));
     [HttpPost("login"), EnableRateLimiting("auth")]
     public Task<AuthResponse> Login(LoginRequest r, CancellationToken ct) => auth.Login(r, ct);
+    [HttpPost("admin/login"), EnableRateLimiting("auth")]
+    public Task<AuthResponse> AdminLogin(AdminLoginRequest r, CancellationToken ct) => auth.AdminLogin(r, ct);
     [Authorize, HttpGet("me")]
     public Task<UserDto> Me(CancellationToken ct) => auth.Me(UserId, ct);
     [Authorize, HttpPatch("me")]

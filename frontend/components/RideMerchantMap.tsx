@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import type { Place } from "@/lib/places";
 import { rideMerchantMapArea } from "@/lib/ride-merchant-areas";
+import { formatRideWorkSchedule } from "@/lib/ride-work-schedule";
 import RideMap from "./RideMap";
 
 export default function RideMerchantMap({ from, to, label, vehicleType, onAvailabilityChange }: { from: Place; to: Place; label: string; vehicleType?: RideVehicleType; onAvailabilityChange?: (areas: RideMerchantArea[] | null) => void }) {
@@ -63,7 +64,7 @@ export default function RideMerchantMap({ from, to, label, vehicleType, onAvaila
       <summary className="cursor-pointer font-semibold">{t("ride.merchantsList", { n: visibleMerchants.length })}</summary>
       <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto">{visibleMerchants.map((merchant) => <li key={merchant.id} className="border-t border-border pt-3">
         <p className="font-semibold">{merchant.name}</p><p className="mt-1 break-words text-xs text-muted">{merchant.address}</p>
-        <p className="mt-1 text-xs text-muted">{t("merchant.workSchedule")}: {merchant.openingHours || t("ride.merchantHoursUnset")}</p>
+        <p className="mt-1 text-xs text-muted">{t("merchant.workSchedule")}: {merchant.openingHours ? formatRideWorkSchedule(merchant.openingHours, (day) => t(`merchant.day.${day}`)) : t("ride.merchantHoursUnset")}</p>
       </li>)}</ul>
     </details>}
   </section>;

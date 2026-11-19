@@ -137,8 +137,7 @@ public partial class ApiTests
             var legacy = new User { FullName = "Existing Customer", Email = "legacy@example.test", PhoneNumber = savedPhone };
             hash = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>().HashPassword(legacy, f.Password);
             legacy.PasswordHash = hash;
-            db.Users.Add(legacy);
-            await db.SaveChangesAsync();
+            await ApiFactory.InsertLegacyUser(db, legacy);
             id = legacy.Id;
             db.ChangeTracker.Clear();
             await db.Database.MigrateAsync();
@@ -147,6 +146,7 @@ public partial class ApiTests
             Assert.Equal("Existing Customer", upgraded.FullName);
             Assert.Equal("legacy@example.test", upgraded.Email);
             Assert.Equal(hash, upgraded.PasswordHash);
+            Assert.True(upgraded.IsActive);
         }
         using var c = f.CreateClient();
         var login = await c.PostAsJsonAsync("/api/auth/login", new LoginRequest(savedPhone, f.Password));
@@ -161,10 +161,8 @@ public partial class ApiTests
         await f.InitializeDatabase("20261113032709_InitialCreate");
         using var scope = f.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GrabDbContext>();
-        db.Users.AddRange(
-            new User { FullName = "First", Email = "first@example.test", PhoneNumber = "012 345 678", PasswordHash = "unchanged-first" },
-            new User { FullName = "Second", Email = "second@example.test", PhoneNumber = "+85512345678", PasswordHash = "unchanged-second" });
-        await db.SaveChangesAsync();
+        await ApiFactory.InsertLegacyUser(db, new User { FullName = "First", Email = "first@example.test", PhoneNumber = "012 345 678", PasswordHash = "unchanged-first" });
+        await ApiFactory.InsertLegacyUser(db, new User { FullName = "Second", Email = "second@example.test", PhoneNumber = "+85512345678", PasswordHash = "unchanged-second" });
         db.ChangeTracker.Clear();
         var error = await Assert.ThrowsAsync<SqlException>(() => db.Database.MigrateAsync());
         Assert.Equal(50002, error.Number);

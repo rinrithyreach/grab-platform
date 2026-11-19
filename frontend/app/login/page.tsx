@@ -62,6 +62,7 @@ export default function LoginPage() {
           {t("login.newHere")} <Link href="/register" className="font-semibold text-brand">{t("login.createAccount")}</Link>
         </p>
       </form>
+      <p className="mt-5 text-center text-sm text-muted"><Link href="/admin/login" className="font-semibold text-brand">Administrator sign in</Link></p>
     </div>
   );
 }

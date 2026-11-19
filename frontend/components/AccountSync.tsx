@@ -13,7 +13,7 @@ export default function AccountSync() {
 
 function SyncSession() {
   const { api, user, ready } = useAuth();
-  const { t } = useT();
+  const { t, lang } = useT();
   const [state, setState] = useState<SyncState>({ phase: "loading" });
   const controller = useRef<ReturnType<typeof startAccountSync> | null>(null);
   const owner = user?.id;
@@ -47,7 +47,7 @@ function SyncSession() {
       </p>
       {state.phase === "offline" && <button className="font-semibold text-brand" onClick={() => controller.current?.retry()}>{t("merchant.retry")}</button>}
       {state.phase === "conflict" && <button className="font-semibold text-brand" onClick={() => controller.current?.loadServer()}>{t("sync.loadServer")}</button>}
-      {state.phase === "offline" && state.detail && <p className="w-full break-words text-muted">{state.detail}</p>}
+      {state.phase === "offline" && state.detail && <p className="w-full break-words text-muted">{lang === "km" ? t("error.generic") : state.detail}</p>}
     </div>
   </div>;
 }

@@ -28,8 +28,8 @@ export default function CreditsPage() {
             <li key={s.id} className="py-3">
               <p className="font-semibold">{s.name}</p>
               <p className="text-muted">
-                “<a href={s.photo!.source} target="_blank" rel="noopener noreferrer" className="text-brand underline">{decodeURIComponent(s.photo!.source.split("File:")[1] ?? "photo").replaceAll("_", " ")}</a>”
-                {" "}by {s.photo!.author},{" "}
+                “<a href={s.photo!.source} target="_blank" rel="noopener noreferrer" className="text-brand underline">{s.photo!.source.includes("File:") ? decodeURIComponent(s.photo!.source.split("File:")[1]).replaceAll("_", " ") : <T k="credits.photo" />}</a>”
+                {" "}<T k="credits.by" /> {s.photo!.author},{" "}
                 <a href={LICENSE_URLS[s.photo!.license] ?? s.photo!.source} target="_blank" rel="noopener noreferrer" className="underline">{s.photo!.license}</a>
                 {" "}· <T k="credits.resized" />
               </p>
@@ -41,9 +41,9 @@ export default function CreditsPage() {
       <section className="card mt-4 p-5 text-sm">
         <h2 className="text-lg font-bold"><T k="credits.other" /></h2>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
-          <li>Map: <a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer" className="underline">Leaflet</a> · map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> contributors · backup map tiles © <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer" className="underline">CARTO</a></li>
-          <li>Social media icons: <a href="https://simpleicons.org" target="_blank" rel="noopener noreferrer" className="underline">Simple Icons</a> (CC0)</li>
-          <li>Fonts: Geist and Noto Sans Khmer (SIL Open Font License), via Google Fonts</li>
+          <li><T k="credits.map" /> <a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer" className="underline">Leaflet</a> · <T k="credits.mapData" /> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> <T k="credits.contributors" /> · <T k="credits.backupTiles" /> <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer" className="underline">CARTO</a></li>
+          <li><T k="credits.icons" /> <a href="https://simpleicons.org" target="_blank" rel="noopener noreferrer" className="underline">Simple Icons</a> (CC0)</li>
+          <li><T k="credits.fonts" /></li>
         </ul>
       </section>
     </div>

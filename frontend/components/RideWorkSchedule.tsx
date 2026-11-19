@@ -1,9 +1,9 @@
 "use client";
 
-import { useT } from "@/lib/i18n";
+import { useT, type MessageKey } from "@/lib/i18n";
 import { readRideWorkSchedule, writeRideWorkSchedule, type RideWorkShift } from "@/lib/ride-work-schedule";
 
-export default function RideWorkSchedule({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export default function RideWorkSchedule({ value, onChange, title = "merchant.workSchedule" }: { value: string; onChange: (value: string) => void; title?: MessageKey }) {
   const { t } = useT();
   const shifts = readRideWorkSchedule(value);
   const allSelected = shifts.every((shift) => shift.enabled);
@@ -13,7 +13,7 @@ export default function RideWorkSchedule({ value, onChange }: { value: string; o
   }
 
   return <fieldset aria-describedby="ride-work-hint ride-work-timezone">
-    <legend className="text-xl font-bold">{t("merchant.workSchedule")}</legend>
+    <legend className="text-xl font-bold">{t(title)}</legend>
     <p id="ride-work-hint" className="mb-5 mt-2 text-sm text-muted">{t("merchant.workScheduleHint")}</p>
     <label className="mb-4 flex cursor-pointer items-center gap-3 font-semibold">
       <input type="checkbox" name="selectAllWorkingDays" className="h-5 w-5 accent-brand" checked={allSelected}

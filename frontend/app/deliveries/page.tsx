@@ -23,7 +23,6 @@ export default function DeliveriesPage() {
     <div className="mx-auto max-w-3xl px-4 py-8">
       <BackButton href="/express" />
       <h1 className="text-3xl font-bold">{t("nav.deliveries")}</h1>
-      <p className="mt-4 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm"><strong>{t("demo.title")}</strong> {t("express.demo")}</p>
       {error && <p role="alert" className="mt-4 text-red-600 dark:text-red-400">{error}</p>}
       {!deliveries.length ? <div className="card mt-6 p-10 text-center"><p className="text-5xl" aria-hidden>📦</p><p className="mt-3 font-semibold">{t("express.empty")}</p><Link href="/express" className="btn-primary mt-5">{t("express.submit")}</Link></div> : (
         <div className="mt-6 space-y-4">

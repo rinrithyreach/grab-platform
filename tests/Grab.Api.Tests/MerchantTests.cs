@@ -39,6 +39,57 @@ public partial class ApiTests
     }
 
     [Fact]
+    public async Task GrabFood_location_and_selected_hours_round_trip_without_a_new_column()
+    {
+        await using var f = new ApiFactory();
+        await f.InitializeDatabase();
+        using var merchant = f.CreateClient();
+        var profile = Business() with { Address = "GPS: 11.556400, 104.928200", Category = "", OpeningHours = "Mon 08:00-17:00; Sun 18:00-02:00" };
+        var response = await merchant.PostAsJsonAsync("/api/merchants/register", new MerchantRegisterRequest(
+            $"+855{RandomNumberGenerator.GetInt32(20000000, 99999999)}", f.Password, profile), Json);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        SignIn(merchant, await Read<AuthResponse>(response));
+        var saved = (await Read<MerchantDashboardDto>(await merchant.GetAsync("/api/merchants/me"))).Profile;
+        Assert.Equal(profile.Address, saved.Address);
+        Assert.Equal(profile.OpeningHours, saved.OpeningHours);
+        Assert.Equal("Food", saved.Category);
+
+        var legacy = await merchant.PatchAsJsonAsync("/api/merchants/me", profile with { Category = "Khmer food" }, Json);
+        Assert.Equal(HttpStatusCode.OK, legacy.StatusCode);
+
+        var changed = await merchant.PatchAsJsonAsync("/api/merchants/me", profile with {
+            Address = "Tonle Basak, Khan Chamkar Mon, Phnom Penh", OpeningHours = ""
+        }, Json);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var updated = await Read<MerchantProfileDto>(changed);
+        Assert.Equal("Tonle Basak, Khan Chamkar Mon, Phnom Penh", updated.Address);
+        Assert.Equal("", updated.OpeningHours);
+        Assert.Equal("Khmer food", updated.Category);
+    }
+
+    [Fact]
+    public async Task GrabExpress_selected_hours_can_be_cleared()
+    {
+        await using var f = new ApiFactory();
+        await f.InitializeDatabase();
+        using var merchant = f.CreateClient();
+        var profile = Business(MerchantServiceKind.GrabExpress) with { OpeningHours = "Mon 08:00-17:00; Sun 18:00-02:00" };
+        var response = await merchant.PostAsJsonAsync("/api/merchants/register", new MerchantRegisterRequest(
+            $"+855{RandomNumberGenerator.GetInt32(20000000, 99999999)}", f.Password, profile), Json);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        SignIn(merchant, await Read<AuthResponse>(response));
+        var saved = (await Read<MerchantDashboardDto>(await merchant.GetAsync("/api/merchants/me"))).Profile;
+        Assert.Equal(profile.OpeningHours, saved.OpeningHours);
+        Assert.Equal(profile.Category, saved.Category);
+
+        var cleared = await merchant.PatchAsJsonAsync("/api/merchants/me", profile with { OpeningHours = "" }, Json);
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        var updated = await Read<MerchantProfileDto>(cleared);
+        Assert.Equal("", updated.OpeningHours);
+        Assert.Equal(profile.Category, updated.Category);
+    }
+
+    [Fact]
     public async Task Merchant_publishing_is_durable_scoped_and_visible_only_when_published()
     {
         await using var f = new ApiFactory();

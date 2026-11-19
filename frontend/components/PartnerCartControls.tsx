@@ -5,6 +5,7 @@ import type { MerchantOffer } from "@/lib/api";
 import { money } from "@/lib/brand";
 import { addPartnerItem } from "@/lib/cart";
 import { useT } from "@/lib/i18n";
+import { merchantProductTitle } from "@/lib/merchant-content";
 import { MAX_PARTNER_QTY, partnerTotals, setPartnerQty, usePartnerCart } from "@/lib/partner-cart";
 import { toast } from "@/lib/toast";
 
@@ -12,22 +13,23 @@ const roundBtn = "grid h-9 w-9 place-items-center rounded-full font-bold disable
 
 /** "Add to cart", then − n + for one merchant product. */
 export function PartnerAddButton({ offer }: { offer: MerchantOffer }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const title = merchantProductTitle(offer.title, lang, offer.merchant.service);
   const cart = usePartnerCart();
   const qty = cart.merchantId === offer.merchant.id ? cart.lines.find((l) => l.listingId === offer.id)?.qty ?? 0 : 0;
 
   function add() {
     const result = addPartnerItem(offer, (otherName) => window.confirm(t("cart.replace", { store: otherName })));
-    if (result === "ok") { if (!qty) toast(t("store.added", { name: offer.title })); }
+    if (result === "ok") { if (!qty) toast(t("store.added", { name: title })); }
     else if (result === "limit") toast(t("partner.limit"), "error");
   }
 
-  if (!qty) return <button type="button" onClick={add} className="btn-primary h-10 w-full text-sm" aria-label={t("store.add", { name: offer.title })}>+ {t("partner.add")}</button>;
+  if (!qty) return <button type="button" onClick={add} className="btn-primary h-10 w-full text-sm" aria-label={t("store.add", { name: title })}>+ {t("partner.add")}</button>;
   return (
     <div className="flex items-center justify-between gap-3 rounded-full bg-brand-soft p-1">
-      <button type="button" onClick={() => setPartnerQty(offer.id, qty - 1)} aria-label={`${t("store.decrease")}: ${offer.title}`} className={`${roundBtn} bg-background text-brand`}>−</button>
+      <button type="button" onClick={() => setPartnerQty(offer.id, qty - 1)} aria-label={`${t("store.decrease")}: ${title}`} className={`${roundBtn} bg-background text-brand`}>−</button>
       <span className="text-sm font-semibold text-brand" aria-live="polite">{t("partner.inCart", { n: qty })}</span>
-      <button type="button" onClick={add} disabled={qty >= MAX_PARTNER_QTY} aria-label={`${t("store.increase")}: ${offer.title}`} className={`${roundBtn} bg-brand text-white dark:text-background`}>+</button>
+      <button type="button" onClick={add} disabled={qty >= MAX_PARTNER_QTY} aria-label={`${t("store.increase")}: ${title}`} className={`${roundBtn} bg-brand text-white dark:text-background`}>+</button>
     </div>
   );
 }

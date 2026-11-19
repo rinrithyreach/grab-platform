@@ -14,6 +14,7 @@ import type { RideDriverLocation } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import type { Place } from "@/lib/places";
 import { groupRideMerchantAreas, rideMerchantPopup, type RideMerchantMapArea } from "@/lib/ride-merchant-areas";
+import { formatRideWorkSchedule } from "@/lib/ride-work-schedule";
 import { createRideMotion, remainingPath, type MapPoint } from "@/lib/ride-motion";
 import { useRideRoute } from "@/lib/use-ride-route";
 
@@ -168,7 +169,7 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
           const tooltip = document.createElement("span");
           tooltip.textContent = title;
           const popup = document.createElement("div");
-          for (const merchant of group.merchants) popup.append(rideMerchantPopup(merchant, {
+          for (const merchant of group.merchants) popup.append(rideMerchantPopup({ ...merchant, openingHours: formatRideWorkSchedule(merchant.openingHours, (day) => t(`merchant.day.${day}`)) }, {
             location: t(merchant.approximate ? "ride.merchantApproximateArea" : "ride.merchantSavedLocation"),
             hours: t("merchant.workSchedule"), noHours: t("ride.merchantHoursUnset"),
           }));
