@@ -81,7 +81,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur" style={{ viewTransitionName: "site-header" }}>
         <nav className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
           <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-brand">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand text-base text-white dark:text-background">{BRAND.name[0]}</span>

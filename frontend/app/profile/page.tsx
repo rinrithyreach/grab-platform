@@ -120,7 +120,7 @@ function CustomerProfilePage() {
     { href: "/orders", label: "nav.myOrders", value: String(orders.length) },
     { href: "/rides", label: "nav.myRides", value: "→" },
     { href: "/deliveries", label: "nav.deliveries", value: "📦" },
-    { href: "/wallet", label: "wallet.name", value: money(balance) },
+    { href: "/wallet", label: "wallet.name", value: money(user ? balance : 0) },
   ];
 
   return (

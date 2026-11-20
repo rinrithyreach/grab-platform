@@ -57,8 +57,22 @@ export default function RegisterPage() {
         <div>
           <label className="label" htmlFor="password">{t("auth.password")}</label>
           <div className="relative">
-            <input name="password" type={showPassword ? "text" : "password"} required minLength={12} maxLength={128} autoComplete="new-password" className="input pr-24" {...field("password")} />
-            <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-controls="password" aria-pressed={showPassword} aria-label={t(showPassword ? "auth.hidePassword" : "auth.showPassword")} className="absolute inset-y-0 right-2 px-2 text-sm font-semibold text-brand">{t(showPassword ? "auth.hide" : "auth.show")}</button>
+            <input name="password" type={showPassword ? "text" : "password"} required minLength={12} maxLength={128} autoComplete="new-password" className="input pr-12" {...field("password")} />
+            <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-controls="password" aria-pressed={showPassword} aria-label={t(showPassword ? "auth.hidePassword" : "auth.showPassword")} title={t(showPassword ? "auth.hidePassword" : "auth.showPassword")} className="absolute inset-y-0 right-2 flex items-center px-2 text-gray-500 hover:text-brand">
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M10.733 5.076A10.744 10.744 0 0 1 21.938 11.652a1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+                  <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                  <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+                  <path d="m2 2 20 20" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
           </div>
           <p className="mt-1 text-xs text-muted">{t("register.passwordHint")}</p>
         </div>

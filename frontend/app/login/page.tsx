@@ -53,8 +53,22 @@ export default function LoginPage() {
         <div>
           <label className="label" htmlFor="password">{t("auth.password")}</label>
           <div className="relative">
-            <input id="password" name="password" type={showPassword ? "text" : "password"} required maxLength={128} autoComplete="current-password" className="input pr-24" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-controls="password" aria-pressed={showPassword} aria-label={t(showPassword ? "auth.hidePassword" : "auth.showPassword")} className="absolute inset-y-0 right-2 px-2 text-sm font-semibold text-brand">{t(showPassword ? "auth.hide" : "auth.show")}</button>
+            <input id="password" name="password" type={showPassword ? "text" : "password"} required maxLength={128} autoComplete="current-password" className="input pr-12" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-controls="password" aria-pressed={showPassword} aria-label={t(showPassword ? "auth.hidePassword" : "auth.showPassword")} title={t(showPassword ? "auth.hidePassword" : "auth.showPassword")} className="absolute inset-y-0 right-2 flex items-center px-2 text-gray-500 hover:text-brand">
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M10.733 5.076A10.744 10.744 0 0 1 21.938 11.652a1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+                  <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                  <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+                  <path d="m2 2 20 20" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
         <button className="btn-primary w-full" disabled={busy}>{busy ? t("login.busy") : t("login.submit")}</button>
@@ -62,7 +76,6 @@ export default function LoginPage() {
           {t("login.newHere")} <Link href="/register" className="font-semibold text-brand">{t("login.createAccount")}</Link>
         </p>
       </form>
-      <p className="mt-5 text-center text-sm text-muted"><Link href="/admin/login" className="font-semibold text-brand">Administrator sign in</Link></p>
     </div>
   );
 }

@@ -63,6 +63,32 @@ body {
 .toast-in { animation: toast-in 0.2s ease-out; }
 @media (prefers-reduced-motion: reduce) { .toast-in { animation: none; } }
 
+/* Page transitions: the old page fades out quickly, the new one fades and slides up.
+   Navigation uses the <ViewTransition default="page"> in app/layout.tsx;
+   .page-enter covers the very first load, which view transitions skip. */
+@keyframes page-fade-out { to { opacity: 0; } }
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter { animation: page-fade-in 0.35s ease-out both; }
+::view-transition-old(.page) { animation: page-fade-out 0.15s ease-in both; }
+::view-transition-new(.page) { animation: page-fade-in 0.3s ease-out 0.1s both; }
+::view-transition-group(.page) { animation-duration: 0.3s; }
+/* The sticky navbar stays still and above the page while it animates. */
+::view-transition-group(site-header) { animation: none; z-index: 100; }
+::view-transition-old(site-header) { display: none; }
+::view-transition-new(site-header) { animation: none; }
+/* Clicks during the short animation still reach the page. */
+::view-transition { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+  ::view-transition-old(*), ::view-transition-new(*), ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
 /* Ride map: dim the bright map tiles in dark mode */
 [data-theme="dark"] .ride-map .leaflet-tile {
   filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);

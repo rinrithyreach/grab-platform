@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { Geist, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
@@ -67,7 +67,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Suspense fallback={<div className="h-16 border-b border-border bg-surface" aria-busy="true" />}><Navbar /></Suspense>
           <AccountSync />
           <Suspense fallback={null}><PlatformStatus /></Suspense>
-          <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
+          <main id="main" tabIndex={-1} className="page-enter flex-1 outline-none">
+            {/* Fades each new page in on navigation (browsers without View Transitions just swap instantly). */}
+            <ViewTransition default="page">{children}</ViewTransition>
+          </main>
           <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
           <Toaster />
         </AuthProvider>
