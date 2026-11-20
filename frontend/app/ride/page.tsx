@@ -14,7 +14,6 @@ import Select from "@/components/Select";
 import BackButton from "@/components/BackButton";
 import RideMerchantMap from "@/components/RideMerchantMap";
 import RideBookingConfirmation from "@/components/RideBookingConfirmation";
-import DemoModeNotice from "@/components/DemoModeNotice";
 
 const VEHICLES: { id: VehicleId; emoji: string; name: MessageKey; seats: number }[] = [
   { id: "bike", emoji: "🛵", name: "ride.moto", seats: 1 },
@@ -113,7 +112,6 @@ export default function RidePage() {
       <BackButton href="/" />
       <h1 className="text-3xl font-bold">{t("ride.title")}</h1>
       <p className="mt-1 text-muted">{t("ride.subtitle")}</p>
-      {demo && <DemoModeNotice />}
 
       {!rides || !ready ? (
         <div className="mt-6 grid animate-pulse gap-6 lg:grid-cols-2" aria-busy>
@@ -202,7 +200,6 @@ export default function RidePage() {
               <div className="rounded-xl bg-brand-soft p-3"><dt className="text-muted">{t("ride.distance")}</dt><dd className="text-lg font-bold">{t("ride.km", { n: km.toFixed(1) })}</dd></div>
               <div className="rounded-xl bg-brand-soft p-3"><dt className="text-muted">{t("ride.eta")}</dt><dd className="text-lg font-bold">{t("store.min", { n: etaMin })}</dd></div>
             </dl>
-            <p className="text-xs text-muted">{t(demo ? "ride.fareNoteDemo" : "ride.fareNote")}</p>
           </aside>
         </div>
       )}

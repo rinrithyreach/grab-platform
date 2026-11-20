@@ -90,7 +90,6 @@ export default function StoreView({ store }: { store: Store }) {
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-xs text-muted">{t("reviews.howTo")}</p>
       </section>
 
       <CartBar />

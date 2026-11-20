@@ -113,14 +113,21 @@ function CustomerProfilePage() {
   const { user, ready, logout } = useAuth();
   const { addresses } = useProfile();
   const { orders } = useShop();
-  const { balance } = useWallet();
+  const { balance, hasWallet } = useWallet(user?.id);
   const settings = useSettings();
 
   const shortcuts: { href: string; label: MessageKey; value: string }[] = [
     { href: "/orders", label: "nav.myOrders", value: String(orders.length) },
     { href: "/rides", label: "nav.myRides", value: "→" },
     { href: "/deliveries", label: "nav.deliveries", value: "📦" },
+<<<<<<< HEAD
     { href: "/wallet", label: "wallet.name", value: money(user ? balance : 0) },
+=======
+    // Guests have no wallet: the shortcut asks them to log in instead of showing a balance.
+    hasWallet
+      ? { href: "/wallet", label: "wallet.name", value: money(balance) }
+      : { href: "/login", label: "wallet.name", value: `🔒 ${t("nav.login")}` },
+>>>>>>> 1409ee1dff8bf62f005fe273c0860be84ef333ca
   ];
 
   return (
@@ -142,7 +149,6 @@ function CustomerProfilePage() {
           ) : (
             <>
               <p className="text-lg font-bold">{t("profile.guest")}</p>
-              <p className="text-sm text-muted">{t("profile.guestText")}</p>
             </>
           )}
         </div>
@@ -164,7 +170,6 @@ function CustomerProfilePage() {
       {/* Saved addresses */}
       <section className="card mt-4 p-5">
         <h2 className="text-lg font-bold">{t("profile.addresses")}</h2>
-        <p className="text-sm text-muted">{t("profile.addressesText")}</p>
         <ul className="divide-y divide-border">
           {LABELS.map((l) => (
             <AddressRow
