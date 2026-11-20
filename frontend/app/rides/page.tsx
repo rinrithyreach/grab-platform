@@ -11,7 +11,6 @@ import { useRideService, type RideView } from "@/lib/rides";
 import { toast } from "@/lib/toast";
 import LoginRequired from "@/components/LoginRequired";
 import BackButton from "@/components/BackButton";
-import DemoModeNotice from "@/components/DemoModeNotice";
 import CustomerRideTracking from "@/components/CustomerRideTracking";
 import MerchantRideNavigation from "@/components/MerchantRideNavigation";
 
@@ -137,7 +136,6 @@ function MyRidesContent() {
         {canLoad && <button type="button" onClick={() => void refreshNow()} disabled={refreshing || busy} aria-busy={refreshing} className="btn-outline h-9 cursor-pointer px-3 text-sm text-brand">{t(refreshing ? "rides.refreshing" : "rides.refresh")}</button>}
       </div>
       {refreshed && <p role="status" className="mt-2 text-right text-xs text-muted">{t("rides.refreshed")}</p>}
-      {service?.mode === "demo" && <DemoModeNotice />}
 
       {!service || !ready ? <div className="mt-6"><RideSkeletons /></div> : !canLoad ? <LoginRequired what="loginRequired.seeRides" returnTo="/rides" /> : (
         <div className="mt-6 space-y-4">

@@ -47,6 +47,8 @@ export function availableDeviceData(): AccountValues {
   if (!account) return data;
   for (const key of ACCOUNT_KEYS) {
     if (cache.data[key]) continue; // Never overwrite an existing server section during import.
+    // Wallet money only ever comes from the account's own top-ups — never import a guest balance.
+    if (key === "grab-wallet-v1") continue;
     try {
       const value: unknown = JSON.parse(window.localStorage.getItem(key) ?? "null");
       if (object(value) && !stores.get(key)?.isInitial(value)) data[key] = value;

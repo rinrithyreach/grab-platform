@@ -146,12 +146,16 @@ export function addPartnerItem(offer: PartnerOffer, confirmReplace: (otherStoreN
   return putPartnerItem(offer, qty) ? "ok" : "limit";
 }
 
-/** Places the order. With "Wallet" payment it fails with "insufficient" if the balance is too low. */
-export function placeOrder(address: string, payment: PaymentMethod, note: string): { order: Order } | { error: "empty" | "insufficient" } {
+/**
+ * Places the order. "Wallet" payment needs a logged-in user (`userId`): it fails with
+ * "loginRequired" for guests and "insufficient" if the balance is too low.
+ */
+export function placeOrder(address: string, payment: PaymentMethod, note: string, userId?: string | null): { order: Order } | { error: "empty" | "insufficient" | "loginRequired" } {
   const state = shop.get();
   const { store, lines, subtotal, discount, promoCode, codeDiscount, codeValid, deliveryFee, tip, total } = cartDetails(state.cart, state.orders);
   if (!store || store.kind !== "food" || !lines.length) return { error: "empty" };
-  if (payment === "Wallet" && !payFromWallet(total, store.name)) return { error: "insufficient" };
+  if (payment === "Wallet" && !userId) return { error: "loginRequired" };
+  if (payment === "Wallet" && !payFromWallet(userId, total, store.name)) return { error: "insufficient" };
   const order: Order = {
     id: `ORD-${crypto.randomUUID()}`,
     storeId: store.id, storeName: store.name,
