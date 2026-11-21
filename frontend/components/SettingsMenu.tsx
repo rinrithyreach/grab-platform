@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { updateSettings, useSettings, type Lang, type Theme } from "@/lib/settings";
+import Icon from "./Icon";
 
 export const LANGS: { value: Lang; label: string }[] = [
   { value: "en", label: "English" },
@@ -63,7 +64,7 @@ export default function SettingsMenu() {
         onClick={() => setOpen((o) => !o)}
         className="grid h-10 w-10 place-items-center rounded-full text-lg hover:bg-brand-soft"
       >
-        ⚙️
+        <Icon name="settings" />
       </button>
       {open && (
         // Phones: span the screen under the navbar. Larger screens: drop down from the gear.

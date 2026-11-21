@@ -7,6 +7,7 @@ import { money } from "@/lib/brand";
 import { STORES } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
 import { matchesSearch } from "@/lib/search";
+import Icon from "./Icon";
 
 const MAX_STORES = 4;
 const MAX_ITEMS = 6;
@@ -35,7 +36,7 @@ export default function GlobalSearch({ className = "mx-auto mt-10 max-w-3xl px-4
     <section className={className} role="search">
       <label htmlFor="global-search" className="sr-only">{t("search.label")}</label>
       <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg" aria-hidden>🔍</span>
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"><Icon name="search" /></span>
         <input
           id="global-search"
           type="search"
@@ -43,7 +44,7 @@ export default function GlobalSearch({ className = "mx-auto mt-10 max-w-3xl px-4
           onChange={(e) => setQ(e.target.value)}
           placeholder={t("search.placeholder")}
           aria-controls={resultsId}
-          className="input h-14 rounded-full pl-12 text-base shadow-sm"
+          className="home-search input h-14 rounded-2xl pl-12 text-base"
           autoComplete="off"
         />
       </div>

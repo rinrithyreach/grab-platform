@@ -10,6 +10,9 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { useHydratedPathname } from "@/lib/navigation";
 import { partnerTotals, usePartnerCart } from "@/lib/partner-cart";
 import SettingsMenu from "./SettingsMenu";
+import BrandMark from "./BrandMark";
+import Icon from "./Icon";
+import MobileNav from "./MobileNav";
 
 const LINKS: { href: string; key: MessageKey }[] = [
   { href: "/ride", key: "nav.ride" },
@@ -81,11 +84,10 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur" style={{ viewTransitionName: "site-header" }}>
-        <nav className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
-          <Link href="/" className="flex items-center gap-2 text-xl font-extrabold tracking-tight text-brand">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand text-base text-white dark:text-background">{BRAND.name[0]}</span>
-            {BRAND.name}
+      <header className="app-header sticky top-0 z-30" style={{ viewTransitionName: "site-header" }}>
+        <nav className="mx-auto flex h-[76px] max-w-6xl items-center gap-2 px-4" aria-label={t("nav.menu")}>
+          <Link href="/" aria-label={t("nav.home")} className="mr-3 flex shrink-0 items-center">
+            <BrandMark />
           </Link>
 
           <ul className="ml-3 hidden gap-0.5 xl:flex">
@@ -106,11 +108,13 @@ export default function Navbar() {
 
           <div className="ml-auto flex items-center gap-1">
             <SettingsMenu />
+            <Link href="/favorites" aria-label={t("fav.title")} aria-current={pathname === "/favorites" ? "page" : undefined} className="hidden h-10 w-10 place-items-center rounded-full text-muted hover:bg-brand-soft hover:text-brand xl:grid"><Icon name="heart" /></Link>
             <Link href={accountHref} aria-label={accountLabel} title={accountLabel} aria-current={isActive(accountHref) ? "page" : undefined} className={`hidden h-10 items-center justify-center gap-2 rounded-full hover:bg-brand-soft sm:flex ${merchant ? "px-3 text-sm font-semibold" : "w-10 text-lg"} ${isActive(accountHref) ? "bg-brand-soft" : ""}`}>
-              <span aria-hidden>{merchant ? "🏪" : "👤"}</span>{merchant && accountLabel}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Icon name="user" />}{merchant && accountLabel}
             </Link>
             <Link href="/cart" aria-label={t("nav.cart")} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-brand-soft">
-              <span className="text-xl">🛒</span>
+              <Icon name="bag" />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-bold text-black">
                   {count}
@@ -133,11 +137,12 @@ export default function Navbar() {
               aria-controls="mobile-menu"
               onClick={() => setOpen(true)}
             >
-              ☰
+              <Icon name="menu" />
             </button>
           </div>
         </nav>
       </header>
+      <MobileNav accountHref={accountHref} />
 
       {/* Mobile drawer. Lives outside <header>: the header's blur would trap a fixed element inside it. */}
       <div className={`fixed inset-0 z-50 xl:hidden ${open ? "" : "pointer-events-none"}`} inert={!open}>
@@ -154,16 +159,16 @@ export default function Navbar() {
           aria-modal={open || undefined}
           aria-label={t("nav.menu")}
           onClick={(e) => { if ((e.target as HTMLElement).closest("a")) close(); }}
-          className={`absolute inset-y-0 right-0 flex w-[85%] max-w-sm flex-col bg-surface shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
+          className={`app-drawer absolute inset-y-0 right-0 flex w-[88%] max-w-sm flex-col shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
             open ? "translate-x-0" : "translate-x-full"
           }`}
         >
           {/* Top bar: greeting (or brand) + close */}
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <span className="min-w-0 truncate text-sm text-muted">
-              {user ? <><span className="text-brand">●</span> {t("nav.hi", { name: greetingName })}</> : BRAND.name}
+              {user ? <><span className="text-brand">●</span> {t("nav.hi", { name: greetingName })}</> : <BrandMark />}
             </span>
-            <button ref={closeButton} onClick={close} aria-label={t("nav.close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xl text-accent hover:bg-brand-soft">✕</button>
+            <button ref={closeButton} onClick={close} aria-label={t("nav.close")} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-white/10"><Icon name="close" /></button>
           </div>
 
           <nav className="flex-1 overflow-y-auto">
@@ -214,7 +219,8 @@ export default function Navbar() {
                   </li>
                 );
               })}
-              <li><Link href="/wallet" className={`${row} ${pathname === "/wallet" ? "text-brand" : ""}`}>{t("nav.wallet")}</Link></li>
+              <li><Link href="/favorites" className={`${row} ${pathname === "/favorites" ? "text-brand" : ""}`}>{t("fav.title")}<Icon name="heart" /></Link></li>
+              <li><Link href="/wallet" className={`${row} ${pathname === "/wallet" ? "text-brand" : ""}`}>{t("nav.wallet")}<Icon name="wallet" /></Link></li>
               <li><Link href={accountHref} aria-current={isActive(accountHref) ? "page" : undefined} className={`${row} ${isActive(accountHref) ? "text-brand" : ""}`}>{accountLabel}</Link></li>
               <li>
                 <Link href="/cart" className={`${row} ${pathname === "/cart" ? "text-brand" : ""}`}>

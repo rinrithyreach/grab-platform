@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { money } from "@/lib/brand";
 import type { MenuItem } from "@/lib/catalog";
+import { STORES } from "@/lib/catalog";
 import { addToCart, lineKey, setQty, useShop } from "@/lib/cart";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
@@ -22,6 +24,8 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
   const [dialogOpen, setDialogOpen] = useState(false);
   const name = pick(item.name, item.km?.name);
   const hasOptions = !!item.options?.length;
+  const store = STORES.find((store) => store.id === storeId);
+  const photo = store?.items[0]?.id === item.id ? store.photo : undefined;
   const inThisStore = cart.storeId === storeId;
   const totalQty = inThisStore ? cart.lines.filter((l) => l.itemId === item.id).reduce((n, l) => n + l.qty, 0) : 0;
   const plainKey = lineKey({ itemId: item.id });
@@ -35,8 +39,8 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
 
   return (
     // min-w-0 lets this card shrink inside the grid so long text truncates instead of widening the page.
-    <div className={`card flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4 ${closed ? "opacity-60" : ""}`}>
-      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-brand-soft text-3xl sm:h-16 sm:w-16" aria-hidden>{item.emoji}</div>
+    <div className={`menu-item-card card flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4 ${closed ? "opacity-60" : ""}`}>
+      <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-soft text-3xl sm:h-20 sm:w-20" aria-hidden>{photo ? <Image src={photo.src} alt="" fill sizes="80px" className="object-cover" /> : item.emoji}</div>
       <div className="min-w-0 flex-1">
         <p className="font-semibold leading-snug">{name}</p>
         <p className="line-clamp-2 text-sm text-muted">{pick(item.description, item.km?.description)}</p>

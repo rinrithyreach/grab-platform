@@ -6,6 +6,8 @@ The frontend provides Ride, Food and Express customer pages (Express replaces Ma
 
 Apply the additive `ParcelDeliveries` migration before using `POST /api/deliveries` on another database: `dotnet ef database update --project backend`. It creates parcel and ordered-stop tables without moving or deleting older Express demo snapshots. Quotes and bookings compute USD demo fares on the server; courier claims and status/GPS updates require a GrabExpress merchant account. The customer pages have not yet switched to these endpoints.
 
+Profile photos use the additive `UserProfilePhotos` migration (`dotnet ef database update --project backend`). Signed-in users upload or replace a JPG, PNG or WebP up to 512 KB through `POST /api/auth/me/avatar` with multipart field `file`, or remove it with `DELETE`. Photos persist in SQL Server and return as the owner's private `avatarUrl` data URL in login, profile reads and profile updates. There is no public photo endpoint. Administrator workspace photos retain their existing separate editor.
+
 ## Local setup in Windows PowerShell
 
 Run commands from the repository root. This API host uses the SQL Server named instance **DESKTOP-DCDNJIN\MSSQLSERVER01** with Windows Authentication and the database **GrabPlatformDB**. The steps below are for the central API host or an isolated development installation. Frontend clones that should share data must connect to this central API; they do not need their own SQL Server or JWT key. Install the .NET 10 SDK, SQL Server Database Engine and SSMS when creating another independent API host. The JWT signing key stays in User Secrets; no credentials/signing keys are committed.

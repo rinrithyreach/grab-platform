@@ -39,6 +39,7 @@ builder.Services.AddScoped<IRideService, RideService>();
 builder.Services.AddScoped<IDriverService, DriverService>();
 builder.Services.AddScoped<ICommerceService, CommerceService>();
 builder.Services.AddScoped<MerchantService>();
+builder.Services.AddScoped<BannerService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddScoped<AdminService>();
@@ -100,7 +101,8 @@ app.Use(async (context, next) =>
         context.Response.Headers.XFrameOptions = "DENY";
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         if (context.Request.Path.StartsWithSegments("/api")
-            && !context.Request.Path.StartsWithSegments("/api/merchant-images"))
+            && !context.Request.Path.StartsWithSegments("/api/merchant-images")
+            && !context.Request.Path.StartsWithSegments("/api/banner-images"))
             context.Response.Headers.CacheControl = "no-store";
         return Task.CompletedTask;
     });

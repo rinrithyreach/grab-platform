@@ -40,7 +40,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "next/link": dataModule(`import { createElement } from "${react}"; export default ({ children, ...props }) => createElement("a", props, children);`),
       "@/lib/auth": authBridge,
       "@/lib/navigation": await compile("../lib/navigation.ts", { "next/navigation": routing }),
-      "@/lib/i18n": dataModule("const t = key => key; export const useT = () => ({ t });"),
+      "@/lib/i18n": dataModule("const t = key => key; export const useT = () => ({ t, pick: english => english });"),
       "@/lib/cart": dataModule("const cart = {}; export const useShop = () => ({ cart }); export const cartDetails = () => ({ count: 2 });"),
       "@/lib/partner-cart": dataModule("const cart = {}; export const usePartnerCart = () => cart; export const partnerTotals = () => ({ count: 0 });"),
       "@/lib/catalog": dataModule("export const STORES = [];"),
@@ -49,6 +49,9 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "./social-icon-paths": dataModule("export const SOCIAL_ICON_PATHS = {};"),
       "@/lib/platform": dataModule("export const usePlatformSettings = () => null;"),
     };
+    imports["./Icon"] = await compile("../components/Icon.tsx", imports);
+    imports["./BrandMark"] = await compile("../components/BrandMark.tsx", imports);
+    imports["./MobileNav"] = await compile("../components/MobileNav.tsx", imports);
     const Navbar = (await import(await compile("../components/Navbar.tsx", imports))).default;
     const Footer = (await import(await compile("../components/Footer.tsx", imports))).default;
     let paused = false;
@@ -105,6 +108,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
     assert.equal(container.querySelector('header a[href="/orders"]').getAttribute("aria-current"), "page");
     assert.equal(container.querySelector('header a[aria-label="nav.myMerchant"]').getAttribute("aria-current"), null);
     assert.equal(container.querySelector("footer").classList.contains("pb-24"), false);
+    assert.equal(container.querySelector('.mobile-bottom-nav a[href="/orders"]').getAttribute("aria-current"), "page", "Bottom navigation follows the hydrated route");
     assert.deepEqual(attributeWarnings, [], "Active links continue to update without warnings after navigation");
   });
 }

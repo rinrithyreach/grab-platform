@@ -19,7 +19,7 @@ const quote = await deliveryQuote.json();
 assert.ok(quote.totalFare > 0 && quote.pricingMode === "DemoStraightLineUsd", "The API supplies the parcel fare");
 const { STORES } = await loadLib("catalog", "hours");
 const active = STORES.filter((s) => s.kind === "food");
-const routes = ["/", "/food", "/express", "/deliveries", "/ride", "/rides", "/cart", "/orders", "/profile", "/wallet", "/login", "/register", "/merchant", "/merchant/register", "/partners/00000000-0000-0000-0000-000000000000", "/credits", ...active.map((s) => `/store/${s.id}`)];
+const routes = ["/", "/food", "/favorites", "/express", "/deliveries", "/ride", "/rides", "/cart", "/orders", "/profile", "/wallet", "/login", "/register", "/merchant", "/merchant/register", "/admin", "/admin/login", "/partners/00000000-0000-0000-0000-000000000000", "/credits", ...active.map((s) => `/store/${s.id}`)];
 
 for (const route of routes) {
   const response = await fetch(new URL(route, base), { redirect: "manual" });
@@ -30,7 +30,7 @@ for (const route of routes) {
     assert.ok(!html.includes('href="/mart"'), "Mart is absent from home navigation");
     assert.ok(html.includes('href="/merchant"'), "Home navigation links to the merchant portal");
   }
-  if (route === "/express") assert.ok(html.includes("Send a parcel"), "Express form is rendered");
+  if (route === "/express") assert.ok(html.includes("Shop &amp; deliver") && !html.includes("senderName"), "Express shop is rendered without the parcel form");
   if (route === "/merchant/register") {
     for (const field of ["businessName", "ownerName", "contactPhone", "email", "address", "city", "openingHours", "description"])
       assert.ok(html.includes(`name="${field}"`), `Merchant registration includes ${field}`);

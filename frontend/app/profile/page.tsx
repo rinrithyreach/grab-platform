@@ -14,6 +14,8 @@ import { toast } from "@/lib/toast";
 import { useWallet } from "@/lib/wallet";
 import BackButton from "@/components/BackButton";
 import { LANGS, Segmented, THEMES } from "@/components/SettingsMenu";
+import ProfilePhotoEditor, { PROFILE_PHOTO_INPUT_ID } from "@/components/ProfilePhotoEditor";
+import Icon from "@/components/Icon";
 
 const LABELS: { value: AddressLabel; icon: string }[] = [
   { value: "home", icon: "🏠" },
@@ -100,11 +102,48 @@ function NameEditor({ user }: { user: User }) {
   );
 }
 
+/** Same shape as the real profile, shown while the saved login is checked, so the page doesn't jump on refresh. */
+function ProfileSkeleton() {
+  const { t } = useT();
+  const bar = "rounded bg-border";
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      <BackButton href="/" />
+      <h1 className="text-3xl font-bold">{t("profile.title")}</h1>
+      <p role="status" className="sr-only">{t("merchant.loading")}</p>
+      <div className="animate-pulse" aria-hidden>
+        <section className="card mt-6 flex items-center gap-4 p-5">
+          <span className="h-14 w-14 shrink-0 rounded-full bg-border" />
+          <div className="flex-1 space-y-2"><div className={`h-5 w-40 ${bar}`} /><div className={`h-4 w-28 ${bar}`} /></div>
+          <span className="h-10 w-20 rounded-full bg-border" />
+        </section>
+        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="card space-y-2 p-4"><div className={`mx-auto h-7 w-12 ${bar}`} /><div className={`mx-auto h-4 w-20 ${bar}`} /></div>
+          ))}
+        </section>
+        <section className="card mt-4 p-5">
+          <div className={`h-6 w-36 ${bar}`} />
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 py-4">
+              <span className="h-10 w-10 shrink-0 rounded-full bg-border" />
+              <div className="flex-1 space-y-2"><div className={`h-4 w-24 ${bar}`} /><div className={`h-4 w-48 ${bar}`} /></div>
+            </div>
+          ))}
+        </section>
+        <section className="card mt-4 space-y-4 p-5">
+          <div className={`h-6 w-28 ${bar}`} />
+          {[0, 1, 2].map((i) => <div key={i} className="space-y-2"><div className={`h-4 w-24 ${bar}`} /><div className="h-10 rounded-xl bg-border" /></div>)}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { user, ready } = useAuth();
-  const { t } = useT();
   if (user?.role === "Merchant") redirect("/merchant");
-  if (!ready) return <p role="status" className="mx-auto max-w-3xl px-4 py-8 text-muted">{t("merchant.loading")}</p>;
+  if (!ready) return <ProfileSkeleton />;
   return <CustomerProfilePage />;
 }
 
@@ -120,14 +159,10 @@ function CustomerProfilePage() {
     { href: "/orders", label: "nav.myOrders", value: String(orders.length) },
     { href: "/rides", label: "nav.myRides", value: "→" },
     { href: "/deliveries", label: "nav.deliveries", value: "📦" },
-<<<<<<< HEAD
-    { href: "/wallet", label: "wallet.name", value: money(user ? balance : 0) },
-=======
     // Guests have no wallet: the shortcut asks them to log in instead of showing a balance.
     hasWallet
       ? { href: "/wallet", label: "wallet.name", value: money(balance) }
       : { href: "/login", label: "wallet.name", value: `🔒 ${t("nav.login")}` },
->>>>>>> 1409ee1dff8bf62f005fe273c0860be84ef333ca
   ];
 
   return (
@@ -135,11 +170,18 @@ function CustomerProfilePage() {
       <BackButton href="/" />
       <h1 className="text-3xl font-bold">{t("profile.title")}</h1>
 
+      <div className="content-fade-in">
       {/* Account */}
       <section className="card mt-6 flex flex-wrap items-center gap-4 p-5">
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand text-2xl font-bold text-white dark:text-background" aria-hidden>
-          {user ? user.fullName[0]?.toUpperCase() : "👤"}
-        </span>
+        <div className="relative shrink-0">
+          <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-brand text-2xl font-bold text-white ring-4 ring-brand-soft dark:text-background" aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : user ? user.fullName[0]?.toUpperCase() : "👤"}
+          </span>
+          {user && <button type="button" onClick={() => (document.getElementById(PROFILE_PHOTO_INPUT_ID) as HTMLInputElement | null)?.click()} aria-label={t("profile.changePhoto")} aria-controls={PROFILE_PHOTO_INPUT_ID} title={t("profile.changePhoto")} className="group absolute -bottom-3 -right-3 grid h-11 w-11 place-items-center rounded-full focus-visible:outline-brand">
+            <span className="grid h-8 w-8 place-items-center rounded-full border-[3px] border-surface bg-brand text-white shadow-sm transition-transform group-hover:scale-110 group-active:scale-95 dark:text-background"><Icon name="pencil" className="h-3.5 w-3.5" /></span>
+          </button>}
+        </div>
         <div className="min-w-0 flex-1">
           {user ? (
             <>
@@ -155,6 +197,7 @@ function CustomerProfilePage() {
         {user
           ? <button onClick={logout} className="btn-outline h-10 text-sm">{t("nav.logout")}</button>
           : <Link href="/login" className="btn-primary h-10 text-sm">{t("nav.login")}</Link>}
+        {user && <ProfilePhotoEditor key={user.id} user={user} />}
       </section>
 
       {/* Shortcuts */}
@@ -168,7 +211,7 @@ function CustomerProfilePage() {
       </section>
 
       {/* Saved addresses */}
-      <section className="card mt-4 p-5">
+      <section id="addresses" className="card mt-4 scroll-mt-24 p-5">
         <h2 className="text-lg font-bold">{t("profile.addresses")}</h2>
         <ul className="divide-y divide-border">
           {LABELS.map((l) => (
@@ -193,6 +236,7 @@ function CustomerProfilePage() {
           onChange={(theme) => updateSettings({ theme })}
         />
       </section>
+      </div>
     </div>
   );
 }

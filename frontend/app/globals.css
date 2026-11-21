@@ -3,17 +3,17 @@
 /* Dark mode follows the data-theme attribute set from Settings (not just the OS). */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
-/* App palette — teal primary + warm amber accent (deliberately not Grab green). */
+/* Shared Grab palette across the customer and merchant experience. */
 :root {
-  --background: #f7f8f8;
+  --background: #f7f9f7;
   --surface: #ffffff;
-  --foreground: #14201f;
-  --muted: #5d6b6a;
-  --border: #e2e7e6;
-  --brand: #0f766e;
-  --brand-strong: #0b5f58;
-  --brand-soft: #e3f3f1;
-  --accent: #f59e0b;
+  --foreground: #203328;
+  --muted: #6d786f;
+  --border: #e9eee9;
+  --brand: #008f41;
+  --brand-strong: #007333;
+  --brand-soft: #eaf7ed;
+  --accent: #f6d75b;
   color-scheme: light;
 }
 
@@ -32,14 +32,14 @@
 }
 
 [data-theme="dark"] {
-  --background: #0d1413;
-  --surface: #152020;
-  --foreground: #e8eeed;
-  --muted: #93a3a1;
-  --border: #253332;
-  --brand: #2dd4bf;
-  --brand-strong: #5eead4;
-  --brand-soft: #13302d;
+  --background: #101a14;
+  --surface: #18261d;
+  --foreground: #eef5ef;
+  --muted: #a1b1a5;
+  --border: #2a3a2f;
+  --brand: #48d87d;
+  --brand-strong: #75e69d;
+  --brand-soft: #1c3926;
   --accent: #fbbf24;
   color-scheme: dark;
 }
@@ -47,6 +47,8 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 /* Keyboard users can always see where they are (mouse clicks don't show the outline). */
@@ -72,6 +74,9 @@ body {
   to { opacity: 1; transform: none; }
 }
 .page-enter { animation: page-fade-in 0.35s ease-out both; }
+/* Real content replacing a same-shaped skeleton: fade only, no movement. */
+@keyframes content-fade-in { from { opacity: 0; } }
+.content-fade-in { animation: content-fade-in 0.25s ease-out; }
 ::view-transition-old(.page) { animation: page-fade-out 0.15s ease-in both; }
 ::view-transition-new(.page) { animation: page-fade-in 0.3s ease-out 0.1s both; }
 ::view-transition-group(.page) { animation-duration: 0.3s; }
@@ -82,7 +87,7 @@ body {
 /* Clicks during the short animation still reach the page. */
 ::view-transition { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
-  .page-enter { animation: none; }
+  .page-enter, .content-fade-in { animation: none; }
   ::view-transition-old(*), ::view-transition-new(*), ::view-transition-group(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
@@ -156,7 +161,7 @@ body {
 
 /* Small shared building blocks */
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 h-12 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed;
 }
 @utility btn-primary {
   @apply btn bg-brand text-white hover:bg-brand-strong dark:text-background;
@@ -165,10 +170,10 @@ body {
   @apply btn border border-border bg-surface hover:bg-brand-soft;
 }
 @utility card {
-  @apply rounded-2xl border border-border bg-surface;
+  @apply rounded-3xl border border-border bg-surface;
 }
 @utility input {
-  @apply w-full h-11 rounded-xl border border-border bg-surface px-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
+  @apply w-full h-12 rounded-2xl border border-border bg-surface px-4 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15;
 }
 @utility label {
   @apply block text-sm font-medium mb-1.5;
@@ -183,3 +188,190 @@ body {
 /* Horizontal product rails: swipe on touch, arrow buttons on desktop, no heavy native scrollbar. */
 .rail-scroll { scrollbar-width: none; }
 .rail-scroll::-webkit-scrollbar { display: none; }
+
+/* App chrome and controls. Transitions use paint/transform properties only. */
+html { scroll-padding-top: 96px; scrollbar-gutter: stable; }
+button, a, input, textarea, select { touch-action: manipulation; }
+button:not(:disabled), a { cursor: pointer; }
+.btn, .btn-primary, .btn-outline, .input, .favorite-button, .service-tile, .store-card {
+  transition: background-color 200ms, color 200ms, border-color 200ms, box-shadow 200ms, transform 200ms;
+}
+.btn-primary { box-shadow: 0 5px 14px #008f4114; }
+.btn:active:not(:disabled), .btn-primary:active:not(:disabled), .btn-outline:active:not(:disabled) { transform: scale(.97); }
+.input { font-size: 16px; }
+.input::placeholder { color: var(--muted); opacity: .8; }
+.brand-mark { position: relative; display: inline-flex; align-items: baseline; color: var(--brand); font-size: 36px; font-weight: 750; letter-spacing: -.085em; line-height: 1; }
+.brand-dot { display: inline-block; width: 5px; height: 5px; margin-left: 4px; border-radius: 50%; background: currentColor; }
+.app-header { background: color-mix(in srgb, var(--surface) 94%, transparent); border-bottom: 1px solid var(--border); backdrop-filter: blur(18px); }
+.app-header nav > ul { gap: 2px; }
+.app-header nav > ul a { font-size: 12px; padding-inline: 10px; }
+.app-header nav > ul a[aria-current=page] { font-weight: 700; }
+.app-header button, .app-header a { transition: background-color 180ms, color 180ms; }
+.eyebrow { font-size: 10px; font-weight: 700; line-height: 1.6; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); }
+#main h1, #main h2, #main h3 { letter-spacing: -.035em; }
+#main h1 { line-height: 1.2; }
+#main { min-width: 0; }
+.home-location { border: 1px solid var(--border); }
+.home-location:hover { border-color: var(--brand); }
+.home-welcome { min-height: 124px; }
+.mobile-bottom-nav { display: none; }
+.app-drawer { background: #008b3e; color: white; border-radius: 30px 0 0 30px; }
+.app-drawer .brand-mark, .app-drawer .text-brand, .app-drawer .text-muted { color: white; }
+.app-drawer > div:first-child { padding: 24px; }
+.app-drawer .border-border { border-color: #ffffff20; }
+.app-drawer > nav { padding: 0 14px; }
+.app-drawer > nav > ul > li > a, .app-drawer > nav > ul > li > button { border: 0; border-radius: 12px; font-size: 12px; letter-spacing: .04em; padding: 15px 18px; margin-block: 2px; }
+.app-drawer > nav > ul > li > a:hover, .app-drawer > nav > ul > li > button:hover, .app-drawer > nav > ul > li > a[aria-current=page] { background: #ffffff18; }
+.app-drawer nav ul ul { background: #007a35; border-radius: 16px; }
+.app-drawer nav ul ul a { color: #fff; }
+.app-drawer > div:last-child .btn-primary { background: white; color: #008b3e; }
+.app-drawer > div:last-child .btn-outline { background: transparent; border-color: #ffffff50; color: white; }
+
+/* Compact, swipeable promotions. All slides share a stable frame. */
+.hero-carousel > div:first-child { border-radius: 26px; isolation: isolate; }
+.hero-carousel > button { width: 30px; height: 30px; font-size: 22px; opacity: 0; transition: opacity 180ms; }
+.hero-carousel:hover > button, .hero-carousel:focus-within > button { opacity: 1; }
+.hero-carousel > button:first-of-type { left: 12px; }
+.hero-carousel > button:nth-of-type(2) { right: 12px; }
+.hero-carousel > div:last-child { gap: 0; }
+.hero-carousel > div:last-child > button { min-width: 24px; }
+.welcome-promo { background: #f6e9a7; color: #24442d; }
+.promo-badge { display: inline-block; border-radius: 7px; background: #ffffff80; padding: 5px 9px; color: #32643d; font-size: 10px; font-weight: 600; }
+.promo-food-art { position: absolute; right: 5%; top: 50%; width: 290px; height: 290px; transform: translateY(-50%); }
+.promo-ring { position: absolute; inset: -55px; border: 2px solid #65884b20; border-radius: 50%; }
+.promo-ring::before { content: ""; position: absolute; inset: 24px; border: 2px solid #65884b25; border-radius: 50%; }
+.promo-plate { position: absolute; inset: 14px; overflow: hidden; border: 9px solid #fff8e6; border-radius: 50%; box-shadow: 0 16px 35px #53431a25; rotate: -12deg; }
+.promo-discount { position: absolute; right: -8px; bottom: 24px; display: flex; width: 88px; height: 88px; flex-direction: column; align-items: center; justify-content: center; border: 4px solid #f6e9a7; border-radius: 50%; background: #008b3e; color: white; font-size: 26px; font-weight: 800; rotate: 10deg; box-shadow: 0 6px 16px #005b2d20; }
+.promo-discount small { margin-top: -4px; font-size: 12px; letter-spacing: .15em; }
+.promo-spark { position: absolute; left: -8px; top: 20px; color: #008b3e; font-size: 42px; }
+.promo-line-art { position: absolute; right: 4%; bottom: 30px; rotate: -15deg; opacity: .12; }
+.promo-line-art svg { width: 220px; height: 220px; }
+.service-tile { box-shadow: 0 3px 14px #173b2203; }
+.service-icon { transition: transform 250ms cubic-bezier(.2,.7,.2,1); }
+.service-tile:nth-child(2) .service-icon { background: #fff5da; color: #b58221; }
+.service-tile:nth-child(3) .service-icon { background: #edf2fd; color: #6079b4; }
+.home-search { background: var(--surface); border-color: var(--border); box-shadow: 0 3px 16px #173b2204; }
+.store-card { box-shadow: 0 3px 16px #173b2203; }
+.store-card-photo img { transition: transform 500ms cubic-bezier(.2,.7,.2,1); }
+.favorite-button { transition: transform 240ms cubic-bezier(.2,.7,.2,1), color 180ms; }
+.favorite-button[aria-pressed=true] { animation: heart-pop 300ms ease-out; }
+.favorite-button:active { transform: scale(.9); }
+.store-promo { box-shadow: 0 2px 6px #00000008; }
+.store-info { margin: -22px 14px 0; box-shadow: 0 5px 24px #173b2208; }
+.menu-item-card { border-radius: 20px; }
+.menu-item-card p.font-semibold { font-size: 14px; }
+.menu-item-card p.text-sm { font-size: 12px; margin-top: 3px; }
+.menu-item-card button { min-width: 36px; min-height: 36px; transition: background-color 180ms, transform 180ms; }
+.menu-item-card button:active:not(:disabled) { transform: scale(.9); }
+.floating-cart > a { box-shadow: 0 8px 30px #005a2a30; border-radius: 20px; transition: background-color 200ms, transform 200ms; }
+.floating-cart > a:active { transform: scale(.98); }
+.empty-state-icon { display: grid; width: 80px; height: 80px; place-items: center; margin: auto; border-radius: 26px; background: var(--brand-soft); color: var(--brand); }
+.empty-state-icon svg { width: 32px; height: 32px; }
+.empty-state { padding-block: 48px; }
+
+/* The same friendly forms on sign-in, registration, and account screens. */
+.auth-page { padding-top: 22px; }
+.auth-page > form { border: 0; background: transparent; padding-top: 16px; box-shadow: none; }
+.auth-page > form h1 { font-size: 24px; text-align: center; }
+.auth-page > form h1 + p { text-align: center; font-size: 13px; }
+.auth-page .input { background: var(--surface); }
+.auth-page .label { font-size: 12px; }
+.auth-intro { text-align: center; padding-top: 8px; }
+.auth-intro > .brand-mark { font-size: 46px; }
+.auth-intro > p { margin: 10px 0 5px; color: var(--muted); font-size: 12px; }
+.auth-illustration { position: relative; display: grid; place-items: center; width: 130px; height: 120px; margin: 18px auto 0; }
+.auth-orbit { position: absolute; inset: 6px 0; border-radius: 40% 55% 45% 50%; background: var(--brand-soft); rotate: -16deg; }
+.auth-illustration > svg { width: 56px; height: 56px; color: var(--brand); rotate: -10deg; }
+.auth-spark { position: absolute; color: #d9b63f; }
+.auth-spark-one { top: 4px; right: 8px; font-size: 22px; }
+.auth-spark-two { bottom: 9px; left: 1px; font-size: 15px; }
+.auth-mini { position: absolute; right: -4px; bottom: 4px; display: grid; width: 40px; height: 40px; place-items: center; border: 4px solid var(--background); border-radius: 50%; background: var(--brand); color: white; }
+.auth-mini svg { width: 17px; height: 17px; }
+.item-dialog { border-radius: 28px; box-shadow: 0 25px 100px #102e2430; animation: dialog-enter 220ms cubic-bezier(.2,.7,.2,1); }
+.item-dialog::backdrop { backdrop-filter: blur(4px); background: #12291d66; }
+.app-footer { font-size: 13px; }
+.app-footer > div:first-child { padding-block: 30px; }
+
+@keyframes heart-pop { 50% { transform: scale(1.22); } }
+@keyframes dialog-enter { from { opacity: 0; transform: translateY(16px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (hover: hover) {
+  .store-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px #173b220c; border-color: #bedec8; }
+  .service-tile:hover { border-color: #bedec8; box-shadow: 0 6px 22px #173b2208; }
+  .service-tile:hover .service-icon { transform: translateY(-3px) rotate(-5deg); }
+  .favorite-button:hover { transform: scale(1.08); }
+}
+@media (max-width: 1279px) {
+  body:has(.mobile-bottom-nav) { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .mobile-bottom-nav { position: fixed; inset: auto 0 0; z-index: 35; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); height: calc(74px + env(safe-area-inset-bottom)); padding: 5px max(12px, env(safe-area-inset-left)) calc(5px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--surface) 97%, transparent); border-top: 1px solid var(--border); box-shadow: 0 -6px 30px #173b2204; backdrop-filter: blur(18px); }
+  .mobile-bottom-nav > a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; color: var(--muted); font-size: 9px; font-weight: 500; transition: color 180ms; }
+  .bottom-icon { display: grid; width: 46px; height: 30px; place-items: center; border-radius: 11px; transition: background-color 220ms, transform 220ms; }
+  .bottom-icon svg { width: 20px; height: 20px; }
+  .mobile-bottom-nav > a.is-active { color: var(--brand); font-weight: 700; }
+  .mobile-bottom-nav > a.is-active .bottom-icon { background: var(--brand-soft); }
+  .mobile-bottom-nav > a:active .bottom-icon { transform: scale(.88); }
+  .floating-cart { bottom: calc(74px + env(safe-area-inset-bottom)); padding-bottom: 12px; }
+}
+@media (max-width: 639px) {
+  html { scrollbar-gutter: auto; }
+  .app-header > nav { height: 64px; }
+  .brand-mark { font-size: 32px; }
+  .home-welcome { min-height: 0; padding-top: 22px; padding-bottom: 18px; }
+  .home-welcome h1 { font-size: 25px; }
+  .home-welcome .eyebrow { font-size: 9px; }
+  .hero-carousel > div:first-child { border-radius: 20px; }
+  .promo-frame { height: 224px; }
+  .promo-badge { font-size: 8px; padding: 4px 7px; }
+  .promo-food-art { width: 174px; height: 174px; right: -35px; top: 48%; }
+  .promo-plate { border-width: 6px; inset: 8px; }
+  .promo-ring { inset: -24px; }
+  .promo-ring::before { inset: 13px; }
+  .promo-discount { width: 61px; height: 61px; right: 31px; bottom: -8px; border-width: 3px; font-size: 18px; }
+  .promo-discount small { font-size: 8px; margin-top: -2px; }
+  .promo-spark { font-size: 25px; left: 5px; top: -10px; }
+  .promo-line-art svg { width: 140px; height: 140px; }
+  .service-tile { border-radius: 20px; gap: 7px; }
+  .service-tile > span:last-child > span:first-child { font-size: 12px; }
+  .service-icon { width: 42px; height: 42px; border-radius: 14px; }
+  .home-page h2 { font-size: 20px; }
+  .store-card { border-radius: 19px; }
+  .store-card-photo { height: 132px; }
+  .store-card .favorite-button { width: 32px; height: 32px; top: 8px; right: 8px; }
+  .store-card .favorite-button svg { width: 16px; height: 16px; }
+  .store-promo { font-size: 9px; }
+  .store-info { margin: -16px 8px 0; padding: 18px 14px; gap: 12px; border-radius: 22px; }
+  .store-info > div:nth-child(2) { padding-right: 22px; }
+  .store-info h1 { font-size: 21px; }
+  .store-info p { font-size: 12px; }
+  .store-info > div:first-child { display: none; }
+  .store-info .favorite-button { top: 12px; right: 10px; width: 32px; height: 32px; }
+  .menu-item-card { gap: 10px; }
+  .menu-item-card > div:first-child { width: 60px; height: 60px; }
+  .menu-item-card p.font-semibold { font-size: 13px; }
+  .menu-item-card button { min-height: 40px; min-width: 40px; }
+  .app-footer { margin-top: 36px; }
+  .app-footer > div:first-child { gap: 24px; padding-top: 26px; padding-bottom: 26px; }
+  .app-footer p, .app-footer a, .app-footer li { font-size: 12px; }
+  .how-it-works ol { gap: 10px; }
+  .how-it-works li { padding: 16px; border-radius: 20px; }
+  .how-it-works li > span:last-child > span:last-child { font-size: 12px; }
+  .auth-page { padding-top: 12px; }
+  .auth-page > form { padding-inline: 8px; }
+}
+@media (max-width: 359px) {
+  .home-welcome h1 { font-size: 22px; }
+  .welcome-promo h2 { font-size: 25px; }
+  .welcome-promo > div { padding-left: 18px; }
+  .promo-food-art { right: -52px; }
+  .store-card-photo { height: 112px; }
+  .store-card > a > div:last-child { padding: 10px; }
+  .store-card > a > div:last-child > p:last-child { gap: 5px; font-size: 10px; }
+  .menu-item-card > div:first-child { width: 48px; height: 48px; }
+  .menu-item-card { gap: 8px; padding: 10px; }
+  .menu-item-card button { min-width: 34px; min-height: 38px; }
+}
+::view-transition-group(bottom-navigation) { animation: none; z-index: 100; }
+::view-transition-old(bottom-navigation) { display: none; }
+::view-transition-new(bottom-navigation) { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

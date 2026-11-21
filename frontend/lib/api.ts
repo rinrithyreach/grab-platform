@@ -6,7 +6,7 @@ import type { AdminOverview, AdminPage, AdminResource } from "./admin";
 import type { AdminActivity, AdminProfile, AdminRoles, AdminSettings, AdminTeamMember, CreateAdmin, CreateUser, PlatformSettings, SaveAdminProfile, SaveAdminRole } from "./admin-settings";
 export type Role = "Customer" | "Driver" | "Admin" | "Merchant";
 export type RideStatus = "Pending" | "Accepted" | "InProgress" | "Completed" | "Cancelled";
-export interface User { id: string; fullName: string; phoneNumber: string; role: Role }
+export interface User { id: string; fullName: string; phoneNumber: string; role: Role; avatarUrl?: string | null }
 export interface AuthResponse { accessToken: string; expiresAt: string; user: User }
 export interface RegisterRequest { phoneNumber: string; password: string }
 export interface AccountData { version: number; data: Record<string, object> }
@@ -106,6 +106,19 @@ export interface Banner {
   subtitle?: string;
   linkUrl?: string;      // optional: where clicking the banner goes, e.g. "/food" or "/store/pizza-lab"
 }
+/** A homepage banner uploaded in the admin console (Listings & banners). */
+export interface AdminBanner {
+  id: string;
+  imageUrl: string;
+  title: string;
+  subtitle: string;
+  linkUrl: string;
+  sortOrder: number;     // lower numbers show first
+  isActive: boolean;     // hidden from the homepage when false
+  updatedAt: string;
+}
+/** Text fields sent with a banner upload; the image is optional when editing. */
+export interface SaveAdminBanner { title: string; subtitle: string; linkUrl: string; sortOrder: number; isActive: boolean; reason: string }
 export interface ApiProblem { title?: string; detail?: string; errors?: Record<string, string[]>; traceId?: string }
 export class ApiError extends Error {
   constructor(public status: number, public problem: ApiProblem) {
@@ -118,6 +131,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
   const withImage = <T extends { imageUrl: string }>(value: T): T => ({ ...value, imageUrl: assetUrl(value.imageUrl) });
   let session: AuthResponse | null = null;
   let sessionVersion = 0;
+  let profileRevision = 0;
   let authAttempt = 0;
   const listeners = new Set<(session: AuthResponse | null) => void>();
   function setSession(next: AuthResponse | null) {
@@ -191,6 +205,16 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     adminUpdate: (resource: "users" | "merchants" | "listings", id: string, body: unknown) => request<{ saved: boolean }>(`/api/admin/${resource}/${encodeURIComponent(id)}`, "PATCH", body),
     adminAction: (resource: AdminResource, id: string, action: string, reason: string) => request<{ saved: boolean }>(`/api/admin/${resource}/${encodeURIComponent(id)}/actions`, "POST", { action, reason }),
     adminCreateDriver: (body: { userId: string; vehicleType: string; vehiclePlate: string; reason: string }) => request<Driver>("/api/admin/drivers", "POST", body),
+    adminBanners: async (signal?: AbortSignal) => (await request<AdminBanner[]>("/api/admin/banners", "GET", undefined, signal)).map(withImage),
+    /** Creates a banner when `id` is omitted (image required), otherwise updates it (image optional). */
+    adminSaveBanner: (body: SaveAdminBanner, image: File | null, id?: string) => {
+      const form = new FormData();
+      Object.entries(body).forEach(([key, value]) => form.append(key, String(value)));
+      if (image) form.append("image", image);
+      return id ? request<{ saved: boolean }>(`/api/admin/banners/${encodeURIComponent(id)}`, "PATCH", form)
+        : request<{ id: string }>("/api/admin/banners", "POST", form);
+    },
+    adminDeleteBanner: (id: string, reason: string) => request<{ saved: boolean }>(`/api/admin/banners/${encodeURIComponent(id)}?${new URLSearchParams({ reason })}`, "DELETE"),
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
     accountData: (signal?: AbortSignal) => request<AccountData>("/api/account-data", "GET", undefined, signal),
     saveAccountData: (body: AccountData, signal?: AbortSignal) => request<AccountData>("/api/account-data", "PATCH", body, signal),
@@ -256,17 +280,32 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     me: (signal?: AbortSignal) => request<User>("/api/auth/me", "GET", undefined, signal),
     refreshMe: async (signal?: AbortSignal) => {
       const token = session?.accessToken;
+      const revision = profileRevision;
       const user = await request<User>("/api/auth/me", "GET", undefined, signal);
-      if (session && session.accessToken === token && session.user.id === user.id && JSON.stringify(session.user) !== JSON.stringify(user))
+      if (revision === profileRevision && session && session.accessToken === token && session.user.id === user.id && JSON.stringify(session.user) !== JSON.stringify(user))
         setSession({ ...session, user });
       return user;
     },
     updateProfile: async (body: { fullName: string }) => {
       const token = session?.accessToken;
-      const user = await request<User>("/api/auth/me", "PATCH", body);
-      // An outstanding save must not restore a session after logout/account switching.
-      if (session && session.accessToken === token && session.user.id === user.id) setSession({ ...session, user });
-      return user;
+      profileRevision++;
+      try {
+        const user = await request<User>("/api/auth/me", "PATCH", body);
+        // Preserve a photo saved while the name request was in flight.
+        if (session && session.accessToken === token && session.user.id === user.id) setSession({ ...session, user: { ...session.user, fullName: user.fullName } });
+        return user;
+      } finally { profileRevision++; }
+    },
+    saveProfilePhoto: async (file: File | null) => {
+      const token = session?.accessToken;
+      const form = file ? new FormData() : undefined;
+      if (file) form!.append("file", file);
+      profileRevision++;
+      try {
+        const user = await request<User>("/api/auth/me/avatar", file ? "POST" : "DELETE", form);
+        if (session && session.accessToken === token && session.user.id === user.id) setSession({ ...session, user: { ...session.user, avatarUrl: user.avatarUrl } });
+        return user;
+      } finally { profileRevision++; }
     },
     rides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides?page=${page}`, "GET", undefined, signal),
     myRides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides/mine?page=${page}`, "GET", undefined, signal),

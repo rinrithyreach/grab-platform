@@ -8,15 +8,21 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { useHydratedPathname } from "@/lib/navigation";
 import { SOCIAL_ICON_PATHS } from "./social-icon-paths";
 import { usePlatformSettings } from "@/lib/platform";
+import BrandMark from "./BrandMark";
 
-function FooterLinks({ title, links }: { title: MessageKey; links: { href: string; label: string }[] }) {
+function FooterLinks({ title, links, className = "", listClassName = "" }: {
+  title: MessageKey;
+  links: { href: string; label: string }[];
+  className?: string;
+  listClassName?: string;
+}) {
   const { t } = useT();
   return (
-    <div>
+    <div className={className}>
       <p className="font-semibold">{t(title)}</p>
-      <ul className="mt-2 space-y-0.5 text-sm text-muted">
+      <ul className={`mt-3 grid gap-x-4 gap-y-2 text-sm text-muted ${listClassName}`}>
         {links.map((l) => (
-          <li key={l.href}><Link href={l.href} className="inline-block py-1 hover:text-brand">{l.label}</Link></li>
+          <li key={l.href}><Link href={l.href} className="inline-block hover:text-brand">{l.label}</Link></li>
         ))}
       </ul>
     </div>
@@ -36,18 +42,19 @@ export default function Footer() {
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
 
   return (
-    <footer className={`mt-16 border-t border-border bg-surface ${cartBarVisible ? "pb-24" : ""}`}>
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-10 lg:grid-cols-[1.4fr_1fr_1fr_1.4fr]">
+    <footer className={`app-footer mt-14 border-t border-border bg-surface ${cartBarVisible ? "pb-24" : ""}`}>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-8 gap-y-7 px-4 py-10 lg:grid-cols-[1.3fr_0.8fr_1.5fr_1.3fr]">
         <div className="col-span-2 lg:col-span-1">
           <p className="flex items-center gap-2 text-lg font-extrabold text-brand">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-sm text-white dark:text-background">{BRAND.name[0]}</span>
-            {BRAND.name}
+            <BrandMark />
           </p>
           <p className="mt-3 max-w-xs text-sm text-muted">{t("brand.tagline")}</p>
         </div>
 
         <FooterLinks
           title="footer.services"
+          className="col-span-2 lg:col-span-1"
+          listClassName="grid-cols-3 lg:grid-cols-1"
           links={[
             { href: "/ride", label: t("footer.bookRide") },
             { href: "/food", label: t("footer.foodDelivery") },
@@ -57,6 +64,8 @@ export default function Footer() {
 
         <FooterLinks
           title="footer.account"
+          className="col-span-2 lg:col-span-1"
+          listClassName="grid-cols-3 lg:grid-cols-2"
           links={[
             { href: "/rides", label: t("nav.myRides") },
             { href: "/orders", label: t("nav.myOrders") },
@@ -77,9 +86,9 @@ export default function Footer() {
         <div className="col-span-2 lg:col-span-1">
           <p className="font-semibold">{t("footer.contact")}</p>
           <p className="mt-3 text-sm text-muted">{t("footer.contactText")}</p>
-          {platform && <address className="mt-3 space-y-1 break-words text-sm not-italic text-muted">
-            {platform.supportEmail && <a className="block py-1 hover:text-brand" href={`mailto:${platform.supportEmail}`}>{platform.supportEmail}</a>}
-            {platform.supportPhone && <a className="block py-1 hover:text-brand" href={`tel:${platform.supportPhone}`}>{platform.supportPhone}</a>}
+          {platform && <address className="mt-3 space-y-1.5 break-words text-sm not-italic text-muted">
+            {platform.supportEmail && <a className="block hover:text-brand" href={`mailto:${platform.supportEmail}`}>{platform.supportEmail}</a>}
+            {platform.supportPhone && <a className="block hover:text-brand" href={`tel:${platform.supportPhone}`}>{platform.supportPhone}</a>}
             {platform.supportHours && <p>{platform.supportHours}</p>}
             {platform.officeAddress && <p>{platform.officeAddress}</p>}
           </address>}

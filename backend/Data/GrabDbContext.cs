@@ -8,8 +8,10 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
     public DbSet<AdminAudit> AdminAudits => Set<AdminAudit>();
     public DbSet<AdminProfile> AdminProfiles => Set<AdminProfile>();
     public DbSet<AdminRole> AdminRoles => Set<AdminRole>();
+    public DbSet<HomeBanner> HomeBanners => Set<HomeBanner>();
     public DbSet<PlatformSettings> PlatformSettings => Set<PlatformSettings>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserProfilePhoto> UserProfilePhotos => Set<UserProfilePhoto>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<Ride> Rides => Set<Ride>();
     public DbSet<RideMerchantResponse> RideMerchantResponses => Set<RideMerchantResponse>();
@@ -28,6 +30,9 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
     {
         b.Entity<User>().Property(x => x.IsActive).HasDefaultValue(true);
         b.Entity<User>().Property(x => x.SecurityVersion).IsConcurrencyToken();
+        b.Entity<UserProfilePhoto>().HasKey(x => x.UserId);
+        b.Entity<UserProfilePhoto>().HasOne<User>().WithOne(x => x.ProfilePhoto).HasForeignKey<UserProfilePhoto>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<UserProfilePhoto>().Property(x => x.ContentType).HasMaxLength(30);
         b.Entity<AdminProfile>().HasKey(x => x.UserId);
         b.Entity<AdminProfile>().HasOne<User>().WithOne().HasForeignKey<AdminProfile>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<AdminProfile>().Property(x => x.ContactPhone).HasMaxLength(30);
@@ -55,6 +60,11 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
         b.Entity<AdminAudit>().Property(x => x.Action).HasMaxLength(100);
         b.Entity<AdminAudit>().Property(x => x.Reason).HasMaxLength(300);
         b.Entity<AdminAudit>().HasIndex(x => x.CreatedAt);
+        b.Entity<HomeBanner>().Property(x => x.Title).HasMaxLength(80);
+        b.Entity<HomeBanner>().Property(x => x.Subtitle).HasMaxLength(160);
+        b.Entity<HomeBanner>().Property(x => x.LinkUrl).HasMaxLength(300);
+        b.Entity<HomeBanner>().Property(x => x.ContentType).HasMaxLength(30);
+        b.Entity<HomeBanner>().HasIndex(x => new { x.IsActive, x.SortOrder });
         b.Entity<AccountData>().HasKey(x => x.UserId);
         b.Entity<AccountData>().HasOne<User>().WithOne().HasForeignKey<AccountData>(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<AccountData>().Property(x => x.Version).IsConcurrencyToken();

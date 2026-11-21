@@ -26,16 +26,16 @@ export default function StoreView({ store }: { store: Store }) {
     : `${formatTime(store.hours.open, dateLocale)} – ${formatTime(store.hours.close, dateLocale)}`;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 pb-32">
+    <div className="store-page mx-auto max-w-4xl px-4 py-6 pb-32">
       <BackButton href={isMart ? "/mart" : "/food"} />
 
       {store.photo && (
-        <div className={`relative mb-4 h-44 overflow-hidden rounded-2xl sm:h-56 ${closed ? "grayscale" : ""}`}>
+        <div className={`store-cover relative h-52 overflow-hidden rounded-3xl sm:h-72 ${closed ? "grayscale" : ""}`}>
           <Image src={store.photo.src} alt="" fill preload fetchPriority="high" sizes="(min-width: 896px) 896px, 100vw" className="object-cover" />
         </div>
       )}
-      <section className="card relative flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6">
-        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-brand-soft text-5xl sm:h-24 sm:w-24" aria-hidden>{store.emoji}</div>
+      <section className="store-info card relative flex flex-row items-center gap-4 p-5 sm:gap-5 sm:p-6">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-brand-soft text-3xl sm:h-20 sm:w-20 sm:text-4xl" aria-hidden>{store.emoji}</div>
         <div className="min-w-0 pr-12">
           <h1 className="text-2xl font-bold sm:text-3xl">{store.name}</h1>
           <p className="mt-1 text-muted">{pick(store.cuisine, store.km?.cuisine)} · {"$".repeat(store.priceLevel)}</p>

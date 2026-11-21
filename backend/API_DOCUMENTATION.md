@@ -22,6 +22,8 @@ The browser caches pending changes per account, polls every five seconds while v
 | POST | `/api/auth/login` | Anonymous; generic invalid-credentials error | 200 AuthResponse |
 | GET | `/api/auth/me` | Authenticated | 200 User |
 | PATCH | `/api/auth/me` | Authenticated; update own display name only | 200 User |
+| POST | `/api/auth/me/avatar` | Authenticated; multipart `file`, JPG/PNG/WebP up to 512 KB; replaces own profile photo | 200 User with `avatarUrl` |
+| DELETE | `/api/auth/me/avatar` | Authenticated; remove own profile photo | 200 User with `avatarUrl: null` |
 | GET | `/api/rides?page=1` | Customer: own; Driver: assigned plus Pending queue; Admin: all | 200 Ride[] |
 | GET | `/api/rides/mine?page=1` | Customer: own; Driver: assigned; Admin: all administrative history | 200 Ride[] |
 | GET | `/api/rides/{id}` | Owner, assigned driver, Admin; inaccessible records return 404 | 200 Ride |
@@ -202,7 +204,12 @@ GrabRide registration and profile PATCH also accept `openingHours` for the weekl
 | `GET /api/merchants/offers?service=GrabFood&page=1` | Public | Published offers, 24 per page; optional service filter |
 | `GET /api/merchants/ride-areas?page=1` | Public | Registered GrabRide merchant map fields: `id`, public display `name`, saved `address`, `openingHours`, `vehicleType`; 100 per page, including accounts without listings. Other services and accounts no longer in the Merchant role are excluded. No account user ID, phone, email, password or license plate is returned. These are registration locations, not live positions or availability. |
 | `GET /api/merchants/{id}` | Public | `{ merchant, listings }`; 404 if there are no published listings |
-| `GET /api/banners` | Public | Latest 12 updated published listings with `showInSlideshow: true` |
+| `GET /api/banners` | Public | Active admin-uploaded homepage banners (by `sortOrder`), then the latest 12 updated published listings with `showInSlideshow: true` |
+| `GET /api/banner-images/{id}/{version}` | Public | Admin banner image; cached as immutable because `version` changes when the image is replaced |
+| `GET /api/admin/banners` | Admin `listings.view` | All admin banners, including hidden ones |
+| `POST /api/admin/banners` | Admin `listings.manage` | Multipart: `image` (JPG/PNG/WebP, max 2 MB, required), `title` (≤80), `subtitle` (≤160), `linkUrl` (empty, `/path` or http(s) URL), `sortOrder` (0–999), `isActive`, `reason` (3–300). Max 20 banners |
+| `PATCH /api/admin/banners/{id}` | Admin `listings.manage` | Same multipart fields; `image` optional (keeps the current picture) |
+| `DELETE /api/admin/banners/{id}?reason=` | Admin `listings.manage` | Permanently deletes the banner; reason 3–300 characters |
 | `GET /api/merchant-images/{id}` | Public | Stored image bytes with detected MIME type and `nosniff` |
 
 GrabFood/GrabExpress merchant registration body (replace placeholders locally):

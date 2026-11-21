@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import BackButton from "@/components/BackButton";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { authDestination } from "@/lib/auth-destination";
+import AuthIntro from "@/components/AuthIntro";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,8 +42,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-8">
+    <div className="auth-page mx-auto max-w-md px-4 py-8">
       <BackButton href="/login" />
+      <AuthIntro />
       <form onSubmit={submit} className="card space-y-4 p-6 sm:p-8">
         <div>
           <h1 className="text-2xl font-bold">{t("register.title")}</h1>

@@ -311,6 +311,58 @@ namespace Grab.Api.Migrations
                     b.ToTable("Drivers");
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.HomeBanner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<Guid>("ImageVersion")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LinkUrl")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subtitle")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive", "SortOrder");
+
+                    b.ToTable("HomeBanners");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Merchant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1070,6 +1122,25 @@ namespace Grab.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.UserProfilePhoto", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserProfilePhotos");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.AccountData", b =>
                 {
                     b.HasOne("Grab.Api.Models.User", null)
@@ -1270,6 +1341,15 @@ namespace Grab.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.UserProfilePhoto", b =>
+                {
+                    b.HasOne("Grab.Api.Models.User", null)
+                        .WithOne("ProfilePhoto")
+                        .HasForeignKey("Grab.Api.Models.UserProfilePhoto", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Grab.Api.Models.MerchantOrder", b =>
                 {
                     b.Navigation("Items");
@@ -1278,6 +1358,11 @@ namespace Grab.Api.Migrations
             modelBuilder.Entity("Grab.Api.Models.ParcelDelivery", b =>
                 {
                     b.Navigation("Stops");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.User", b =>
+                {
+                    b.Navigation("ProfilePhoto");
                 });
 #pragma warning restore 612, 618
         }

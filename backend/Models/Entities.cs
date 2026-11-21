@@ -17,6 +17,7 @@ public class User
     public int SecurityVersion { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public UserProfilePhoto? ProfilePhoto { get; set; }
 }
 public class Driver
 {

@@ -19,7 +19,7 @@ Escalation is blocked: an administrator can only create or edit roles, assign ro
 | Overview | Live account, merchant, listing and booking totals; seven-day activity; operation queues; simulated transaction totals; recent admin activity |
 | Users & access | Search accounts; **create users** (customer accounts with phone sign-in, or administrators with a role); edit names, suspend/reactivate, promote/demote Customer/Admin accounts (super administrators only); own-account and last-super-admin protections |
 | Merchants | Edit the existing service's business/partner profile, contact, address and opening/work schedule |
-| Listings & banners | Edit listing content and price, publish/unpublish, choose homepage slideshow placement |
+| Listings & banners | Upload, edit, reorder, hide and delete homepage hero banners (shown before merchant-featured listings); edit listing content and price, publish/unpublish, choose homepage slideshow placement |
 | Rides | Inspect all rides and cancel active rides, releasing assigned drivers/merchants |
 | Orders | Inspect order items and advance Pending → Accepted → OnTheWay → Delivered, or reject/cancel before delivery |
 | Deliveries | Inspect courier assignments and stops, cancel before pickup, mark in-transit exceptions failed without inventing delivery/COD collection |
@@ -37,6 +37,12 @@ Tables support server-side search, relevant filters, 20-record pagination, detai
 All console changes require a reason. Activity records are committed with each successful change; rejected operations are not reported as successful changes. Account suspension hides merchant offers, banners, storefronts and ride-area markers and prevents new orders from that merchant. An assigned active ride/delivery must be resolved before suspending its driver/courier.
 
 The console manages the SQL-backed platform records. Existing browser/account demo carts, wallets and sample storefront catalog data remain in their existing flows. Payment values are simulated. There are no permanent-delete or real-money controls.
+
+## Upload homepage banners
+
+Open **Listings & banners → Homepage banners → Upload banner**, or select **Manage homepage banners** on the dashboard overview. Choose a JPG, PNG or WebP image up to 2 MB (about 1600 × 480 px), optionally enter overlay text and a destination link, set the position, enter a reason, and leave **Show on the homepage** checked. Smaller positions appear first. The customer homepage refreshes within five seconds; uploaded banners replace the built-in promotions and appear before merchant-featured listings. Keep important content centred because phones crop the sides.
+
+Edit a banner to replace its image, change its order, or hide it without deleting it. Hidden uploads remain in the dashboard. Banner images and settings are stored through the API in SQL Server, so they persist after refresh and across devices using the same API. Apply the additive `HomeBanners` migration when setting up an older database. Uploads require `listings.manage`; read-only administrators with `listings.view` can inspect banners.
 
 ## Local setup on another computer
 

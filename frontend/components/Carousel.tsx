@@ -43,7 +43,7 @@ export default function Carousel({ slides, label, interval = 5000, hero = false 
     <section
       aria-roledescription="carousel"
       aria-label={label}
-      className="relative"
+      className={`relative ${hero ? "hero-carousel" : ""}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -87,7 +87,7 @@ export default function Carousel({ slides, label, interval = 5000, hero = false 
           <button type="button" onClick={() => go(current + 1)} aria-label={t("carousel.next")} className={`${arrow} right-3 lg:right-6`}>›</button>
           {/* In hero mode the service cards overlap the bottom 2rem, so the dots sit above that. */}
           {/* Each dot sits inside a 44×44px button so it's easy to tap on a phone. */}
-          <div className={`flex justify-center ${hero ? "absolute inset-x-0 bottom-10" : "mt-1"}`}>
+          <div className={`flex justify-center ${hero ? "absolute inset-x-0 bottom-0" : "mt-1"}`}>
             {slides.map((_, i) => (
               <button
                 key={i}
@@ -99,10 +99,10 @@ export default function Carousel({ slides, label, interval = 5000, hero = false 
               >
                 <span
                   aria-hidden
-                  className={`block h-3 rounded-full shadow-sm transition-all ${
+                  className={`block h-1.5 rounded-full shadow-sm transition-all ${
                     hero
-                      ? i === current ? "w-8 bg-white" : "w-3 bg-white/60 group-hover:bg-white/90"
-                      : i === current ? "w-8 bg-brand" : "w-3 bg-border group-hover:bg-muted"
+                      ? i === current ? "w-6 bg-[#008b3e]" : "w-1.5 bg-black/20 group-hover:bg-black/40"
+                      : i === current ? "w-6 bg-brand" : "w-1.5 bg-border group-hover:bg-muted"
                   }`}
                 />
               </button>

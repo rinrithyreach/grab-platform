@@ -31,7 +31,7 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
     {
         var phone = PhoneNumbers.Normalize(r.PhoneNumber)
             ?? throw new ApiException(400, "Enter a valid phone number, for example 012345678 or +85512345678.");
-        var user = await db.Users.SingleOrDefaultAsync(x => x.PhoneNumber == phone, ct);
+        var user = await db.Users.Include(x => x.ProfilePhoto).SingleOrDefaultAsync(x => x.PhoneNumber == phone, ct);
         // Run a hash verification even for unknown phone numbers to reduce timing differences.
         var candidate = user ?? new User { PasswordHash = hasher.HashPassword(new User(), Guid.NewGuid().ToString()) };
         var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, r.Password);
@@ -46,7 +46,7 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
     public async Task<AuthResponse> AdminLogin(AdminLoginRequest r, CancellationToken ct)
     {
         var email = r.Email.Trim().ToLowerInvariant();
-        var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email && x.Role == Role.Admin, ct);
+        var user = await db.Users.Include(x => x.ProfilePhoto).SingleOrDefaultAsync(x => x.Email == email && x.Role == Role.Admin, ct);
         var candidate = user ?? new User { PasswordHash = hasher.HashPassword(new User(), Guid.NewGuid().ToString()) };
         var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, r.Password);
         if (user is null || !user.IsActive || result == PasswordVerificationResult.Failed)
@@ -78,13 +78,13 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
         return Token(user);
     }
     public async Task<UserDto> Me(Guid id, CancellationToken ct) =>
-        (await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new ApiException(401, "User no longer exists.")).Dto();
+        (await db.Users.AsNoTracking().Include(x => x.ProfilePhoto).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new ApiException(401, "User no longer exists.")).Dto();
     public async Task<UserDto> UpdateProfile(Guid id, UpdateProfileRequest r, CancellationToken ct)
     {
         var name = r.FullName.Trim();
         if (name.Length is < 2 or > 120 || name.Any(char.IsControl))
             throw new ApiException(400, "Enter a name between 2 and 120 characters without control characters.");
-        var user = await db.Users.SingleOrDefaultAsync(x => x.Id == id, ct)
+        var user = await db.Users.Include(x => x.ProfilePhoto).SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new ApiException(401, "User no longer exists.");
         user.FullName = name;
         await db.SaveChangesAsync(ct);

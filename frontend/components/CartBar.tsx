@@ -13,7 +13,7 @@ export default function CartBar() {
   if (!count) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="floating-cart fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <Link
         href="/cart"
         className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-white shadow-xl hover:bg-brand-strong dark:text-background"

@@ -12,6 +12,7 @@ import AdminProfilePanel from "./AdminProfilePanel";
 import AdminTeamPanel from "./AdminTeamPanel";
 import AdminRolesPanel from "./AdminRolesPanel";
 import AdminCreateUserDialog from "./AdminCreateUserDialog";
+import AdminBannersPanel from "./AdminBannersPanel";
 import { adminCan, normalizeAdminProfile, type AdminProfile } from "@/lib/admin-settings";
 
 const labels: Record<AdminSection, string> = { overview: "Overview", users: "Users & access", merchants: "Merchants", listings: "Listings & banners", rides: "Rides", orders: "Orders", deliveries: "Deliveries", drivers: "Drivers", payments: "Payments", reviews: "Reviews", audit: "Activity log", settings: "Settings", team: "Administrators", roles: "Roles & permissions", profile: "My profile" };
@@ -93,7 +94,10 @@ export default function AdminDashboard() {
     : section === "team" ? <AdminTeamPanel key={user.id} me={currentProfile} revision={revision} onSaved={setNotice} />
     : section === "roles" ? <AdminRolesPanel key={user.id} me={currentProfile} revision={revision} onSaved={setNotice} />
     : section === "profile" ? <AdminProfilePanel key={user.id} profile={currentProfile} onChanged={(data, savedMessage) => { setProfile(normalizeAdminProfile(data)); setNotice(savedMessage); }} />
-    : <Resource key={`${section}:${user.id}`} section={section} me={currentProfile} revision={revision} onSaved={onSaved} onNotice={message => { setNotice(message); setRevision(v => v + 1); }} />;
+    : <>
+      {section === "listings" && <AdminBannersPanel key={user.id} canManage={adminCan(currentProfile, "listings", "manage")} revision={revision} onSaved={setNotice} />}
+      <Resource key={`${section}:${user.id}`} section={section} me={currentProfile} revision={revision} onSaved={onSaved} onNotice={message => { setNotice(message); setRevision(v => v + 1); }} />
+    </>;
   return <div className={`admin-shell ${currentProfile?.compactTables ? "admin-compact" : ""}`}>
     <aside className="admin-sidebar">{nav()}</aside>
     <dialog ref={menuDialog} className="admin-mobile-menu" onCancel={() => setMenu(false)} onClose={() => { setMenu(false); menuRef.current?.focus(); }}><button className="admin-icon-button admin-menu-close" aria-label="Close navigation" onClick={() => setMenu(false)}><AdminIcon name="close" /></button>{nav(() => setMenu(false))}</dialog>
@@ -102,6 +106,7 @@ export default function AdminDashboard() {
       <div className="admin-content">
         <div className="admin-page-heading"><div><span className="admin-eyebrow">{section === "overview" ? "YOUR PLATFORM AT A GLANCE" : "PLATFORM MANAGEMENT"}</span><h1>{(pageCopy[section] ?? ADMIN_CONFIG[section as AdminResource]).title}</h1><p>{(pageCopy[section] ?? ADMIN_CONFIG[section as AdminResource]).description}</p></div>{section !== "settings" && section !== "profile" && <button className="admin-button" onClick={() => setRevision(v => v + 1)}><AdminIcon name="refresh" size={17} />Refresh</button>}</div>
         {notice && <div className="admin-success" role="status">{notice}<button className="admin-icon-button" aria-label="Dismiss notification" onClick={() => setNotice("")}><AdminIcon name="close" size={16} /></button></div>}
+        {section === "overview" && adminCan(currentProfile, "listings", "manage") && <div className="admin-banner-shortcut"><div><strong>Make the homepage yours</strong><p>Upload a promotion, choose its position, and show it to customers.</p></div><Link href="/admin?section=listings#admin-banners-title" className="admin-button primary"><AdminIcon name="plus" size={17} />Manage homepage banners</Link></div>}
         {content}
         <footer className="admin-footnote"><span>{BRAND.name} administration</span><span>USD · Cambodia time (UTC+7)</span></footer>
       </div>

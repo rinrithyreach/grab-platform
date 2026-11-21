@@ -9,11 +9,13 @@ import BannerCarousel from "@/components/BannerCarousel";
 import MerchantOffers from "@/components/MerchantOffers";
 import GlobalSearch from "@/components/GlobalSearch";
 import { useFavorites } from "@/lib/favorites";
+import Icon, { type IconName } from "@/components/Icon";
+import { useProfile } from "@/lib/profile";
 
-const SERVICES: { href: string; emoji: string; title: MessageKey; text: MessageKey }[] = [
-  { href: "/ride", emoji: "🚗", title: "nav.ride", text: "home.rideText" },
-  { href: "/food", emoji: "🍜", title: "nav.food", text: "home.foodText" },
-  { href: "/express", emoji: "📦", title: "nav.express", text: "home.expressText" },
+const SERVICES: { href: string; icon: IconName; title: MessageKey; text: MessageKey }[] = [
+  { href: "/food", icon: "food", title: "nav.food", text: "home.foodText" },
+  { href: "/ride", icon: "car", title: "nav.ride", text: "home.rideText" },
+  { href: "/express", icon: "parcel", title: "nav.express", text: "home.expressText" },
 ];
 
 /** Shortcuts for signed-in customers back to their own activity. */
@@ -30,27 +32,39 @@ const STEPS: { emoji: string; title: MessageKey; text: MessageKey }[] = [
   { emoji: "⚡", title: "home.step3", text: "home.step3Text" },
 ];
 
-const FEATURED = STORES.filter((s) => s.kind === "food").sort((a, b) => b.rating - a.rating).slice(0, 3);
+const FEATURED = STORES.filter((s) => s.kind === "food").sort((a, b) => b.rating - a.rating).slice(0, 4);
 
 export default function Home() {
-  const { t } = useT();
+  const { t, pick } = useT();
   const { user, ready } = useAuth();
+  const { addresses } = useProfile();
   const favIds = useFavorites();
   const favourites = favIds.flatMap((id) => STORES.filter((s) => s.id === id && s.kind === "food"));
   const signedInCustomer = ready && user && user.role !== "Admin";
 
   return (
-    <>
+    <div className="home-page pb-4">
+      <section className="home-welcome mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 pb-5 pt-7">
+        <div>
+          <p className="eyebrow">{pick("A little joy, every day", "រីករាយជារៀងរាល់ថ្ងៃ")}</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{pick("What sounds good today?", "ថ្ងៃនេះចង់ញ៉ាំអ្វី?")}</h1>
+          <p className="mt-2 hidden text-sm text-muted sm:block">{pick("Your favourite food, a ride across town, and everything in between.", "អាហារដែលអ្នកចូលចិត្ត ការធ្វើដំណើរ និងអ្វីៗជាច្រើនទៀត។")}</p>
+        </div>
+        <Link href="/profile#addresses" className="home-location hidden items-center gap-3 rounded-2xl bg-surface px-4 py-3 sm:flex">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="pin" /></span>
+          <span className="min-w-0"><span className="block text-[10px] font-semibold uppercase tracking-widest text-muted">{pick("Deliver to", "ដឹកជញ្ជូនទៅ")}</span><span className="mt-1 block max-w-40 truncate text-sm font-semibold">{addresses.find((a) => a.label === "home")?.text ?? pick("Choose your location", "ជ្រើសរើសទីតាំងរបស់អ្នក")}</span></span>
+          <Icon name="chevron" className="h-3.5 w-3.5 text-muted" />
+        </Link>
+      </section>
       {/* Hero slideshow: welcome slide + banners from the backend */}
       <BannerCarousel />
 
-      {/* Services. relative z-10: the cards overlap the bottom of the hero and must stay on top of it.
-          On phones they are compact tiles in one row so search and content stay above the fold. */}
-      <section className="relative z-10 mx-auto -mt-8 max-w-6xl px-4">
+      {/* Compact service shortcuts stay in one row on mobile. */}
+      <section className="relative mx-auto mt-5 max-w-6xl px-4">
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {SERVICES.map((s) => (
-            <Link key={s.href} href={s.href} className="card group flex flex-col items-center gap-2 p-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:flex-row sm:gap-4 sm:p-5 sm:text-left">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-2xl transition group-hover:scale-105 sm:h-14 sm:w-14 sm:text-3xl" aria-hidden>{s.emoji}</span>
+            <Link key={s.href} href={s.href} className="service-tile card group flex flex-col items-center gap-2 p-3 text-center sm:flex-row sm:gap-4 sm:p-5 sm:text-left">
+              <span className="service-icon grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand sm:h-14 sm:w-14"><Icon name={s.icon} className="h-6 w-6 sm:h-7 sm:w-7" /></span>
               <span className="min-w-0">
                 <span className="block font-bold sm:text-lg">{t(s.title)}</span>
                 <span className="hidden text-sm text-muted sm:block">{t(s.text)}</span>
@@ -80,7 +94,7 @@ export default function Home() {
       {/* Favourites (only when the user has hearted a store) */}
       {favourites.length > 0 && (
         <section className="mx-auto mt-12 max-w-6xl px-4">
-          <h2 className="text-2xl font-bold">❤️ {t("fav.title")}</h2>
+          <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-bold">{t("fav.title")}</h2><Link href="/favorites" className="text-sm font-semibold text-brand">{t("home.seeAll")}</Link></div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {favourites.map((s) => <StoreCard key={s.id} store={s} />)}
           </div>
@@ -88,22 +102,22 @@ export default function Home() {
       )}
 
       {/* Merchant products: one swipeable row with service tabs */}
-      <div className="mx-auto max-w-6xl px-4"><MerchantOffers variant="rail" /></div>
 
       {/* Featured */}
-      <section className="mx-auto mt-14 max-w-6xl px-4">
+      <section className="mx-auto mt-9 max-w-6xl px-4">
         <div className="flex items-end justify-between gap-4">
-          <h2 className="text-2xl font-bold">{t("home.topRated")}</h2>
-          <Link href="/food" className="-my-2 shrink-0 py-2 text-sm font-semibold text-brand">{t("home.seeAll")}</Link>
+          <div><p className="eyebrow mb-1">{pick("Made for your cravings", "អាហារដែលអ្នកចូលចិត្ត")}</p><h2 className="text-2xl font-bold">{t("home.topRated")}</h2></div>
+          <Link href="/food" className="-my-2 flex shrink-0 items-center gap-1 py-2 text-sm font-semibold text-brand">{t("home.seeAll")}<Icon name="chevron" className="h-3 w-3" /></Link>
         </div>
-        {/* Phones: a swipeable row instead of three tall stacked cards. */}
-        <div className="rail-scroll -mx-4 mt-5 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-          {FEATURED.map((s) => <div key={s.id} className="w-[78%] shrink-0 snap-start sm:w-auto"><StoreCard store={s} /></div>)}
+        {/* A compact two-column grid on phones, four columns on desktop. */}
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+          {FEATURED.map((s) => <StoreCard key={s.id} store={s} />)}
         </div>
       </section>
+      <div className="mx-auto max-w-6xl px-4"><MerchantOffers variant="rail" /></div>
 
       {/* How it works */}
-      <section className="mx-auto mt-14 max-w-6xl px-4">
+      <section className="how-it-works mx-auto mt-10 max-w-6xl px-4">
         <h2 className="text-2xl font-bold">{t("home.howItWorks")}</h2>
         <ol className="mt-5 grid gap-4 sm:grid-cols-3">
           {STEPS.map((s, i) => (
@@ -117,6 +131,6 @@ export default function Home() {
           ))}
         </ol>
       </section>
-    </>
+    </div>
   );
 }

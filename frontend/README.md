@@ -61,6 +61,8 @@ Apply the additive `MerchantRideDispatch` and `RideLiveLocation` migrations befo
 
 ### Account and service behavior
 
+- **Profile → pencil icon on your photo** (or **Change photo**) lets signed-in customers preview a JPG, PNG or WebP up to 512 KB, then save or cancel. **Remove photo** restores the initials avatar. Saved photos update the profile and desktop navigation immediately and persist through the API after refresh or sign-in on another device. Apply the backend `UserProfilePhotos` migration on other API hosts. Name and photo saves preserve each other, and older profile refreshes cannot undo a pending photo change. Each new account's wallet starts at **$0.00**; balances increase through that account's own top-ups.
+
 Each merchant account keeps the service selected at registration. The signed-in profile shows that service's fields without choices to switch to other services; GrabRide accounts manage rider details, working hours and customer ride requests.
 
 For **Merchant → Create merchant account → GrabRide**, enter **name, phone number, password, vehicle type (Motorcycle, Rickshaw or Classic), license plate and location**, then check working days from Monday through Sunday and choose start/end times for each selected day. The signed-in GrabRide dashboard manages this schedule and rider details instead of listings, photos, prices or publishing. Unchecked days are days off; overnight shifts end the following day, using Cambodia time (UTC+7). Hours persist through the existing `openingHours` profile field. License plates stay private. GrabFood and GrabExpress retain the business form and listing tools described below. Apply the `RideVehicleTypes` database migration before using vehicle-specific bookings.

@@ -19,7 +19,7 @@ public static class AdminPermissions
         new("overview", "Overview", "See dashboard totals, queues and recent activity.", null),
         new("users", "Users & access", "Search and inspect accounts.", "Create customer accounts, edit names and suspend or reactivate accounts."),
         new("merchants", "Merchants", "Inspect merchant and ride-partner profiles.", "Edit business profiles, contacts and schedules."),
-        new("listings", "Listings & banners", "Inspect listings and homepage features.", "Edit, publish and feature listings."),
+        new("listings", "Listings & banners", "Inspect listings and homepage banners.", "Edit, publish and feature listings, and upload homepage banners."),
         new("rides", "Rides", "Inspect all rides.", "Cancel active rides."),
         new("orders", "Orders", "Inspect food and shop orders.", "Advance, reject or cancel orders."),
         new("deliveries", "Deliveries", "Inspect parcel deliveries.", "Cancel deliveries or mark them failed."),

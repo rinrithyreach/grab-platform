@@ -59,10 +59,23 @@ public class MerchantsController(MerchantService merchants, IAuthService auth, I
 }
 
 [ApiController]
-public class MerchantMediaController(GrabDbContext db, MerchantService merchants) : ControllerBase
+public class MerchantMediaController(GrabDbContext db, MerchantService merchants, BannerService homeBanners) : ControllerBase
 {
+    /// <summary>Admin-uploaded banners first (in their chosen order), then merchant-featured listings.</summary>
     [HttpGet("api/banners")]
-    public Task<List<BannerDto>> Banners(CancellationToken ct) => merchants.Banners(ct);
+    public async Task<List<BannerDto>> Banners(CancellationToken ct) =>
+        [.. await homeBanners.Public(ct), .. await merchants.Banners(ct)];
+
+    [HttpGet("api/banner-images/{id:guid}/{version:guid}")]
+    public async Task<IActionResult> BannerImage(Guid id, Guid version, CancellationToken ct)
+    {
+        var image = await homeBanners.Image(id, version, ct);
+        if (image is null) return NotFound();
+        Response.Headers.XContentTypeOptions = "nosniff";
+        // The URL changes whenever the picture is replaced, so it can be cached as immutable.
+        Response.Headers.CacheControl = "public, max-age=86400, immutable";
+        return File(image.Value.Data, image.Value.ContentType);
+    }
 
     [HttpGet("api/merchant-images/{id:guid}")]
     public async Task<IActionResult> Image(Guid id, CancellationToken ct)

@@ -12,6 +12,7 @@ const TITLES: Record<string, MessageKey> = {
   "/deliveries": "nav.deliveries",
   "/express": "express.title",
   "/food": "food.title",
+  "/favorites": "fav.title",
   "/login": "nav.login",
   "/mart": "mart.title",
   "/merchant": "nav.merchant",

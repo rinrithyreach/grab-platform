@@ -41,7 +41,7 @@ export function PartnerCartBar({ merchantId }: { merchantId: string }) {
   const { count, subtotal } = partnerTotals(cart);
   if (!count || cart.merchantId !== merchantId) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="floating-cart fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <Link href="/cart" className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-white shadow-xl hover:bg-brand-strong dark:text-background">
         <span className="grid h-9 min-w-9 shrink-0 place-items-center rounded-full bg-white/20 px-2 font-bold">{count}</span>
         <span className="min-w-0 flex-1 leading-tight">

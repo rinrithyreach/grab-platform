@@ -17,11 +17,11 @@ export default function OpengraphImage() {
         style={{
           width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center",
           padding: "80px", color: "white", fontFamily: "sans-serif",
-          background: "linear-gradient(135deg, #0f766e 0%, #0b5f58 100%)",
+          background: "linear-gradient(135deg, #008f41 0%, #007333 100%)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "28px" }}>
-          <div style={{ width: 120, height: 120, borderRadius: 32, background: "white", color: "#0f766e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 84, fontWeight: 800 }}>
+          <div style={{ width: 120, height: 120, borderRadius: 32, background: "white", color: "#008f41", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 84, fontWeight: 800 }}>
             {BRAND.name[0]}
           </div>
           <div style={{ fontSize: 96, fontWeight: 800 }}>{BRAND.name}</div>

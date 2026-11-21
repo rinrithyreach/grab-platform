@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense, ViewTransition } from "react";
 import { Geist, Noto_Sans_Khmer } from "next/font/google";
 import "./globals.css";
@@ -12,6 +12,8 @@ import Toaster from "@/components/Toaster";
 import SkipLink from "@/components/SkipLink";
 import LocalizedTitle from "@/components/LocalizedTitle";
 import PlatformStatus from "@/components/PlatformStatus";
+import ViewTransitionGuard from "@/components/ViewTransitionGuard";
+import AppMotion from "@/components/AppMotion";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,6 +31,13 @@ const notoKhmer = Noto_Sans_Khmer({
 // The site's public address, used to build full links in link previews.
 // Set NEXT_PUBLIC_SITE_URL when the website is hosted somewhere; defaults to local development.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#008f41",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -61,11 +70,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col font-sans">
         <SettingsScript />
+        <ViewTransitionGuard />
         <AuthProvider>
           <Suspense fallback={null}><LocalizedTitle /></Suspense>
           <SkipLink />
           <Suspense fallback={<div className="h-16 border-b border-border bg-surface" aria-busy="true" />}><Navbar /></Suspense>
           <AccountSync />
+          <Suspense fallback={null}><AppMotion /></Suspense>
           <Suspense fallback={null}><PlatformStatus /></Suspense>
           <main id="main" tabIndex={-1} className="page-enter flex-1 outline-none">
             {/* Fades each new page in on navigation (browsers without View Transitions just swap instantly). */}
