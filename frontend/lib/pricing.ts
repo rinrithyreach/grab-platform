@@ -4,6 +4,8 @@
  */
 import { DELIVERY_FEE } from "./brand";
 import { getItem, getStore, type MenuItem } from "./catalog";
+import { getPromotionRules, matchesPromotion, promotionStatus, promotionTotals } from "./promotion-rules";
+import type { Deal } from "./catalog";
 
 export interface CartLine {
   itemId: string;
@@ -28,6 +30,7 @@ export type PaymentMethod = "Cash" | "Card" | "Wallet";
 export interface Order {
   id: string; storeId: string; storeName: string; lines: OrderLine[];
   subtotal: number; discount?: number; promoCode?: string; codeDiscount?: number;
+  promotionLabel?: string;
   deliveryFee: number; tip?: number; total: number;
   address: string; payment: PaymentMethod; note: string; createdAt: string;
 }
@@ -36,8 +39,8 @@ export interface Order {
 export const TIP_OPTIONS = [0, 0.5, 1, 2];
 
 /**
- * Promo codes typed at checkout (demo). They stack with the store's own deal.
- * Add or change codes here.
+ * Legacy demo code definitions retained for existing imports.
+ * Checkout reads the current rules from Promotions & coupons in the admin dashboard.
  */
 export const PROMO_CODES: Record<string, { kind: "amount" | "percent" | "freeDelivery"; value: number; minSubtotal?: number; maxDiscount?: number }> = {
   GROUP6: { kind: "amount", value: 1, minSubtotal: 3 },               // $1 off orders of $3+
@@ -107,58 +110,25 @@ export function cartDetails(cart: Cart, pastOrders: Order[] = []) {
   const count = lines.reduce((sum, l) => sum + l.qty, 0);
   const normalFee = lines.length ? DELIVERY_FEE : 0;
 
-  // 1. The store's own deal
-  const deal = store?.deal;
-  let discount = 0;
-  let deliveryFee = normalFee;
-  let dealApplied = false;
-  let amountToUnlock = 0; // how much more to spend to unlock a minimum-spend deal
-  if (deal && lines.length) {
-    if (deal.type === "freeDelivery") {
-      deliveryFee = 0;
-      dealApplied = true;
-    } else if (deal.type === "percentOff") {
-      const firstOrderOk = !deal.firstOrderOnly || pastOrders.length === 0;
-      const minOk = subtotal >= (deal.minSubtotal ?? 0);
-      if (firstOrderOk && minOk) {
-        discount = round((subtotal * deal.percent) / 100);
-        dealApplied = true;
-      } else if (firstOrderOk && deal.minSubtotal) {
-        amountToUnlock = round(deal.minSubtotal - subtotal);
-      }
-    } else if (deal.type === "buyGetFree") {
-      const group = deal.buy + deal.free;
-      // Count the same dish across lines (e.g. two bubble teas with different sugar levels).
-      const perItem = new Map<string, { qty: number; cheapest: number }>();
-      for (const l of lines) {
-        const p = perItem.get(l.itemId) ?? { qty: 0, cheapest: Infinity };
-        perItem.set(l.itemId, { qty: p.qty + l.qty, cheapest: Math.min(p.cheapest, l.price) });
-      }
-      discount = round([...perItem.values()].reduce((sum, p) => sum + Math.floor(p.qty / group) * deal.free * p.cheapest, 0));
-      dealApplied = discount > 0;
-    }
-  }
-
-  // 2. Promo code typed at checkout (applied after the store deal)
-  let codeDiscount = 0;
-  const promoCode = cart.promoCode && PROMO_CODES[cart.promoCode] ? cart.promoCode : undefined;
-  const code = promoCode ? PROMO_CODES[promoCode] : undefined;
-  const codeValid = !!code && lines.length > 0 && subtotal >= (code.minSubtotal ?? 0);
-  if (code && codeValid) {
-    const afterDeal = subtotal - discount;
-    if (code.kind === "amount") codeDiscount = Math.min(code.value, afterDeal);
-    if (code.kind === "percent") codeDiscount = Math.min(round((afterDeal * code.value) / 100), code.maxDiscount ?? Infinity);
-    if (code.kind === "freeDelivery") deliveryFee = 0;
-    codeDiscount = round(codeDiscount);
-  }
+  const promotionLines = lines.map(l => ({ productId: l.itemId, price: l.price, qty: l.qty }));
+  const totals = promotionTotals(store?.id ?? "", promotionLines, cart.promoCode, pastOrders.length === 0, normalFee);
+  const { discount, deliveryFee, codeDiscount, codeValid, promoCode, promotionLabel } = totals;
+  const available = getPromotionRules().filter(p => !p.code && promotionStatus(p) === "Active"
+    && matchesPromotion(p, store?.id ?? "", promotionLines) && (!p.firstOrderOnly || pastOrders.length === 0));
+  const candidate = totals.promotion ?? available[0];
+  const deal: Deal | undefined = candidate?.kind === "buyGetFree" ? { type: "buyGetFree", buy: candidate.buyQuantity, free: candidate.freeQuantity }
+    : candidate?.kind === "percent" ? { type: "percentOff", percent: candidate.value, minSubtotal: candidate.minSubtotal, firstOrderOnly: candidate.firstOrderOnly }
+    : candidate?.kind === "freeDelivery" ? { type: "freeDelivery" } : undefined;
+  const dealApplied = discount > 0 || deliveryFee < normalFee;
+  const amountToUnlock = available.length && !dealApplied ? Math.max(0, Math.min(...available.map(p => p.minSubtotal)) - subtotal) : 0;
 
   // 3. Tip for the rider
   const tip = lines.length ? round(Math.max(0, cart.tip ?? 0)) : 0;
 
   return {
     store, lines, count, subtotal, discount, normalFee, deliveryFee, tip,
-    promoCode, codeDiscount, codeValid,
+    promoCode, codeDiscount, codeValid, codeError: totals.codeError,
     total: round(Math.max(0, subtotal - discount - codeDiscount) + deliveryFee + tip),
-    deal, dealApplied, amountToUnlock,
+    deal, dealApplied, amountToUnlock, promotionLabel: promotionLabel || candidate?.name || "",
   };
 }

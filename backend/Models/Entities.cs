@@ -33,7 +33,12 @@ public class Driver
 public class Ride
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid CustomerId { get; set; }
+    /// <summary>Null for a guest ride; the guest contact fields are used instead.</summary>
+    public Guid? CustomerId { get; set; }
+    public string? GuestName { get; set; }
+    public string? GuestPhone { get; set; }
+    /// <summary>SHA-256 of the guest tracking token; the token itself is never stored.</summary>
+    public string? GuestTokenHash { get; set; }
     public Guid? DriverId { get; set; }
     public Guid? MerchantId { get; set; }
     public Merchant? Merchant { get; set; }

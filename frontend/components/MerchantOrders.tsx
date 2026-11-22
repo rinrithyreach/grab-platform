@@ -95,6 +95,8 @@ export default function MerchantOrders({ onPending }: { onPending?: (count: numb
                   {o.items.map((i) => (
                     <div key={i.listingId} className="flex justify-between gap-4"><dt>{i.quantity} × {i.title}</dt><dd className="shrink-0">{money(i.lineTotal)}</dd></div>
                   ))}
+                  {!!o.discount && <div className="flex justify-between gap-4 text-brand"><dt>{t("cart.promo", { promo: "" })}</dt><dd>−{money(o.discount)}</dd></div>}
+                  {!!o.codeDiscount && <div className="flex justify-between gap-4 text-brand"><dt>{t("cart.promo", { promo: o.promoCode ?? "" })}</dt><dd>−{money(o.codeDiscount)}</dd></div>}
                   <div className="flex justify-between gap-4 border-t border-border pt-1 text-muted"><dt>{t("cart.deliveryFee")}</dt><dd>{money(o.deliveryFee)}</dd></div>
                   <div className="flex justify-between gap-4 font-bold"><dt>{t("cart.total")} · {t(o.paymentMethod === "Card" ? "cart.card" : "cart.cash")}</dt><dd>{money(o.total)}</dd></div>
                 </dl>

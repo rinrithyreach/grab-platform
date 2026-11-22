@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Grab.Api.Data;
 using Grab.Api.DTOs;
 using Grab.Api.Interfaces;
@@ -24,14 +26,17 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
             .SingleOrDefaultAsync(r => r.MerchantId == merchant.Id && (r.Status == RideStatus.Accepted || r.Status == RideStatus.InProgress), ct);
         if (active is not null)
         {
-            var name = await db.Users.Where(u => u.Id == active.CustomerId).Select(u => u.FullName).SingleAsync(ct);
-            return new([], new(active.Dto(), name));
+            // The accepted ride shows the rider phone so the merchant can call them at pickup.
+            var customer = active.CustomerId is Guid customerId
+                ? await db.Users.Where(u => u.Id == customerId).Select(u => new { u.FullName, u.PhoneNumber }).SingleAsync(ct)
+                : new { FullName = active.GuestName ?? "Guest", PhoneNumber = active.GuestPhone ?? "" };
+            return new([], new(active.Dto(), customer.FullName, customer.PhoneNumber));
         }
         var pending = await db.Rides.AsNoTracking()
             .Where(r => r.Status == RideStatus.Pending && r.VehicleType == vehicleType && r.DriverId == null && r.MerchantId == null
                 && !db.RideMerchantResponses.Any(response => response.RideId == r.Id && response.MerchantId == merchant.Id))
             .OrderByDescending(r => r.CreatedAt).ThenBy(r => r.Id).Take(25)
-            .Select(r => new { Ride = r, Name = db.Users.Where(u => u.Id == r.CustomerId).Select(u => u.FullName).First() }).ToListAsync(ct);
+            .Select(r => new { Ride = r, Name = r.GuestName ?? db.Users.Where(u => u.Id == r.CustomerId).Select(u => u.FullName).First() }).ToListAsync(ct);
         return new(pending.Select(row => new MerchantRideRequestDto(row.Ride.Dto(), row.Name)).ToList(), null);
     }
 
@@ -65,6 +70,46 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
 
     public async Task<RideDto> Book(Guid customerId, BookRideRequest r, CancellationToken ct)
     {
+        var ride = await NewRide(customerId, r, ct);
+        db.Rides.Add(ride);
+        await db.SaveChangesAsync(ct);
+        return ride.Dto();
+    }
+
+    /// <summary>A ride without an account. The guest keeps a one-time token to track or cancel it.</summary>
+    public async Task<GuestRideResponse> BookGuest(GuestRideRequest r, CancellationToken ct)
+    {
+        var name = r.ContactName?.Trim() ?? "";
+        if (name.Length is < 2 or > 120 || !name.Any(char.IsLetter) || name.Any(char.IsControl))
+            throw new ApiException(400, "Enter your full name (2 to 120 characters).");
+        var phone = PhoneNumbers.Normalize(r.ContactPhone)
+            ?? throw new ApiException(400, "Enter a valid phone number so the driver can reach you.");
+        var ride = await NewRide(null, r.Ride, ct);
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        ride.GuestName = name; ride.GuestPhone = phone; ride.GuestTokenHash = TokenHash(token);
+        db.Rides.Add(ride);
+        await db.SaveChangesAsync(ct);
+        return new(ride.Dto(), token);
+    }
+
+    private static string TokenHash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    public async Task<RideDto> GuestRide(Guid id, string? token, bool cancel, CancellationToken ct)
+    {
+        // A ride ID alone never grants access to a guest ride.
+        if (token is null || token.Length != 64) throw new ApiException(404, "Ride not found.");
+        var hash = TokenHash(token);
+        var ride = await db.Rides.Include(x => x.Merchant)
+            .SingleOrDefaultAsync(x => x.Id == id && x.CustomerId == null && x.GuestTokenHash == hash, ct)
+            ?? throw new ApiException(404, "Ride not found.");
+        if (!cancel) return ride.Dto();
+        if (ride.Status is not (RideStatus.Pending or RideStatus.Accepted))
+            throw new ApiException(409, "Only pending or accepted rides can be cancelled.");
+        return await Apply(ride, RideStatus.Cancelled, ct);
+    }
+
+    private async Task<Ride> NewRide(Guid? customerId, BookRideRequest r, CancellationToken ct)
+    {
         await platform.RequireService(MerchantServiceKind.GrabRide, ct);
         if (string.IsNullOrWhiteSpace(r.PickupLocation) || string.IsNullOrWhiteSpace(r.Destination))
             throw new ApiException(400, "Pickup and destination are required.");
@@ -76,13 +121,10 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
         if (r.PickupLatitude == r.DestinationLatitude && r.PickupLongitude == r.DestinationLongitude)
             throw new ApiException(400, "Pickup and destination must be different locations.");
         if (!Enum.IsDefined(r.VehicleType)) throw new ApiException(400, "Choose Motorcycle, Rickshaw or Classic.");
-        var ride = new Ride { CustomerId = customerId, PickupLocation = r.PickupLocation.Trim(), Destination = r.Destination.Trim(),
+        return new Ride { CustomerId = customerId, PickupLocation = r.PickupLocation.Trim(), Destination = r.Destination.Trim(),
             PickupLatitude = r.PickupLatitude, PickupLongitude = r.PickupLongitude,
             DestinationLatitude = r.DestinationLatitude, DestinationLongitude = r.DestinationLongitude,
             Fare = config.GetValue<decimal>("Pricing:DevelopmentFlatFareUsd", 5), VehicleType = r.VehicleType };
-        db.Rides.Add(ride);
-        await db.SaveChangesAsync(ct);
-        return ride.Dto();
     }
     public async Task<List<RideDto>> List(Guid userId, Role role, bool mine, int page, CancellationToken ct)
     {
@@ -149,6 +191,12 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
                 throw new ApiException(409, "Admins may cancel active rides only.");
         }
         else throw new ApiException(403, "Driver profile required.");
+        return await Apply(ride, next, ct);
+    }
+
+    /// <summary>Moves an authorized ride to its next status and frees the assigned driver or merchant when it ends.</summary>
+    private async Task<RideDto> Apply(Ride ride, RideStatus next, CancellationToken ct)
+    {
         if (next is RideStatus.Completed or RideStatus.Cancelled && ride.DriverId.HasValue)
         {
             var assigned = await db.Drivers.SingleAsync(x => x.Id == ride.DriverId, ct);

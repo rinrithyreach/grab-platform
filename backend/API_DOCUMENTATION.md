@@ -2,6 +2,10 @@
 
 Base URL: `http://localhost:5000` on the API host; the frontend normally accesses it through `/backend`. Development Swagger UI: `/swagger`; OpenAPI JSON: `/swagger/v1/swagger.json`. All bodies/responses are JSON with camelCase properties and string enums. UUID identifiers and UTC ISO 8601 timestamps are used. Protected endpoints require JWT Bearer. Registration/login, public merchant offers/storefronts/images, banners, public store reviews and sync status allow anonymous reads. In Swagger click **Authorize** and paste the access token without the `Bearer` prefix. Swagger's global security display also appears on anonymous routes.
 
+## Administrator self-service profile
+
+`GET /api/admin/profile` and `PATCH /api/admin/profile` operate on the authenticated administrator's own account and require no section-management permission. Updates accept `fullName`, nullable `email`, optional `contactPhone`, `jobTitle`, `bio`, `refreshSeconds` (0, 15, 30 or 60), `compactTables`, `version` and optional `currentPassword`. Phone-only administrators may keep `email: null`; existing sign-in emails cannot be removed. Adding or changing an email requires the current password and rotates the session. The response contains `{ profile, session }` so the client can refresh the displayed name and saved login. Biography text allows line breaks, up to 500 characters. Stale versions return 409. Successful edits and their activity-log records are saved together.
+
 ## Cross-device account data
 
 All devices must use the same central API/database; see [shared setup](../SHARED_SETUP.md). `GET /api/sync/status` is public and returns `{ "status": "ok", "storageId": "<persistent database UUID>" }`. Compare this Storage ID and the configured API destination between PCs. A separately initialized database receives a different ID. This endpoint queries SQL; `/health` remains only a process-liveness check.
@@ -31,6 +35,12 @@ The browser caches pending changes per account, polls every five seconds while v
 | PATCH | `/api/rides/{id}/status` | State machine below | 200 Ride |
 | PATCH | `/api/rides/{id}/location` | Assigned GrabRide Merchant or Driver; Accepted/InProgress only | 200 Ride |
 | DELETE | `/api/rides/{id}/location` | Assigned GrabRide Merchant or Driver; stop sharing on an active ride | 200 Ride |
+| POST | `/api/rides/guest` | Public (no account). Body `{ ride: { …same as POST /api/rides }, contactName, contactPhone }`. Name 2–120 characters with letters; phone local Cambodian or international, normalized. Shares the booking rate limit (10/minute per IP) | 201 `{ ride, accessToken }` |
+| GET | `/api/rides/guest/{id}` | Private: `X-Guest-Ride-Token` header from booking. Missing/incorrect token or account ride → 404 | 200 Ride |
+| POST | `/api/rides/guest/{id}/cancel` | Same header; Pending or Accepted → Cancelled (frees the assigned merchant/driver), otherwise 409 | 200 Ride |
+
+Guest rides (migration `GuestRides`): `Ride.customerId` is `null`; the guest name and normalized phone are stored on the ride and only the SHA-256 of the 256-bit access token is kept. Merchants see the guest name on open requests, and the rider phone (`customerPhone`) only on their accepted active ride — for both guests and account customers. Admin ride rows include `customerName`, `customerPhone` and `isGuest`, and can be searched by guest name or phone. The frontend keeps guest ride tokens in tab sessionStorage.
+
 | POST | `/api/deliveries/quote` | Anonymous; server-priced parcel estimate, 60 requests/minute/IP | 200 DeliveryQuote |
 | POST | `/api/deliveries` | Customer; server reprices and stores the delivery, 10 bookings/minute/IP | 201 ParcelDelivery, Location header |
 | GET | `/api/deliveries/mine?page=1` | Customer's own deliveries, 50/page | 200 ParcelDelivery[] |
@@ -260,7 +270,46 @@ Customers order published GrabFood/GrabExpress listings from one merchant per or
 | `POST /api/orders` | Customer | 201 Order. Body `{ merchantId, items: [{ listingId, quantity }], deliveryAddress, note, paymentMethod }`. 1–30 lines, quantity 1–50 (duplicate lines are merged). Address needs 5–300 characters with letters and numbers. Unknown merchant → 404. A listing that is unpublished, unknown or from another merchant → 409 (reload the storefront). Merchants cannot order from their own store. |
 | `GET /api/orders/mine?page=1` | Customer | Own orders, newest first, 20 per page |
 | `POST /api/orders/{id}/cancel` | Customer owner | Pending → Cancelled. After the store responds → 409. Another customer's order → 404. |
+| `POST /api/orders/guest/quote` | Public, GrabExpress only | Same quote body and pricing as `/api/orders/quote`. GrabFood → 403. First-order-only promotions are unavailable without an account. |
+| `POST /api/orders/guest` | Public, GrabExpress only | Body `{ order: { merchantId, items, deliveryAddress, note, paymentMethod, promoCode?, expectedTotal? }, contactName, contactPhone }`; returns 201 `{ order, accessToken }`. Name must contain letters, 2–120 characters; phone accepts local Cambodian or explicit international format and is normalized. Same address, item, service availability and expected-total validation as account checkout. |
+| `GET /api/orders/guest/{id}` | Private receipt token | Supply `X-Guest-Order-Token` header. Returns this guest order including contact details; missing/incorrect token or account order → 404. |
+| `POST /api/orders/guest/{id}/cancel` | Private receipt token | Same header; Pending → Cancelled, otherwise 409. |
 | `GET /api/merchants/orders?page=1` | Merchant | This store's orders: Pending first, then active, then finished; 20 per page. Includes `customerName` and `customerPhone` for delivery. |
 | `POST /api/merchants/orders/{id}/status` | Owning merchant | Body `{ "status": "Accepted" }`. Allowed: Pending → Accepted or Rejected, Accepted → OnTheWay or Rejected, OnTheWay → Delivered or Rejected (`Rejected` after acceptance is the store cancelling). Any other move → 409; another store's order → 404. |
 
 Order response: `{ id, merchantId, merchantName, service, status, paymentMethod, items: [{ listingId, title, unitPrice, quantity, lineTotal }], subtotal, deliveryFee, total, deliveryAddress, note, createdAt, updatedAt, customerName, customerPhone }`. `customerName`/`customerPhone` are `null` in customer responses. Status changes use a rowversion, so simultaneous updates return 409 instead of overwriting each other.
+
+Apply `GuestExpressOrders` for nullable customer links and guest contact snapshots. Guest receipt tokens have 256 bits of randomness; only their SHA-256 hashes are stored by the API. Tokens are returned only at creation and never in order lists or URLs. Guest booking/cancellation shares the IP booking limit (10/minute), and quote/receipt requests share the quote limit (60/minute). The frontend keeps receipt credentials in tab sessionStorage and polls status every five seconds. Guest orders appear in merchant inboxes and admin Express order details; neither endpoint exposes the token hash.
+# Product promotions and coupons
+
+Apply the `ProductPromotions` migration before starting the updated API.
+
+| Method | Endpoint | Access / behavior |
+| --- | --- | --- |
+| GET | `/api/promotions` | Public promotion rules for product badges and demo pricing; no-store response |
+| GET | `/api/admin/promotions` | `promotions.view`; all offers, including paused and scheduled |
+| GET | `/api/admin/promotions/targets` | `promotions.view`; merchant store/product identifiers, including draft listings |
+| POST | `/api/admin/promotions` | `promotions.manage`; create, returns `{ id }` |
+| PUT | `/api/admin/promotions/{id}` | `promotions.manage`; update or pause |
+| DELETE | `/api/admin/promotions/{id}?reason=...` | `promotions.manage`; remove future eligibility while preserving order history |
+| POST | `/api/orders/quote` | Customer; `{ merchantId, items: [{ listingId, quantity }], promoCode? }`; returns validated subtotal, discount, codeDiscount, deliveryFee, total, promoCode and promotionNames |
+
+Promotion writes accept `name`, nullable `code` (automatic when empty), `kind` (`percent`, `amount`, `freeDelivery`, `buyGetFree`), `value`, `minSubtotal`, nullable `maxDiscount`, `buyQuantity`, `freeQuantity`, nullable `storeId`/`productId`, `firstOrderOnly`, `isActive`, nullable ISO `startsAt`/`endsAt`, and an audit `reason`. Percentages are 0–100 (positive for percent discounts); money has at most two decimal places. Product targeting requires its store. Code matching is case-insensitive and codes are unique even while paused. End times are exclusive.
+
+`POST /api/orders` also accepts optional `promoCode` and `expectedTotal`. Prices and promotions are recalculated from SQL; an outdated expected total returns 409. Merchant order responses include saved `discount`, `codeDiscount` and `promoCode`. Best automatic product discount plus automatic free delivery may stack with one coupon. Coupons reduce the eligible amount remaining after the automatic discount. First-order checks exclude cancelled/rejected merchant orders. These endpoints do not implement usage quotas.
+
+## Product categories and subcategories
+
+Apply the `ProductCategories` migration. Categories belong to `GrabFood` or `GrabExpress` and may have one level of children. Existing products remain uncategorized until assigned.
+
+| Method | Endpoint | Access / behavior |
+| --- | --- | --- |
+| GET | `/api/categories?service=GrabFood` | Public; service is optional; returns ordered category definitions |
+| GET | `/api/admin/categories?service=GrabExpress` | `categories.view`; also returns direct product and subcategory counts |
+| POST | `/api/admin/categories` | `categories.manage`; create, returns `{ id }` |
+| PUT | `/api/admin/categories/{id}` | `categories.manage`; update name, translation, parent, service or position |
+| DELETE | `/api/admin/categories/{id}?reason=...` | `categories.manage`; delete an empty category |
+
+Writes accept `service`, `name` (2–100 characters), optional `khmerName`, nullable `parentId`, `sortOrder` (0–999), and audit `reason` (3–300 characters). Duplicate names under the same service/parent return 409. Parent and child must belong to the same service; self-parenting, cycles, and a third level are rejected. Deleting a category with products or children, or changing its service while it has either, returns 409. Foreign keys protect category and listing relationships.
+
+Merchant product create/update and admin listing updates accept nullable `categoryId`. Merchant dashboard listings, public offers/storefronts and admin listing rows include that identifier. Assignment to another service is rejected. `/api/merchants/offers` accepts optional `categoryId`; filtering occurs before its 24-product pagination and includes descendants when selecting a parent. Without a category filter, uncategorized products remain visible.

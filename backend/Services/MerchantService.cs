@@ -84,9 +84,9 @@ public class MerchantService(GrabDbContext db)
         m.OwnerName, m.ContactPhone, m.Email, m.Address, m.City, m.Category, m.Description, m.OpeningHours, m.MotorcycleLicensePlate,
         m.Service == MerchantServiceKind.GrabRide && Enum.TryParse<RideVehicleType>(m.Category, out var type) ? type : null);
     private static MerchantListingDto Listing(MerchantListing l) => new(l.Id, l.Title, l.Description,
-        l.Price, l.ImageId, ImageUrl(l.ImageId), l.IsPublished, l.ShowInSlideshow, l.UpdatedAt);
+        l.Price, l.ImageId, ImageUrl(l.ImageId), l.IsPublished, l.ShowInSlideshow, l.UpdatedAt, l.CategoryId);
     private static MerchantOfferDto Offer(MerchantListing l) => new(l.Id, l.Title, l.Description,
-        l.Price, ImageUrl(l.ImageId), PublicProfile(l.Merchant));
+        l.Price, ImageUrl(l.ImageId), PublicProfile(l.Merchant), l.CategoryId);
 
     public async Task<MerchantDashboardDto> Dashboard(Guid userId, CancellationToken ct)
     {
@@ -147,6 +147,8 @@ public class MerchantService(GrabDbContext db)
         if (r.Price is < 0.01m or > 999999.99m || decimal.Round(r.Price, 2) != r.Price)
             throw new ApiException(400, "Enter a USD price between 0.01 and 999999.99 with at most two decimal places.");
         listing.Price = r.Price;
+        await CategoryService.ValidateAssignment(db, r.CategoryId, merchant.Service, ct);
+        listing.CategoryId = r.CategoryId;
         listing.ImageId = r.ImageId;
         listing.IsPublished = r.IsPublished;
         listing.ShowInSlideshow = r.ShowInSlideshow;
@@ -156,13 +158,19 @@ public class MerchantService(GrabDbContext db)
         return Listing(listing);
     }
 
-    public async Task<List<MerchantOfferDto>> Offers(MerchantServiceKind? service, int page, CancellationToken ct)
+    public async Task<List<MerchantOfferDto>> Offers(MerchantServiceKind? service, int page, CancellationToken ct, Guid? categoryId = null)
     {
         if (page < 1 || page > 10000 || (service.HasValue && !Enum.IsDefined(service.Value)))
             throw new ApiException(400, "Invalid service or page.");
         var query = db.MerchantListings.AsNoTracking().Include(x => x.Merchant).Where(x => x.IsPublished && x.Merchant.Service != MerchantServiceKind.GrabRide
             && db.Users.Any(u => u.Id == x.Merchant.UserId && u.IsActive));
         if (service.HasValue) query = query.Where(x => x.Merchant.Service == service);
+        if (categoryId.HasValue)
+        {
+            if (!await db.ProductCategories.AnyAsync(x => x.Id == categoryId && (service == null || x.Service == service), ct))
+                throw new ApiException(400, "Choose a category belonging to the selected service.");
+            query = query.Where(x => x.CategoryId == categoryId || (x.Category != null && x.Category.ParentId == categoryId));
+        }
         var rows = await query.OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id).Skip((page - 1) * 24).Take(24).ToListAsync(ct);
         return rows.Select(Offer).ToList();
     }

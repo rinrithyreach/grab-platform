@@ -81,7 +81,11 @@ export default function MerchantRideRequests() {
   }
 
   const route = (request: MerchantRideRequest) => <div className="space-y-3">
-    <p className="font-semibold">{request.customerName}</p>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="font-semibold">{request.customerName}</p>
+      {/* Only the accepted ride carries the rider phone. */}
+      {request.customerPhone && <a href={`tel:${request.customerPhone}`} className="btn-outline h-9 px-3 text-sm">📞 {request.customerPhone}</a>}
+    </div>
     <p className="text-sm font-semibold text-brand">{t("ride.vehicle")}: {t(request.ride.vehicleType === "Motorcycle" ? "ride.moto" : request.ride.vehicleType === "Rickshaw" ? "ride.tuktuk" : "ride.car")}</p>
     <div><p className="text-xs text-muted">{t("ride.pickup")}</p><p className="break-words font-medium">🟢 {request.ride.pickupLocation}</p></div>
     <div><p className="text-xs text-muted">{t("ride.destination")}</p><p className="break-words font-medium">📍 {request.ride.destination}</p></div>

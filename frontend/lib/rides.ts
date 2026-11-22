@@ -7,7 +7,7 @@
  *    browser and a pretend driver accepts → drives → completes the trip over about a minute.
  */
 import { useEffect, useMemo } from "react";
-import type { BookRideRequest, Payment, Ride, RideStatus } from "./api";
+import type { BookRideRequest, GuestRideContact, Payment, Ride, RideStatus } from "./api";
 import { useAuth } from "./auth";
 import { createLocalStore } from "./local-store";
 
@@ -20,6 +20,8 @@ export type RideView = Ride & { vehicle?: VehicleId; driverName?: string; review
 export interface RideService {
   mode: "live" | "demo";
   bookRide(body: BookRideRequest, vehicle: VehicleId, distanceKm: number): Promise<RideView>;
+  /** Live only: book without an account. The token is needed to track or cancel the ride. */
+  bookGuestRide?(body: BookRideRequest, vehicle: VehicleId, contact: GuestRideContact): Promise<{ ride: RideView; accessToken: string }>;
   myRides(signal?: AbortSignal): Promise<RideView[]>;
   myPayments(signal?: AbortSignal): Promise<Payment[]>;
   cancel(id: string): Promise<unknown>;
@@ -114,6 +116,7 @@ function liveService(api: ReturnType<typeof useAuth>["api"]): RideService {
   return {
     mode: "live",
     bookRide: (body, vehicle) => api.bookRide({ ...body, vehicleType: rideVehicleType[vehicle] }),
+    bookGuestRide: (body, vehicle, contact) => api.bookGuestRide({ ...body, vehicleType: rideVehicleType[vehicle] }, contact),
     myRides: (signal) => allPages((page) => api.myRides(page, signal), signal),
     myPayments: (signal) => allPages((page) => api.myPayments(page, signal), signal),
     cancel: (id) => api.updateRideStatus(id, "Cancelled"),

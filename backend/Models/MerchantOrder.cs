@@ -13,7 +13,10 @@ public enum OrderPaymentMethod { Cash, Card }
 public class MerchantOrder
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid CustomerId { get; set; }
+    public Guid? CustomerId { get; set; }
+    public string? GuestName { get; set; }
+    public string? GuestPhone { get; set; }
+    public string? GuestTokenHash { get; set; }
     public Guid MerchantId { get; set; }
     public Merchant Merchant { get; set; } = null!;
     public MerchantOrderStatus Status { get; set; } = MerchantOrderStatus.Pending;
@@ -21,6 +24,9 @@ public class MerchantOrder
     public string DeliveryAddress { get; set; } = "";
     public string Note { get; set; } = "";
     public decimal Subtotal { get; set; }
+    public decimal Discount { get; set; }
+    public decimal CodeDiscount { get; set; }
+    public string? PromoCode { get; set; }
     public decimal DeliveryFee { get; set; }
     public decimal Total { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

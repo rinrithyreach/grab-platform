@@ -7,6 +7,8 @@ import { BRAND } from "@/lib/brand";
 import SettingsScript from "@/components/SettingsScript";
 import Navbar from "@/components/Navbar";
 import AccountSync from "@/components/AccountSync";
+import PromotionsSync from "@/components/PromotionsSync";
+import CategoriesSync from "@/components/CategoriesSync";
 import Footer from "@/components/Footer";
 import Toaster from "@/components/Toaster";
 import SkipLink from "@/components/SkipLink";
@@ -76,6 +78,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SkipLink />
           <Suspense fallback={<div className="h-16 border-b border-border bg-surface" aria-busy="true" />}><Navbar /></Suspense>
           <AccountSync />
+          <PromotionsSync />
+          <CategoriesSync />
           <Suspense fallback={null}><AppMotion /></Suspense>
           <Suspense fallback={null}><PlatformStatus /></Suspense>
           <main id="main" tabIndex={-1} className="page-enter flex-1 outline-none">

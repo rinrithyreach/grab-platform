@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MerchantDashboard as Dashboard, MerchantListing, MerchantProfile, MerchantProfileRequest } from "@/lib/api";
+import CategoryPicker from "./CategoryPicker";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
@@ -71,6 +72,7 @@ function ListingEditor({ profile, initial, onSaved, onCancel }: {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [price, setPrice] = useState(initial?.price.toString() ?? "");
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? null);
   const [published, setPublished] = useState(initial?.isPublished ?? false);
   const [featured, setFeatured] = useState(initial?.showInSlideshow ?? false);
   const [image, setImage] = useState({ id: initial?.imageId ?? "", imageUrl: initial?.imageUrl ?? "" });
@@ -102,7 +104,7 @@ function ListingEditor({ profile, initial, onSaved, onCancel }: {
         uploaded = await api.uploadMerchantImage(file);
         setImage(uploaded); setFile(null); setUploading(false);
       }
-      const saved = await api.saveMerchantListing({ title, description, price: Number(price), imageId: uploaded.id, isPublished: published, showInSlideshow: featured }, initial?.id);
+      const saved = await api.saveMerchantListing({ title, description, price: Number(price), categoryId, imageId: uploaded.id, isPublished: published, showInSlideshow: featured }, initial?.id);
       onSaved(saved); toast(t("merchant.saved"));
     } catch (err) { setError(errorMessage(err, t)); }
     finally { setBusy(false); setUploading(false); }
@@ -115,6 +117,7 @@ function ListingEditor({ profile, initial, onSaved, onCancel }: {
         <div><label className="label" htmlFor="listing-title">{t("merchant.listingTitle")}</label><input id="listing-title" className="input" required minLength={2} maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         <div><label className="label" htmlFor="listing-description">{t("merchant.listingDescription")}</label><textarea id="listing-description" className="input h-auto min-h-28 py-3" required minLength={10} maxLength={1500} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
         <div><label className="label" htmlFor="listing-price">{t("merchant.price")}</label><input id="listing-price" className="input" type="number" inputMode="decimal" required min="0.01" max="999999.99" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+        {profile.service !== "GrabRide" && <CategoryPicker service={profile.service} value={categoryId} onChange={setCategoryId} />}
         <div><label className="label" htmlFor="listing-image">{t("merchant.image")}</label><input id="listing-image" type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseFile} aria-describedby="listing-image-hint" className="block w-full rounded-xl border border-border p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-2 file:font-semibold file:text-brand" /><p id="listing-image-hint" className="mt-2 text-xs text-muted">{t("merchant.imageHint")}</p></div>
         <div className="space-y-3 rounded-xl bg-brand-soft p-4">
           <label className="flex items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-4 w-4 accent-brand" checked={published} onChange={(e) => setPublished(e.target.checked)} />{t("merchant.publish")}</label>

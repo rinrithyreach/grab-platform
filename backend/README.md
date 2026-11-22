@@ -131,6 +131,8 @@ The frontend polls merchant inboxes and customer booking status every two second
 
 ### Merchant product orders (shopping flow)
 
+GrabExpress shopping also supports guest checkout through `/api/orders/guest`. Guests must provide recipient name, valid phone and delivery address. The merchant/admin receives the saved contact details; the guest can view live status and cancel a Pending order using a private receipt token. Apply the additive `GuestExpressOrders` migration before running this version. Existing account orders keep their customer links. GrabFood partner orders require a customer account.
+
 Customers can now buy published GrabFood/GrabExpress listings: **storefront → Add to cart → `/cart` checkout → `/orders` live status**. The merchant receives the order on the **Orders** tab of `/merchant` and moves it Pending → Accepted → On the way → Delivered (or Rejects a new order / Cancels one it already accepted, any time before delivery). Customers may cancel while it is still Pending. Both sides refresh every five seconds. Prices are recalculated by the API from the database; see [API contracts](API_DOCUMENTATION.md#merchant-product-orders).
 
 The additive `MerchantOrders` migration creates `MerchantOrders` and `MerchantOrderItems` without changing existing data. Run `dotnet ef database update --project backend` on any other database; it has been applied to this computer's local instance. Restart the API after pulling so the new endpoints load.

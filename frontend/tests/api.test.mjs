@@ -8,6 +8,28 @@ const source = await readFile(new URL("../lib/api.ts", import.meta.url), "utf8")
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
 const { createApiClient, ApiError } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 
+test("guest orders use public endpoints and a private receipt header without placing the secret in URLs", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => { calls.push({ url, ...options }); return Response.json({}); };
+  try {
+    const api = createApiClient("http://localhost:5000");
+    const order = { merchantId: "store", items: [{ listingId: "product", quantity: 1 }], deliveryAddress: "House 12, Street 271", note: "", paymentMethod: "Cash" };
+    await api.quoteGuestOrder(order);
+    await api.placeGuestOrder({ order, contactName: "Sok Dara", contactPhone: "+85512345678" });
+    await api.guestOrder("receipt", "secret");
+    await api.cancelGuestOrder("receipt", "secret");
+    assert.deepEqual(calls.map(x => [x.url, x.method]), [
+      ["http://localhost:5000/api/orders/guest/quote", "POST"], ["http://localhost:5000/api/orders/guest", "POST"],
+      ["http://localhost:5000/api/orders/guest/receipt", "GET"], ["http://localhost:5000/api/orders/guest/receipt/cancel", "POST"],
+    ]);
+    assert.ok(calls.every(x => x.headers.Authorization === undefined && !x.url.includes("secret")));
+    assert.equal(calls[2].headers["X-Guest-Order-Token"], "secret");
+    assert.equal(calls[3].headers["X-Guest-Order-Token"], "secret");
+    assert.deepEqual(JSON.parse(calls[1].body), { order, contactName: "Sok Dara", contactPhone: "+85512345678" });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("ride merchant areas load a public page through the configured API", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];

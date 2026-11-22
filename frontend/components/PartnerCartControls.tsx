@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { MerchantOffer } from "@/lib/api";
 import { money } from "@/lib/brand";
 import { addPartnerItem } from "@/lib/cart";
@@ -8,8 +9,40 @@ import { useT } from "@/lib/i18n";
 import { merchantProductTitle } from "@/lib/merchant-content";
 import { MAX_PARTNER_QTY, partnerTotals, setPartnerQty, usePartnerCart } from "@/lib/partner-cart";
 import { toast } from "@/lib/toast";
+import Icon from "./Icon";
 
 const roundBtn = "grid h-9 w-9 place-items-center rounded-full font-bold disabled:cursor-not-allowed disabled:opacity-40";
+
+/** Choose a quantity before adding a dish from its detail page. Existing cart limits still apply. */
+export function PartnerProductPurchase({ offer }: { offer: MerchantOffer }) {
+  const { t, lang, pick } = useT();
+  const cart = usePartnerCart(); const [quantity, setQuantity] = useState(1);
+  const inCart = cart.merchantId === offer.merchant.id ? cart.lines.find(l => l.listingId === offer.id)?.qty ?? 0 : 0;
+  const remaining = Math.max(0, MAX_PARTNER_QTY - inCart);
+  const qty = Math.min(quantity, Math.max(1, remaining));
+  const title = merchantProductTitle(offer.title, lang, offer.merchant.service);
+  function add() {
+    if (!remaining) return;
+    const result = addPartnerItem(offer, otherName => window.confirm(t("cart.replace", { store: otherName })), qty);
+    if (result === "ok") { toast(t("store.added", { name: title })); setQuantity(1); }
+    else if (result === "limit") toast(t("partner.limit"), "error");
+  }
+  return <div className="food-purchase-panel">
+    <div className="food-purchase-label"><span>{pick("How many would you like?", "តើអ្នកចង់បានប៉ុន្មាន?")}</span><span>{money(offer.price)} {pick("each", "ក្នុងមួយមុខ")}</span></div>
+    <div className="food-purchase-row">
+      <div className="food-quantity" role="group" aria-label={pick("Quantity", "ចំនួន")}>
+        <button type="button" aria-label={t("store.decrease")} disabled={qty <= 1 || !remaining} onClick={() => setQuantity(qty - 1)}>−</button>
+        <output aria-live="polite">{qty}</output>
+        <button type="button" aria-label={t("store.increase")} disabled={qty >= remaining} onClick={() => setQuantity(qty + 1)}>+</button>
+      </div>
+      <button type="button" className="food-add-button" onClick={add} disabled={!remaining} aria-label={t("store.add", { name: title })}>
+        <Icon name="bag" /><span>{remaining ? t("partner.add") : pick("Cart limit reached", "កន្ត្រកដល់ចំនួនកំណត់")}</span><strong>{money(offer.price * qty)}</strong>
+      </button>
+    </div>
+    <p className="food-checkout-note">{pick("Delivery and promotions are calculated at checkout.", "ថ្លៃដឹកជញ្ជូន និងប្រូម៉ូសិននឹងត្រូវគណនានៅពេលបញ្ជាទិញ។")}</p>
+    {inCart > 0 && <Link href="/cart" className="food-added-note"><Icon name="check" /><span>{t("partner.inCart", { n: inCart })}</span><strong>{t("store.viewCart")} <span aria-hidden>→</span></strong></Link>}
+  </div>;
+}
 
 /** "Add to cart", then − n + for one merchant product. */
 export function PartnerAddButton({ offer }: { offer: MerchantOffer }) {

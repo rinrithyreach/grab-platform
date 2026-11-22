@@ -6,6 +6,8 @@ import type { MerchantOffer, MerchantServiceKind } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { usePartnerCart } from "@/lib/partner-cart";
+import { useCategories } from "@/lib/categories";
+import { categoryLabel } from "@/lib/category-types";
 import MerchantOfferCard from "./MerchantOfferCard";
 import { PartnerAddButton, PartnerCartBar } from "./PartnerCartControls";
 
@@ -21,11 +23,17 @@ const TABS: { service?: MerchantServiceKind; label: MessageKey; href: string }[]
  */
 export default function MerchantOffers({ service, variant = "grid" }: { service?: MerchantServiceKind; variant?: "grid" | "rail" }) {
   const { api } = useAuth();
-  const { t } = useT();
+  const { t, lang, pick } = useT();
   const cart = usePartnerCart();
   const rail = variant === "rail";
   const [tab, setTab] = useState<MerchantServiceKind | undefined>(service);
   const active = rail ? tab : service;
+  const categories = useCategories().filter(c => c.service === active);
+  const [categoryFilter, setCategoryFilter] = useState<{ service?: MerchantServiceKind; id: string }>({ id: "" });
+  const selectedCategory = categoryFilter.service === active ? categories.find(c => c.id === categoryFilter.id) : undefined;
+  const categoryId = !rail ? selectedCategory?.id : undefined;
+  const parentId = selectedCategory?.parentId ?? categoryId;
+  const subcategories = categories.filter(c => c.parentId === parentId);
   const [offers, setOffers] = useState<MerchantOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -34,14 +42,16 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
   const [retry, setRetry] = useState(0);
   const track = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
+  const moreRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const ctrl = new AbortController();
-    api.merchantOffers(active, 1, ctrl.signal).then((rows) => {
+    api.merchantOffers(active, 1, ctrl.signal, categoryId).then((rows) => {
+      if (ctrl.signal.aborted) return;
       setOffers(rows); setMore(rows.length === 24); setPage(1); setError(false); setLoading(false);
     }).catch(() => { if (!ctrl.signal.aborted) { setError(true); setLoading(false); } });
-    return () => ctrl.abort();
-  }, [api, active, retry]);
+    return () => { ctrl.abort(); moreRequest.current?.abort(); };
+  }, [api, active, retry, categoryId]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -50,7 +60,7 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
       if (busy) return;
       busy = true;
       try {
-        const pages = await Promise.all(Array.from({ length: page }, (_, index) => api.merchantOffers(active, index + 1, ctrl.signal)));
+        const pages = await Promise.all(Array.from({ length: page }, (_, index) => api.merchantOffers(active, index + 1, ctrl.signal, categoryId)));
         if (!ctrl.signal.aborted) { setOffers(pages.flat()); setMore(pages[pages.length - 1].length === 24); setError(false); }
       } catch { /* retain the last successful public list; initial load/retry shows errors */ }
       finally { busy = false; }
@@ -58,7 +68,7 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
     const timer = setInterval(() => { if (document.visibilityState !== "hidden") void refresh(); }, 5000);
     window.addEventListener("focus", refresh);
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
-  }, [api, active, page]);
+  }, [api, active, page, categoryId]);
 
   // Rail arrows are enabled only when there is more to scroll in that direction.
   useEffect(() => {
@@ -72,19 +82,26 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
   }, [rail, offers]);
 
   async function loadMore() {
+    const ctrl = new AbortController(); moreRequest.current?.abort(); moreRequest.current = ctrl;
     setLoading(true); setError(false);
     try {
-      const rows = await api.merchantOffers(active, page + 1);
+      const rows = await api.merchantOffers(active, page + 1, ctrl.signal, categoryId);
+      if (ctrl.signal.aborted) return;
       setOffers((previous) => [...previous, ...rows.filter((row) => !previous.some((item) => item.id === row.id))]);
       setMore(rows.length === 24); setPage((p) => p + 1);
-    } catch { setError(true); }
-    finally { setLoading(false); }
+    } catch { if (!ctrl.signal.aborted) setError(true); }
+    finally { if (!ctrl.signal.aborted) setLoading(false); }
   }
 
   function chooseTab(next?: MerchantServiceKind) {
     if (next === tab) return;
     setTab(next); setLoading(true); setOffers([]);
     track.current?.scrollTo({ left: 0 });
+  }
+
+  function chooseCategory(id: string) {
+    if (id === (categoryId ?? "")) return;
+    setCategoryFilter({ service: active, id }); setLoading(true); setOffers([]); setPage(1);
   }
 
   const scrollBy = (direction: 1 | -1) => track.current?.scrollBy({ left: direction * track.current.clientWidth * 0.9, behavior: "smooth" });
@@ -117,6 +134,16 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
   return <section className="mt-12" aria-label={t("merchant.partners")}>
     <h2 className="text-2xl font-bold">{t("merchant.partners")}</h2>
     <p className="mt-1 text-sm text-muted">{t("merchant.partnersIntro")}</p>
+    {!!categories.length && <div className="mt-4 space-y-2">
+      <div role="group" aria-label={pick("Product categories", "ប្រភេទផលិតផល")} className="flex flex-wrap gap-2">
+        <button type="button" aria-pressed={!categoryId} onClick={() => chooseCategory("")} className={`rounded-full border px-4 py-2 text-sm font-semibold ${!categoryId ? "border-brand bg-brand text-white" : "border-border bg-surface hover:bg-brand-soft"}`}>{t("browse.all")}</button>
+        {categories.filter(c => !c.parentId).map(c => <button type="button" key={c.id} aria-pressed={parentId === c.id} onClick={() => chooseCategory(c.id)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${parentId === c.id ? "border-brand bg-brand text-white" : "border-border bg-surface hover:bg-brand-soft"}`}>{categoryLabel(c, lang)}</button>)}
+      </div>
+      {!!subcategories.length && <div role="group" aria-label={pick("Product subcategories", "ប្រភេទរងផលិតផល")} className="flex flex-wrap gap-2">
+        <button type="button" aria-pressed={categoryId === parentId} onClick={() => chooseCategory(parentId ?? "")} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${categoryId === parentId ? "border-brand bg-brand-soft text-brand" : "border-border"}`}>{pick("All in this category", "ទាំងអស់ក្នុងប្រភេទនេះ")}</button>
+        {subcategories.map(c => <button type="button" key={c.id} aria-pressed={categoryId === c.id} onClick={() => chooseCategory(c.id)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${categoryId === c.id ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-brand-soft"}`}>{categoryLabel(c, lang)}</button>)}
+      </div>}
+    </div>}
     {offers.length > 0 && <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">{offers.map((offer) => <MerchantOfferCard key={offer.id} offer={offer}>{service === "GrabExpress" && <PartnerAddButton offer={offer} />}</MerchantOfferCard>)}</div>}
     {loading && offers.length > 0 && <p role="status" className="mt-5 text-sm text-muted">{t("merchant.loading")}</p>}
     {status}

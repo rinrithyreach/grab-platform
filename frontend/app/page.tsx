@@ -19,11 +19,11 @@ const SERVICES: { href: string; icon: IconName; title: MessageKey; text: Message
 ];
 
 /** Shortcuts for signed-in customers back to their own activity. */
-const QUICK_LINKS: { href: string; emoji: string; label: MessageKey }[] = [
-  { href: "/rides", emoji: "🧾", label: "nav.myRides" },
-  { href: "/orders", emoji: "🛍️", label: "nav.myOrders" },
-  { href: "/deliveries", emoji: "🚚", label: "nav.deliveries" },
-  { href: "/wallet", emoji: "👛", label: "nav.wallet" },
+const QUICK_LINKS: { href: string; icon: IconName; label: [string, string] }[] = [
+  { href: "/rides", icon: "car", label: ["Rides", "ការជិះ"] },
+  { href: "/orders", icon: "receipt", label: ["Orders", "ការបញ្ជាទិញ"] },
+  { href: "/deliveries", icon: "truck", label: ["Deliveries", "ការដឹក"] },
+  { href: "/wallet", icon: "wallet", label: ["Wallet", "កាបូបលុយ"] },
 ];
 
 const STEPS: { emoji: string; title: MessageKey; text: MessageKey }[] = [
@@ -81,10 +81,12 @@ export default function Home() {
       {signedInCustomer && (
         <section className="mx-auto mt-8 max-w-6xl px-4" aria-labelledby="quick-title">
           <h2 id="quick-title" className="text-sm font-semibold uppercase tracking-wider text-muted">{t("home.quickTitle")}</h2>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* One row of big, tappable icons with a one-word label each. */}
+          <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-4">
             {QUICK_LINKS.map((q) => (
-              <Link key={q.href} href={q.href} className="card flex items-center gap-3 px-4 py-3 text-sm font-semibold transition hover:border-brand hover:text-brand">
-                <span className="text-xl" aria-hidden>{q.emoji}</span><span className="truncate">{t(q.label)}</span>
+              <Link key={q.href} href={q.href} className="group flex flex-col items-center gap-2 rounded-2xl py-2 text-center text-xs font-semibold transition hover:text-brand sm:text-sm">
+                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-soft text-brand transition group-hover:scale-105 sm:h-16 sm:w-16"><Icon name={q.icon} className="h-7 w-7" /></span>
+                <span className="truncate">{pick(q.label[0], q.label[1])}</span>
               </Link>
             ))}
           </div>

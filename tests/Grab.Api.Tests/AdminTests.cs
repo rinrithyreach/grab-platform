@@ -30,7 +30,7 @@ public partial class ApiTests
             db.Users.AddRange(Enumerable.Range(0, 23).Select(i => new User { FullName = $"Pagination account {i:D2}", PhoneNumber = $"+85570000{i:D3}", PasswordHash = "not-a-login" }));
             await db.SaveChangesAsync();
         }
-        foreach (var resource in new[] { "overview", "users", "merchants", "listings", "rides", "orders", "deliveries", "drivers", "payments", "reviews", "audit" })
+        foreach (var resource in new[] { "overview", "users", "merchants", "listings", "rides", "orders", "express", "deliveries", "drivers", "payments", "reviews", "audit" })
         {
             Assert.Equal(HttpStatusCode.Unauthorized, (await guest.GetAsync($"/api/admin/{resource}")).StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await customer.GetAsync($"/api/admin/{resource}")).StatusCode);
@@ -72,6 +72,39 @@ public partial class ApiTests
         var audit = await Read<AdminPage<AdminAudit>>(await admin.GetAsync("/api/admin/audit?filter=users"));
         Assert.Equal(3, audit.Total); Assert.All(audit.Items, a => Assert.Equal(me.Id, a.ActorId));
         Assert.All(audit.Items, a => Assert.Equal(account.User.Id, a.TargetId));
+    }
+
+    [Fact]
+    public async Task Admin_express_section_lists_and_manages_only_grabexpress_orders()
+    {
+        await using var f = new ApiFactory(); await f.InitializeDatabase();
+        using var admin = await Admin(f); using var food = f.CreateClient(); using var shop = f.CreateClient(); using var customer = f.CreateClient(); using var guest = f.CreateClient();
+        await MerchantAccount(food, f.Password); await MerchantAccount(shop, f.Password, MerchantServiceKind.GrabExpress);
+        await Register(customer, f.Password);
+        var (foodProfile, foodListing) = await PublishedListing(food);
+        var (shopProfile, shopListing) = await PublishedListing(shop);
+        var foodOrder = await Read<MerchantOrderDto>(await customer.PostAsJsonAsync("/api/orders", OrderFor(foodProfile.Id, (foodListing.Id, 1)), Json));
+        var shopOrder = await Read<MerchantOrderDto>(await customer.PostAsJsonAsync("/api/orders", OrderFor(shopProfile.Id, (shopListing.Id, 1)), Json));
+
+        var express = await Read<AdminPage<JsonElement>>(await admin.GetAsync("/api/admin/express"));
+        var orders = await Read<AdminPage<JsonElement>>(await admin.GetAsync("/api/admin/orders"));
+        Assert.Equal(shopOrder.Id, Assert.Single(express.Items).GetProperty("id").GetGuid());
+        Assert.Equal(foodOrder.Id, Assert.Single(orders.Items).GetProperty("id").GetGuid());
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/admin/express?filter=Pending")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await guest.GetAsync("/api/admin/express")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await customer.GetAsync("/api/admin/express")).StatusCode);
+
+        // Each section only acts on its own service's orders.
+        Assert.Equal(HttpStatusCode.NotFound, (await admin.PostAsJsonAsync($"/api/admin/orders/{shopOrder.Id}/actions", new AdminActionRequest("Accepted", "Wrong section"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await admin.PostAsJsonAsync($"/api/admin/express/{foodOrder.Id}/actions", new AdminActionRequest("Accepted", "Wrong section"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync($"/api/admin/express/{shopOrder.Id}/actions", new AdminActionRequest("Accepted", "Support fulfillment update"))).StatusCode);
+        Assert.Equal(MerchantOrderStatus.Accepted, (await Read<List<MerchantOrderDto>>(await customer.GetAsync("/api/orders/mine"))).Single(x => x.Id == shopOrder.Id).Status);
+
+        var overview = await Read<JsonElement>(await admin.GetAsync("/api/admin/overview"));
+        Assert.Equal(1, overview.GetProperty("pendingOrders").GetInt32());
+        Assert.Equal(0, overview.GetProperty("pendingExpressOrders").GetInt32());
+        Assert.Equal(1, overview.GetProperty("activeExpressOrders").GetInt32());
+        Assert.Equal(1, (await Read<AdminPage<JsonElement>>(await admin.GetAsync("/api/admin/audit?filter=express"))).Total);
     }
 
     [Fact]

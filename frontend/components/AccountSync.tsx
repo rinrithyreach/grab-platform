@@ -40,6 +40,9 @@ function SyncSession() {
   }, [api, user?.id]);
 
   if (!ready || !user || state.phase === "synced") return null;
+  // Routine loading/saving floats in a corner (only if it takes a moment) so the page never shifts;
+  // problems that need the person (offline, conflict) stay as a bar above the page.
+  if (state.phase === "loading" || state.phase === "saving") return <div className="sync-pill" role="status" aria-live="polite"><span aria-hidden className="sync-pill-icon">↻</span>{t(`sync.${state.phase}`)}</div>;
   return <div className="border-b border-border bg-surface text-xs" role="status" aria-live="polite">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
       <p className={state.phase === "offline" || state.phase === "conflict" ? "text-amber-700 dark:text-amber-300" : "text-muted"}>

@@ -22,6 +22,9 @@ const offer = {
 };
 
 async function component(path, imports) {
+  imports["./PromotionBadge"] ??= data('export default () => null;');
+  imports["./CategoryBadge"] ??= data('export default () => null;');
+  imports["./FoodProductDetails"] ??= data('export default () => null;');
   let source = ts.transpileModule(await readFile(new URL(path, import.meta.url), "utf8"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
@@ -41,6 +44,18 @@ test("GrabExpress product card opens details and keeps Add to cart outside its l
   assert.equal(document.querySelector("a").getAttribute("href"), "/partners/merchant-1/products/product-1");
   assert.equal(document.querySelector("a button"), null, "The cart control is not nested in the product link");
   assert.equal(document.querySelector("button").textContent, "Add to cart");
+  dom.window.close();
+});
+
+test("GrabFood product cards open the selected dish instead of the restaurant", async () => {
+  const Card = (await import(await component("../components/MerchantOfferCard.tsx", {
+    "next/link": link, "@/lib/brand": data('export const money = value => `$${value}`;'), "@/lib/i18n": i18n,
+    "@/lib/merchant-content": merchantContent,
+  }))).default;
+  const dish = { ...offer, merchant: { ...offer.merchant, service: "GrabFood" } };
+  const dom = new JSDOM(renderToStaticMarkup(createElement(Card, { offer: dish })));
+  assert.equal(dom.window.document.querySelector("a").getAttribute("href"), "/partners/merchant-1/products/product-1");
+  assert.ok(dom.window.document.querySelector("a").textContent.includes("partner.viewDetails"));
   dom.window.close();
 });
 
@@ -65,6 +80,7 @@ test("product details show the published listing and reject a missing listing", 
     "next/link": link, "@/lib/api": api, "@/lib/auth": api,
     "@/lib/brand": data('export const money = value => `$${value}`;'), "@/lib/i18n": i18n,
     "./BackButton": data('export default () => null;'), "./PartnerCartControls": controls,
+    "./FoodProductDetails": data('export default () => null;'),
   }))).default;
 
   await act(async () => root.render(createElement(Details, { merchantId: "merchant-1", listingId: "product-1" })));

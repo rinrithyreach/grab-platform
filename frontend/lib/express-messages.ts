@@ -39,7 +39,6 @@ export const enExpress = {
   "express.status.Delivered": "Delivered",
   "express.status.Cancelled": "Cancelled",
   "express.cancelError": "This parcel has already been picked up and cannot be cancelled.",
-  "ride.liveVehicle": "Your selected vehicle type is sent to matching partners. The API sets a development fare after booking.",
   "ride.customerOnly": "Ride booking is available to customer accounts.",
 };
 
@@ -84,6 +83,5 @@ export const kmExpress: Record<keyof typeof enExpress, string> = {
   "express.status.Delivered": "បានដឹកដល់",
   "express.status.Cancelled": "បានបោះបង់",
   "express.cancelError": "កញ្ចប់នេះត្រូវបានទទួលហើយ មិនអាចបោះបង់បានទេ។",
-  "ride.liveVehicle": "API បច្ចុប្បន្នចាត់យានជំនិះ និងកំណត់តម្លៃសាកល្បងបន្ទាប់ពីកក់។",
   "ride.customerOnly": "ការកក់ជិះសម្រាប់គណនីអតិថិជន។",
 };

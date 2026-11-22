@@ -39,9 +39,13 @@ interface Props {
   driver?: RideDriverLocation;
   trackingPhase?: "waiting" | "pickup" | "trip";
   merchantAreas?: RideMerchantMapArea[];
+  /** Booking page: a taller map that fills the desktop column. */
+  tall?: boolean;
+  /** Booking only: click/tap the map to choose the destination. */
+  onDestinationChange?: (point: Pick<Place, "lat" | "lng">) => void;
 }
 
-export default function RideMap({ from, to, label, rider, driver, trackingPhase, merchantAreas = NO_MERCHANT_AREAS }: Props) {
+export default function RideMap({ from, to, label, rider, driver, trackingPhase, merchantAreas = NO_MERCHANT_AREAS, tall = false, onDestinationChange }: Props) {
   const { t } = useT();
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
@@ -53,6 +57,8 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
   const routeLines = useRef<Polyline[]>([]);
   const roadPoints = useRef<MapPoint[]>([]);
   const following = useRef(false);
+  const destinationChange = useRef(onDestinationChange);
+  useEffect(() => { destinationChange.current = onDestinationChange; }, [onDestinationChange]);
   const view = useRef("");
   const [status, setStatus] = useState<Status>("loading");
   const [attempt, setAttempt] = useState(0);
@@ -96,6 +102,12 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
       map.current = m;
       layer.current = L.layerGroup().addTo(m);
       m.on("dragstart", () => { following.current = false; setFollow(false); });
+      m.on("click", (event) => {
+        if (tracking || !destinationChange.current) return;
+        const point = event.latlng.wrap();
+        if (!Number.isFinite(point.lat) || point.lat < -90 || point.lat > 90 || !Number.isFinite(point.lng) || point.lng < -180 || point.lng > 180) return;
+        destinationChange.current({ lat: point.lat, lng: point.lng });
+      });
 
       // Normal browser image requests preserve OSM's caching and Referer headers.
       let loadedAny = false;
@@ -173,7 +185,7 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
             location: t(merchant.approximate ? "ride.merchantApproximateArea" : "ride.merchantSavedLocation"),
             hours: t("merchant.workSchedule"), noHours: t("ride.merchantHoursUnset"),
           }));
-          L.marker(group.position, { title, icon: L.divIcon({
+          L.marker(group.position, { title, bubblingMouseEvents: false, icon: L.divIcon({
             html: `<span style="display:grid;place-items:center;width:32px;height:32px;border:2px solid #fff;border-radius:50%;background:#2563eb;color:#fff;box-shadow:0 2px 6px #0005">${group.merchants.length > 1 ? group.merchants.length : "🛵"}</span>`,
             className: "merchant-area-pin", iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -16],
           }) }).bindTooltip(tooltip).bindPopup(popup, { maxHeight: 240, maxWidth: 320 }).addTo(layer.current);
@@ -262,7 +274,7 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
 
   return (
     <div className="relative isolate" data-tracking-paused={paused || !hasDriver}>
-      <div key={attempt} ref={el} role="img" aria-label={label} className={`ride-map w-full overflow-hidden rounded-2xl border border-border bg-background ${tracking ? "h-96 sm:h-[420px]" : "h-64 sm:h-72"}`} />
+      <div key={attempt} ref={el} role={onDestinationChange && !tracking ? "region" : "img"} aria-label={label} className={`ride-map w-full overflow-hidden rounded-2xl border border-border bg-background ${tracking ? "h-96 sm:h-[420px]" : tall ? "h-56 sm:h-80 lg:h-140" : "h-64 sm:h-72"}`} />
       {tracking && status === "ready" && <>
         <div className="pointer-events-none absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-full border border-white/80 bg-surface/95 px-3 py-2 text-xs font-semibold shadow-sm backdrop-blur-sm">
           <span className={`h-2 w-2 rounded-full ${hasDriver && !paused ? "animate-pulse bg-emerald-500" : "bg-amber-500"}`} />

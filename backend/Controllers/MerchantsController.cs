@@ -49,7 +49,7 @@ public class MerchantsController(MerchantService merchants, IAuthService auth, I
     public Task<MerchantListingDto> Update(Guid id, MerchantListingRequest r, CancellationToken ct) => merchants.SaveListing(UserId, id, r, ct);
 
     [HttpGet("offers")]
-    public Task<List<MerchantOfferDto>> Offers(MerchantServiceKind? service, CancellationToken ct, int page = 1) => merchants.Offers(service, page, ct);
+    public Task<List<MerchantOfferDto>> Offers(MerchantServiceKind? service, CancellationToken ct, int page = 1, Guid? categoryId = null) => merchants.Offers(service, page, ct, categoryId);
 
     [HttpGet("ride-areas")]
     public Task<List<RideMerchantAreaDto>> RideAreas(CancellationToken ct, int page = 1) => merchants.RideAreas(page, ct);

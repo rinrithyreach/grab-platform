@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadLib } from "./load-lib.mjs";
 
-const { adminActions, adminCsv } = await loadLib("admin");
+const { adminActions, adminCsv, adminPermissionSection, ADMIN_CONFIG } = await loadLib("admin");
 const { createApiClient } = await loadLib("api");
 const { authDestination } = await loadLib("auth-destination");
 
@@ -138,4 +138,13 @@ test("admin profiles from an API without role fields do not crash permission che
   const limited = normalizeAdminProfile({ ...legacy, isSuperAdmin: false, permissions: ["orders.view"], roleId: "r", roleName: "Order desk" });
   assert.equal(adminCan(limited, "orders"), true);
   assert.equal(adminCan(limited, "users"), false);
+});
+
+test("the Express section manages GrabExpress shop orders like food orders and shares the Orders permission", () => {
+  assert.deepEqual(adminActions("express", { id: "e", status: "Pending" }).map(a => a.value), ["Accepted", "Rejected"]);
+  assert.deepEqual(adminActions("express", { id: "e", status: "OnTheWay" }).map(a => a.value), ["Delivered", "Rejected"]);
+  assert.deepEqual(adminActions("express", { id: "e", status: "Delivered" }), []);
+  assert.equal(adminPermissionSection("express"), "orders");
+  assert.equal(adminPermissionSection("deliveries"), "deliveries");
+  assert.ok(ADMIN_CONFIG.audit.filters.includes("express"), "Express changes can be found in the activity log");
 });

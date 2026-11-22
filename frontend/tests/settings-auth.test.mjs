@@ -45,7 +45,7 @@ async function browser(t, initial, systemDark = false) {
     assertPreference(expected) {
       assert.deepEqual(settings, expected);
       assert.equal(dom.window.document.documentElement.dataset.theme,
-        expected.theme === "dark" || (expected.theme === "system" && media.matches) ? "dark" : "light");
+        expected.theme === "dark" ? "dark" : "light");
       assert.equal(dom.window.document.documentElement.lang, expected.lang);
     },
     assertFirstPaint(expected) {
@@ -57,10 +57,10 @@ async function browser(t, initial, systemDark = false) {
   };
 }
 
-for (const theme of ["light", "dark", "system"]) {
+for (const theme of ["light", "dark"]) {
   test(`${theme} preference survives customer login, empty account sync, logout and next first paint`, async (t) => {
     const initial = { lang: "en", theme: theme === "dark" ? "light" : "dark" };
-    const app = await browser(t, initial, theme !== "dark");
+    const app = await browser(t, initial);
     app.assertPreference(initial);
     await app.login();
     app.assertPreference(initial);
@@ -82,11 +82,6 @@ for (const theme of ["light", "dark", "system"]) {
     await app.login();
     app.assertPreference(chosen);
 
-    if (theme === "system") {
-      app.media.matches = false;
-      await act(async () => app.media.dispatchEvent(new app.dom.window.Event("change")));
-      app.assertPreference(chosen);
-    }
   });
 }
 
@@ -104,7 +99,7 @@ test("cached and synchronized account preferences become the device preference w
   app.assertFirstPaint(cached);
   assert.equal(profile.get().addresses.length, 1);
 
-  const remote = { lang: "en", theme: "system" };
+  const remote = { lang: "en", theme: "light" };
   await act(async () => app["local-store"].replaceAccountCache(snapshot({ ...data, "grab-settings": remote })));
   app.assertPreference(remote);
   app.assertFirstPaint(remote);
@@ -115,4 +110,37 @@ test("cached and synchronized account preferences become the device preference w
   app.assertFirstPaint(remote);
   assert.deepEqual(profile.get(), { addresses: [] });
   assert.equal(app.dom.window.localStorage.getItem("grab-profile-v1"), null);
+});
+
+for (const systemDark of [true, false]) {
+  test(`saved "system" theme from older versions becomes ${systemDark ? "dark" : "light"} like the device`, async (t) => {
+    const app = await browser(t, { lang: "km", theme: "system" }, systemDark);
+    const expected = { lang: "km", theme: systemDark ? "dark" : "light" };
+    app.assertPreference(expected);
+    app.assertFirstPaint(expected);
+  });
+}
+
+test("light is the default theme when nothing is saved", async (t) => {
+  const app = await browser(t, {}, true);
+  app.assertPreference({ lang: "en", theme: "light" });
+  app.assertFirstPaint({ lang: "en", theme: "light" });
+});
+
+test("switching theme or language animates through a view transition, and repeats do not", async (t) => {
+  const app = await browser(t, { lang: "en", theme: "light" });
+  let transitions = 0;
+  app.dom.window.document.startViewTransition = (update) => { transitions++; update(); };
+  await act(async () => app.settings.updateSettings({ theme: "dark" }));
+  app.assertPreference({ lang: "en", theme: "dark" });
+  await act(async () => app.settings.updateSettings({ lang: "km" }));
+  app.assertPreference({ lang: "km", theme: "dark" });
+  await act(async () => app.settings.updateSettings({ lang: "km" }));
+  assert.equal(transitions, 2, "Only real changes animate");
+
+  // Browsers without view transitions get a short colour fade instead.
+  delete app.dom.window.document.startViewTransition;
+  await act(async () => app.settings.updateSettings({ theme: "light" }));
+  app.assertPreference({ lang: "km", theme: "light" });
+  assert.ok(app.dom.window.document.documentElement.classList.contains("settings-fading"));
 });

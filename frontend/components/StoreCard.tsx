@@ -7,6 +7,7 @@ import { useNow } from "@/lib/clock";
 import { formatTime, isOpenAt } from "@/lib/hours";
 import { useT } from "@/lib/i18n";
 import { useStoreReviews } from "@/lib/reviews";
+import { usePromotionLabel } from "@/lib/promotions";
 import FavoriteButton from "./FavoriteButton";
 import Icon from "./Icon";
 
@@ -17,7 +18,7 @@ export default function StoreCard({ store, priority = false }: { store: Store; p
   const { average } = useStoreReviews(store.id);
   // The clock is 0 until the page is in the browser; show the store as open until then.
   const closed = now > 0 && !isOpenAt(store.hours, new Date(now));
-  const promo = store.promo && pick(store.promo, store.km?.promo);
+  const promo = usePromotionLabel(store.id);
 
   return (
     // The heart is a sibling of the link (a button inside a link is invalid HTML).

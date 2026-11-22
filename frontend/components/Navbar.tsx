@@ -3,25 +3,29 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { BRAND } from "@/lib/brand";
 import { cartDetails, useShop } from "@/lib/cart";
 import { STORES, type StoreKind } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { useHydratedPathname } from "@/lib/navigation";
 import { partnerTotals, usePartnerCart } from "@/lib/partner-cart";
+import { useWallet } from "@/lib/wallet";
 import SettingsMenu from "./SettingsMenu";
 import BrandMark from "./BrandMark";
-import Icon from "./Icon";
+import Icon, { type IconName } from "./Icon";
 import MobileNav from "./MobileNav";
+import AccountMenu from "./AccountMenu";
 
 const LINKS: { href: string; key: MessageKey }[] = [
   { href: "/ride", key: "nav.ride" },
   { href: "/food", key: "nav.food" },
   { href: "/express", key: "nav.express" },
-  { href: "/merchant", key: "nav.merchant" },
-  { href: "/rides", key: "nav.myRides" },
-  { href: "/orders", key: "nav.myOrders" },
-  { href: "/deliveries", key: "nav.deliveries" },
+];
+
+/** The customer's own history: compact icons in the header, icon rows in the drawer. */
+const ACTIVITY: { href: string; key: MessageKey; icon: IconName }[] = [
+  { href: "/rides", key: "nav.myRides", icon: "car" },
+  { href: "/orders", key: "nav.myOrders", icon: "receipt" },
+  { href: "/deliveries", key: "nav.deliveries", icon: "truck" },
 ];
 
 /** Food opens with + / − in the mobile drawer to list their stores. */
@@ -34,12 +38,13 @@ export default function Navbar() {
   const merchant = user?.role === "Merchant";
   const accountHref = user?.role === "Admin" ? "/admin" : merchant ? "/merchant" : "/profile";
   const accountLabel = user?.role === "Admin" ? "Admin dashboard" : t(merchant ? "nav.myMerchant" : "nav.profile");
-  const links = merchant ? LINKS.filter((link) => link.href !== "/merchant") : LINKS;
+  const links = LINKS;
   const savedName = user?.fullName.trim();
   const greetingName = savedName && savedName !== "Customer" ? savedName : user?.phoneNumber ?? "";
   const { cart } = useShop();
   // Only one of the two carts holds items at a time (see lib/cart.ts).
   const count = cartDetails(cart).count + partnerTotals(usePartnerCart()).count;
+  const { balance } = useWallet(user?.id);
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -90,14 +95,15 @@ export default function Navbar() {
             <BrandMark />
           </Link>
 
-          <ul className="ml-3 hidden gap-0.5 xl:flex">
+          {/* Main services: big, bold pills so they read at a glance. */}
+          <ul className="ml-4 hidden gap-1.5 xl:flex">
             {links.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
                   aria-current={isActive(l.href) ? "page" : undefined}
-                  className={`whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-medium transition-colors hover:bg-brand-soft ${
-                    isActive(l.href) ? "bg-brand-soft text-brand" : "text-muted"
+                  className={`whitespace-nowrap rounded-full px-4 py-2.5 text-base font-semibold transition-colors hover:bg-brand-soft hover:text-brand ${
+                    isActive(l.href) ? "bg-brand-soft text-brand" : "text-foreground/80"
                   }`}
                 >
                   {t(l.key)}
@@ -108,12 +114,7 @@ export default function Navbar() {
 
           <div className="ml-auto flex items-center gap-1">
             <SettingsMenu />
-            <Link href="/favorites" aria-label={t("fav.title")} aria-current={pathname === "/favorites" ? "page" : undefined} className="hidden h-10 w-10 place-items-center rounded-full text-muted hover:bg-brand-soft hover:text-brand xl:grid"><Icon name="heart" /></Link>
-            <Link href={accountHref} aria-label={accountLabel} title={accountLabel} aria-current={isActive(accountHref) ? "page" : undefined} className={`hidden h-10 items-center justify-center gap-2 rounded-full hover:bg-brand-soft sm:flex ${merchant ? "px-3 text-sm font-semibold" : "w-10 text-lg"} ${isActive(accountHref) ? "bg-brand-soft" : ""}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" /> : <Icon name="user" />}{merchant && accountLabel}
-            </Link>
-            <Link href="/cart" aria-label={t("nav.cart")} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-brand-soft">
+            <Link href="/cart" aria-label={t("nav.cart")} aria-current={pathname === "/cart" ? "page" : undefined} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-brand-soft">
               <Icon name="bag" />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-bold text-black">
@@ -121,10 +122,10 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+            {/* Everything personal (history, favourites, wallet, merchant, log out) lives in one avatar menu. */}
             {user ? (
-              <div className="ml-1 hidden items-center gap-2 sm:flex">
-                <span className="max-w-40 truncate text-sm text-muted">{t("nav.hi", { name: greetingName })}</span>
-                <button onClick={logout} className="btn-outline h-9 px-4 text-sm">{t("nav.logout")}</button>
+              <div className="ml-1 hidden sm:block">
+                <AccountMenu name={greetingName} avatarUrl={user.avatarUrl} accountHref={accountHref} accountLabel={accountLabel} merchant={merchant} onLogout={logout} isActive={isActive} walletBalance={balance} />
               </div>
             ) : (
               <Link href="/login" className="btn-primary ml-1 hidden h-9 px-4 text-sm sm:inline-flex">{t("nav.login")}</Link>
@@ -219,6 +220,14 @@ export default function Navbar() {
                   </li>
                 );
               })}
+              {!merchant && (
+                <li><Link href="/merchant" aria-current={isActive("/merchant") ? "page" : undefined} className={`${row} ${isActive("/merchant") ? "text-brand" : ""}`}>{t("nav.merchant")}<Icon name="store" /></Link></li>
+              )}
+              {ACTIVITY.map((a) => (
+                <li key={a.href}>
+                  <Link href={a.href} aria-current={isActive(a.href) ? "page" : undefined} className={`${row} ${isActive(a.href) ? "text-brand" : ""}`}>{t(a.key)}<Icon name={a.icon} /></Link>
+                </li>
+              ))}
               <li><Link href="/favorites" className={`${row} ${pathname === "/favorites" ? "text-brand" : ""}`}>{t("fav.title")}<Icon name="heart" /></Link></li>
               <li><Link href="/wallet" className={`${row} ${pathname === "/wallet" ? "text-brand" : ""}`}>{t("nav.wallet")}<Icon name="wallet" /></Link></li>
               <li><Link href={accountHref} aria-current={isActive(accountHref) ? "page" : undefined} className={`${row} ${isActive(accountHref) ? "text-brand" : ""}`}>{accountLabel}</Link></li>

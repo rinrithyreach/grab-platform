@@ -9,7 +9,11 @@ import { rideMerchantMapArea } from "@/lib/ride-merchant-areas";
 import { formatRideWorkSchedule } from "@/lib/ride-work-schedule";
 import RideMap from "./RideMap";
 
-export default function RideMerchantMap({ from, to, label, vehicleType, onAvailabilityChange }: { from: Place; to: Place; label: string; vehicleType?: RideVehicleType; onAvailabilityChange?: (areas: RideMerchantArea[] | null) => void }) {
+export default function RideMerchantMap({ from, to, label, vehicleType, onAvailabilityChange, onDestinationChange }: {
+  from: Place; to: Place; label: string; vehicleType?: RideVehicleType;
+  onAvailabilityChange?: (areas: RideMerchantArea[] | null) => void;
+  onDestinationChange?: (point: Pick<Place, "lat" | "lng">) => void;
+}) {
   const { api } = useAuth();
   const { t } = useT();
   const [merchants, setMerchants] = useState<RideMerchantArea[]>([]);
@@ -50,12 +54,13 @@ export default function RideMerchantMap({ from, to, label, vehicleType, onAvaila
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", focus); };
   }, [api, retry, onAvailabilityChange]);
 
-  return <section className="space-y-3" aria-label={t("ride.merchantAreas")}>
-    <div><h2 className="font-bold">{t("ride.merchantAreas")}</h2><p className="mt-1 text-xs text-muted">{t("ride.merchantAreasHint")}</p></div>
-    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted">
+  // The map comes first; a single quiet legend line replaces the old heading and hint.
+  return <section className="space-y-2" aria-label={t("ride.merchantAreas")}>
+    <RideMap from={from} to={to} label={label} merchantAreas={areas} onDestinationChange={onDestinationChange} tall />
+    {onDestinationChange && <p className="px-1 text-sm font-medium text-brand">{t("ride.mapDestinationHint")}</p>}
+    <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted" title={t("ride.merchantAreasHint")}>
       <span>🟢 {t("ride.pickup")}</span><span>🔴 {t("ride.destination")}</span><span>🛵 {t("ride.merchantAreasCount", { n: areas.length })}</span>
     </div>
-    <RideMap from={from} to={to} label={label} merchantAreas={areas} />
     {phase === "loading" && <p role="status" className="text-xs text-muted">{t("ride.merchantAreasLoading")}</p>}
     {phase === "error" && <div className="flex flex-wrap items-center justify-between gap-2"><p role="alert" className="text-xs text-muted">{t("ride.merchantAreasError")}</p><button type="button" className="btn-outline h-9 px-3 text-xs" onClick={() => { setPhase("loading"); setRetry((value) => value + 1); }}>{t("errorPage.retry")}</button></div>}
     {phase === "ready" && !visibleMerchants.length && <p className="text-xs text-muted">{t("ride.noMerchantAreas")}</p>}

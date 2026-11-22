@@ -1,7 +1,7 @@
 /**
  * Test helper: compiles the given lib/*.ts(x) files to JavaScript in a temp folder
  * (fixing up their "./x" imports) and imports the first one.
- * Store tests can supply a fake window; React is resolved from this project.
+ * Store tests can supply a fake window; React and React DOM are resolved from this project.
  * This helper does not render components or simulate browser layout.
  *
  *   const pricing = await loadLib("pricing", "catalog", "brand", "hours");
@@ -15,7 +15,8 @@ import ts from "typescript";
 
 async function compileLibs(names) {
   const dir = await mkdtemp(join(tmpdir(), "lib-test-"));
-  for (const name of names) {
+  const dependencies = names.includes("pricing") || names.includes("cart") ? ["promotion-rules"] : [];
+  for (const name of new Set([...names, ...dependencies])) {
     const source = await readFile(new URL(`../lib/${name}.ts`, import.meta.url), "utf8").catch((err) => {
       if (err.code !== "ENOENT") throw err;
       return readFile(new URL(`../lib/${name}.tsx`, import.meta.url), "utf8");
@@ -26,7 +27,7 @@ async function compileLibs(names) {
     const require = createRequire(import.meta.url);
     await writeFile(join(dir, `${name}.mjs`), outputText
       .replace(/from "\.\/([\w-]+)"/g, 'from "./$1.mjs"')
-      .replace(/from "(react(?:\/jsx-runtime)?)"/g, (_, name) => `from "${pathToFileURL(require.resolve(name)).href}"`));
+      .replace(/from "(react(?:\/jsx-runtime)?|react-dom)"/g, (_, name) => `from "${pathToFileURL(require.resolve(name)).href}"`));
   }
   return dir;
 }

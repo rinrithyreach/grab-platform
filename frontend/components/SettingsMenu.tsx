@@ -1,56 +1,85 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { updateSettings, useSettings, type Lang, type Theme } from "@/lib/settings";
-import Icon from "./Icon";
+import { updateSettings, useSettings } from "@/lib/settings";
+import Icon, { type IconName } from "./Icon";
 
-export const LANGS: { value: Lang; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "km", label: "ខ្មែរ" },
-];
-export const THEMES: { value: Theme; icon: string }[] = [
-  { value: "light", icon: "☀️" },
-  { value: "dark", icon: "🌙" },
-  { value: "system", icon: "💻" },
-];
-
-export function Segmented<V extends string>({ label, value, options, onChange }: {
-  label: string; value: V; options: { value: V; label: string }[]; onChange: (v: V) => void;
+/** A label on the left and a two-option switch on the right. */
+function Switch<V extends string>({ label, value, options, onChange }: {
+  label: string;
+  value: V;
+  options: { value: V; label: string; icon?: IconName }[];
+  onChange: (v: V) => void;
 }) {
+  const id = useId();
   return (
-    <fieldset>
-      <legend className="mb-1.5 text-sm font-medium text-muted">{label}</legend>
-      <div className="flex gap-1 rounded-xl bg-background p-1">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={value === o.value}
-            onClick={() => onChange(o.value)}
-            className={`flex-1 rounded-lg px-2 py-1.5 text-sm font-medium transition-colors ${
-              value === o.value ? "bg-surface text-brand shadow-sm" : "text-muted hover:text-foreground"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
+    <div className="flex items-center justify-between gap-3">
+      <span id={id} className="text-sm font-medium">{label}</span>
+      <div role="radiogroup" aria-labelledby={id} className="flex rounded-full bg-background p-0.5">
+        {options.map((o) => {
+          const active = value === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(o.value)}
+              className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                active ? "bg-brand text-white shadow-sm dark:text-background" : "text-muted hover:text-foreground"
+              }`}
+            >
+              {o.icon && <Icon name={o.icon} className="h-3.5 w-3.5" />}
+              {o.label}
+            </button>
+          );
+        })}
       </div>
-    </fieldset>
+    </div>
   );
 }
 
-/** Gear button in the navbar that opens language + theme settings. */
+export function LanguagePicker() {
+  const { t } = useT();
+  const { lang } = useSettings();
+  return (
+    <Switch
+      label={t("settings.language")}
+      value={lang}
+      options={[{ value: "en", label: "EN" }, { value: "km", label: "ខ្មែរ" }]}
+      onChange={(lang) => updateSettings({ lang })}
+    />
+  );
+}
+
+export function ThemePicker() {
+  const { t } = useT();
+  const { theme } = useSettings();
+  return (
+    <Switch
+      label={t("settings.theme")}
+      value={theme}
+      options={[
+        { value: "light", label: t("settings.light"), icon: "sun" },
+        { value: "dark", label: t("settings.dark"), icon: "moon" },
+      ]}
+      onChange={(theme) => updateSettings({ theme })}
+    />
+  );
+}
+
+/** Settings button in the navbar: quick language and theme switches. */
 export default function SettingsMenu() {
   const { t } = useT();
-  const settings = useSettings();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); buttonRef.current?.focus(); } };
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
@@ -59,29 +88,23 @@ export default function SettingsMenu() {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         aria-label={t("settings.title")}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="grid h-10 w-10 place-items-center rounded-full text-lg hover:bg-brand-soft"
+        className={`grid h-10 w-10 place-items-center rounded-full text-lg transition-colors hover:bg-brand-soft ${open ? "bg-brand-soft text-brand" : ""}`}
       >
         <Icon name="settings" />
       </button>
       {open && (
-        // Phones: span the screen under the navbar. Larger screens: drop down from the gear.
-        <div className="card fixed inset-x-4 top-[4.5rem] z-40 space-y-4 p-4 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
-          <p className="font-bold">{t("settings.title")}</p>
-          <Segmented
-            label={t("settings.language")}
-            value={settings.lang}
-            options={LANGS}
-            onChange={(lang) => updateSettings({ lang })}
-          />
-          <Segmented
-            label={t("settings.theme")}
-            value={settings.theme}
-            options={THEMES.map((th) => ({ value: th.value, label: `${th.icon} ${t(`settings.${th.value}`)}` }))}
-            onChange={(theme) => updateSettings({ theme })}
-          />
+        // Phones: span the screen under the navbar. Larger screens: drop down from the button.
+        <div
+          role="dialog"
+          aria-label={t("settings.title")}
+          className="card fixed inset-x-4 top-[4.5rem] z-40 space-y-3 p-3.5 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72"
+        >
+          <LanguagePicker />
+          <ThemePicker />
         </div>
       )}
     </div>

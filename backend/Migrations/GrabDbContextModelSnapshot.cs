@@ -467,6 +467,9 @@ namespace Grab.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1500)
@@ -498,6 +501,8 @@ namespace Grab.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.HasIndex("ImageId");
 
                     b.HasIndex("MerchantId");
@@ -516,10 +521,14 @@ namespace Grab.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("CodeDiscount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("CustomerId")
+                    b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("DeliveryAddress")
@@ -530,6 +539,22 @@ namespace Grab.Api.Migrations
                     b.Property<decimal>("DeliveryFee")
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("Discount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("GuestName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GuestPhone")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("GuestTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<Guid>("MerchantId")
                         .HasColumnType("uniqueidentifier");
@@ -543,6 +568,10 @@ namespace Grab.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PromoCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -574,7 +603,7 @@ namespace Grab.Api.Migrations
 
                     b.ToTable("MerchantOrders", t =>
                         {
-                            t.HasCheckConstraint("CK_MerchantOrders_Total", "[Subtotal] > 0 AND [DeliveryFee] >= 0 AND [Total] = [Subtotal] + [DeliveryFee]");
+                            t.HasCheckConstraint("CK_MerchantOrders_Total", "[Subtotal] > 0 AND [Discount] >= 0 AND [CodeDiscount] >= 0 AND [Subtotal] >= [Discount] + [CodeDiscount] AND [DeliveryFee] >= 0 AND [Total] = [Subtotal] - [Discount] - [CodeDiscount] + [DeliveryFee]");
                         });
                 });
 
@@ -881,6 +910,112 @@ namespace Grab.Api.Migrations
                     b.ToTable("PlatformSettings");
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.ProductCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("KhmerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("Service", "ParentId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ProductCategories");
+                });
+
+            modelBuilder.Entity("Grab.Api.Models.Promotion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BuyQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset?>("EndsAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("FirstOrderOnly")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("FreeQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("MaxDiscount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("MinSubtotal")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProductId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset?>("StartsAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("StoreId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[Code] IS NOT NULL");
+
+                    b.ToTable("Promotions");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Review", b =>
                 {
                     b.Property<Guid>("Id")
@@ -933,7 +1068,7 @@ namespace Grab.Api.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("CustomerId")
+                    b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Destination")
@@ -965,6 +1100,18 @@ namespace Grab.Api.Migrations
                     b.Property<decimal>("Fare")
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("GuestName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GuestPhone")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("GuestTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<Guid?>("MerchantId")
                         .HasColumnType("uniqueidentifier");
@@ -1006,7 +1153,10 @@ namespace Grab.Api.Migrations
 
                     b.HasIndex("MerchantId", "Status");
 
-                    b.ToTable("Rides");
+                    b.ToTable("Rides", t =>
+                        {
+                            t.HasCheckConstraint("CK_Rides_CustomerOrGuest", "[CustomerId] IS NOT NULL OR ([GuestName] IS NOT NULL AND [GuestPhone] IS NOT NULL AND [GuestTokenHash] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Grab.Api.Models.RideMerchantResponse", b =>
@@ -1207,6 +1357,11 @@ namespace Grab.Api.Migrations
 
             modelBuilder.Entity("Grab.Api.Models.MerchantListing", b =>
                 {
+                    b.HasOne("Grab.Api.Models.ProductCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Grab.Api.Models.MerchantImage", null)
                         .WithMany()
                         .HasForeignKey("ImageId")
@@ -1219,6 +1374,8 @@ namespace Grab.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Category");
+
                     b.Navigation("Merchant");
                 });
 
@@ -1227,8 +1384,7 @@ namespace Grab.Api.Migrations
                     b.HasOne("Grab.Api.Models.User", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Grab.Api.Models.Merchant", "Merchant")
                         .WithMany()
@@ -1284,6 +1440,16 @@ namespace Grab.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Grab.Api.Models.ProductCategory", b =>
+                {
+                    b.HasOne("Grab.Api.Models.ProductCategory", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("Grab.Api.Models.Review", b =>
                 {
                     b.HasOne("Grab.Api.Models.User", null)
@@ -1310,8 +1476,7 @@ namespace Grab.Api.Migrations
                     b.HasOne("Grab.Api.Models.User", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Grab.Api.Models.Driver", null)
                         .WithMany()

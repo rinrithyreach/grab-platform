@@ -20,6 +20,12 @@ public record BookRideRequest(
     [property: JsonRequired] [Range(-180, 180)] double DestinationLongitude,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     [EnumDataType(typeof(RideVehicleType))] RideVehicleType VehicleType = RideVehicleType.Motorcycle);
+/// <summary>Book without an account: the driver needs a name and a phone number to reach the rider.</summary>
+public record GuestRideRequest([Required] BookRideRequest Ride,
+    [Required, StringLength(120, MinimumLength = 2)] string ContactName,
+    [Required, StringLength(30)] string ContactPhone);
+/// <summary>The access token is shown once; it is needed to track or cancel the guest ride.</summary>
+public record GuestRideResponse(RideDto Ride, string AccessToken);
 public record StatusRequest([EnumDataType(typeof(RideStatus))] RideStatus Status);
 public record RideLocationRequest(
     [property: JsonRequired] [Range(-90, 90)] double Latitude,
@@ -31,7 +37,7 @@ public record DriverRequest(Guid UserId,
     [Required, StringLength(30)] string VehiclePlate);
 public record PaymentRequest(Guid RideId);
 public record ReviewRequest(Guid RideId, [Range(1, 5)] int Rating, [StringLength(1000)] string? Comment);
-public record RideDto(Guid Id, Guid CustomerId, Guid? DriverId, string PickupLocation, string Destination,
+public record RideDto(Guid Id, Guid? CustomerId, Guid? DriverId, string PickupLocation, string Destination,
     double PickupLatitude, double PickupLongitude, double DestinationLatitude, double DestinationLongitude,
     decimal Fare, string PricingMode, RideStatus Status, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt,
     Guid? MerchantId, string? MerchantName, RideDriverLocationDto? DriverLocation, RideVehicleType VehicleType);

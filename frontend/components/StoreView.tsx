@@ -6,6 +6,7 @@ import { useNow } from "@/lib/clock";
 import { formatTime, isOpen24h, isOpenAt } from "@/lib/hours";
 import { useT } from "@/lib/i18n";
 import { useStoreReviews } from "@/lib/reviews";
+import { usePromotionLabel } from "@/lib/promotions";
 import BackButton from "./BackButton";
 import MenuItemCard from "./MenuItemCard";
 import CartBar from "./CartBar";
@@ -18,7 +19,7 @@ export default function StoreView({ store }: { store: Store }) {
   const { reviews, average, count } = useStoreReviews(store.id);
   const popular = store.items.filter((i) => i.popular);
   const isMart = store.kind === "mart";
-  const promo = store.promo && pick(store.promo, store.km?.promo);
+  const promo = usePromotionLabel(store.id);
   // The clock is 0 until the page is in the browser; show the store as open until then.
   const closed = now > 0 && !isOpenAt(store.hours, new Date(now));
   const hoursText = !store.hours || isOpen24h(store.hours)

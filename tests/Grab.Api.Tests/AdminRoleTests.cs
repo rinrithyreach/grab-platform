@@ -46,7 +46,7 @@ public partial class ApiTests
         using var agent = await AdminByEmail(f, "orders@example.test", password);
         var profile = await Read<AdminProfileDto>(await agent.GetAsync("/api/admin/profile"));
         Assert.False(profile.IsSuperAdmin); Assert.Equal("Order desk", profile.RoleName); Assert.Contains("orders.manage", profile.Permissions!);
-        foreach (var allowed in new[] { "overview", "orders", "profile/activity" })
+        foreach (var allowed in new[] { "overview", "orders", "express", "profile/activity" })
             Assert.Equal(HttpStatusCode.OK, (await agent.GetAsync($"/api/admin/{allowed}")).StatusCode);
         foreach (var denied in new[] { "users", "merchants", "rides", "payments", "audit", "settings", "team", "roles" })
             Assert.Equal(HttpStatusCode.Forbidden, (await agent.GetAsync($"/api/admin/{denied}")).StatusCode);
@@ -59,6 +59,13 @@ public partial class ApiTests
         using var lead = await AdminByEmail(f, "lead@example.test", password);
         Assert.Equal(HttpStatusCode.Forbidden, (await lead.PostAsJsonAsync("/api/admin/team", new CreateAdminRequest("Sneaky Super", "super2@example.test", null, password, "Escalation", null), Json)).StatusCode);
         var settingsRole = await CreateRole(super, "Settings editor", "settings.manage");
+        // The Express section follows the Orders permission: a role without it cannot see Express orders.
+        Assert.Equal(HttpStatusCode.Created, (await super.PostAsJsonAsync("/api/admin/team", new CreateAdminRequest("Settings Only", "settings-only@example.test", null, password, "Settings only", settingsRole), Json)).StatusCode);
+        using (var settingsOnly = await AdminByEmail(f, "settings-only@example.test", password))
+            Assert.Equal(HttpStatusCode.Forbidden, (await settingsOnly.GetAsync("/api/admin/express")).StatusCode);
+        // Free the settings role again so the deletion check below still finds it unused.
+        var settingsOnlyId = (await Read<List<AdminTeamMemberDto>>(await super.GetAsync("/api/admin/team"))).Single(x => x.Email == "settings-only@example.test").Id;
+        Assert.Equal(HttpStatusCode.OK, (await super.PatchAsJsonAsync($"/api/admin/team/{settingsOnlyId}/role", new AdminTeamRoleRequest(orderDesk, "Move to order desk"), Json)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await lead.PostAsJsonAsync("/api/admin/team", new CreateAdminRequest("Settings Person", "settings@example.test", null, password, "Escalation", settingsRole), Json)).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await lead.PostAsJsonAsync("/api/admin/team", new CreateAdminRequest("Second Agent", "agent2@example.test", null, password, "Within my access", orderDesk), Json)).StatusCode);
         var team = await Read<List<AdminTeamMemberDto>>(await lead.GetAsync("/api/admin/team"));

@@ -9,7 +9,7 @@ public record AdminUserRequest([Required, StringLength(120, MinimumLength = 2)] 
     [EnumDataType(typeof(Role))] Role Role, bool IsActive, [Required, StringLength(300, MinimumLength = 3)] string Reason);
 public record AdminListingRequest([Required, StringLength(120, MinimumLength = 2)] string Title,
     [StringLength(1500)] string Description, [Range(typeof(decimal), "0.01", "999999.99")] decimal Price,
-    bool IsPublished, bool ShowInSlideshow, [Required, StringLength(300, MinimumLength = 3)] string Reason);
+    bool IsPublished, bool ShowInSlideshow, [Required, StringLength(300, MinimumLength = 3)] string Reason, Guid? CategoryId = null);
 public record AdminActionRequest([Required, StringLength(40)] string Action,
     [Required, StringLength(300, MinimumLength = 3)] string Reason);
 public record AdminDriverRequest(Guid UserId, [Required, StringLength(50)] string VehicleType,

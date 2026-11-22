@@ -13,38 +13,38 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { useNow } from "@/lib/clock";
 import { formatTime, isOpenAt } from "@/lib/hours";
 import { canPayWithWallet, chosenOptions } from "@/lib/pricing";
-import { useProfile } from "@/lib/profile";
 import { toast } from "@/lib/toast";
 import { usePartnerCart } from "@/lib/partner-cart";
 import { useWallet } from "@/lib/wallet";
 import { useAuth } from "@/lib/auth";
 import BackButton from "@/components/BackButton";
 import PartnerCheckout from "@/components/PartnerCheckout";
+import DeliveryAddressField from "@/components/DeliveryAddressField";
+import CardPaymentFields from "@/components/CardPaymentFields";
+import { CARD_FIELDS, EMPTY_CARD, validateCard } from "@/lib/card";
 
 const PAYMENTS: { value: PaymentMethod; icon: string; label: MessageKey }[] = [
   { value: "Cash", icon: "💵", label: "cart.cash" },
   { value: "Card", icon: "💳", label: "cart.card" },
   { value: "Wallet", icon: "👛", label: "wallet.name" },
 ];
-const ADDRESS_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
 
 export default function CartPage() {
   const router = useRouter();
   const { t, pick, dateLocale } = useT();
   const { cart, orders } = useShop();
-  const { addresses } = useProfile();
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const { balance, hasWallet } = useWallet(userId);
   const {
     store, lines, subtotal, discount, normalFee, deliveryFee, total, deal, amountToUnlock,
-    promoCode, codeDiscount, codeValid, tip,
+    promoCode, codeDiscount, codeValid, codeError: currentCodeError, tip, promotionLabel,
   } = cartDetails(cart, orders);
   const now = useNow();
   // The clock is 0 until the page is in the browser; treat the store as open until then.
   const storeClosed = !!store && now > 0 && !isOpenAt(store.hours, new Date(now));
   const walletShort = !canPayWithWallet(balance, total);
-  const promoLabel = store?.promo ? pick(store.promo, store.km?.promo) : "";
+  const promoLabel = promotionLabel;
   // For "buy X get Y": how many more of one item until the next free one.
   // Counted per dish across option lines, the same way lib/pricing.ts applies the deal.
   const perDish = new Map<string, number>();
@@ -57,7 +57,11 @@ export default function CartPage() {
   // Guests have no wallet; if Wallet was picked before logging out, fall back to Cash.
   const method: PaymentMethod = payment === "Wallet" && !hasWallet ? "Cash" : payment;
   const [note, setNote] = useState("");
+  // Card details live only in this component state; they are never saved with the order.
+  const [card, setCard] = useState(EMPTY_CARD);
+  const [cardChecked, setCardChecked] = useState(false);
   const [addressError, setAddressError] = useState(false);
+  const [detectingAddress, setDetectingAddress] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const partner = usePartnerCart();
@@ -81,10 +85,6 @@ export default function CartPage() {
     );
   }
 
-  function chooseAddress(text: string) {
-    setAddress(text);
-    setAddressError(!isValidAddress(text));
-  }
 
   function applyCode(e: React.FormEvent) {
     e.preventDefault();
@@ -96,11 +96,16 @@ export default function CartPage() {
 
   function checkout(e: React.FormEvent) {
     e.preventDefault();
-    if (storeClosed) return;
+    if (storeClosed || detectingAddress) return;
     if (!isValidAddress(address)) {
       setAddressError(true);
       document.getElementById("address")?.focus();
       return;
+    }
+    if (method === "Card") {
+      const cardErrors = validateCard(card);
+      const first = CARD_FIELDS.find((f) => cardErrors[f]);
+      if (first) { setCardChecked(true); document.getElementById(`card-${first}`)?.focus(); return; }
     }
     const result = placeOrder(address.trim(), method, note.trim(), userId);
     if ("error" in result) {
@@ -151,7 +156,7 @@ export default function CartPage() {
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm">
                 🏷️ <span className="font-semibold">{promoCode}</span>{" "}
-                <span className={codeValid ? "text-brand" : "text-muted"}>{codeValid ? t("cart.codeActive") : t("cart.codeMinSpend")}</span>
+                <span className={codeValid ? "text-brand" : "text-muted"}>{codeValid ? t("cart.codeActive") : t(currentCodeError === "minSpend" ? "cart.codeMinSpend" : "cart.codeInvalid")}</span>
               </p>
               <button onClick={removePromoCode} className="shrink-0 text-sm text-muted hover:text-red-600">{t("cart.codeRemove")}</button>
             </div>
@@ -174,42 +179,7 @@ export default function CartPage() {
 
       <form onSubmit={checkout} className="card h-fit space-y-4 p-5 lg:sticky lg:top-24" noValidate>
         <h2 className="text-lg font-bold">{t("cart.checkout")}</h2>
-        <div>
-          <label className="label" htmlFor="address">{t("cart.address")}</label>
-          {addresses.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {addresses.map((a) => (
-                <button
-                  type="button" key={a.label} onClick={() => chooseAddress(a.text)}
-                  aria-pressed={address === a.text}
-                  className={`rounded-full border px-3 py-1 text-sm ${address === a.text ? "border-brand bg-brand-soft text-brand" : "border-border hover:bg-brand-soft"}`}
-                >
-                  {ADDRESS_ICON[a.label]} {t(`profile.${a.label}`)}
-                </button>
-              ))}
-            </div>
-          )}
-          <input
-            id="address"
-            className={`input ${addressError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}`}
-            required
-            maxLength={300}
-            autoComplete="street-address"
-            value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              // Clear the error as soon as the address becomes valid.
-              if (addressError && isValidAddress(e.target.value)) setAddressError(false);
-            }}
-            onBlur={() => address.trim() && setAddressError(!isValidAddress(address))}
-            aria-invalid={addressError}
-            aria-describedby={addressError ? "address-error" : undefined}
-            placeholder={t("cart.addressPh")}
-          />
-          {addressError && (
-            <p id="address-error" role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">{t("cart.addressInvalid")}</p>
-          )}
-        </div>
+        <DeliveryAddressField key={`${userId ?? "guest"}:${store.id}`} id="address" value={address} onChange={setAddress} invalid={addressError} onInvalidChange={setAddressError} onDetectingChange={setDetectingAddress} />
         <div>
           <span className="label">{t("cart.payment")}</span>
           <div className="grid grid-cols-3 gap-2">
@@ -224,10 +194,11 @@ export default function CartPage() {
               </button>
             ))}
           </div>
+          {method === "Card" && <div className="mt-3"><CardPaymentFields value={card} onChange={setCard} showAllErrors={cardChecked} /></div>}
           {/* Checked live against the current total, so it updates as soon as the cart or balance changes. */}
           {!hasWallet && (
             <p className="mt-1.5 text-sm text-muted">
-              🔒 <Link href="/login" className="font-semibold text-brand underline">{t("wallet.loginToUse")}</Link>
+              🔒 <Link href="/login" className="font-semibold text-brand">{t("wallet.loginToUse")}</Link>
             </p>
           )}
           {method === "Wallet" && (
@@ -294,7 +265,7 @@ export default function CartPage() {
           )}
           <div className="flex justify-between pt-1 text-base font-bold"><dt>{t("cart.total")}</dt><dd>{money(total)}</dd></div>
         </dl>
-        <button type="submit" className="btn-primary w-full" disabled={storeClosed || (method === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
+        <button type="submit" className="btn-primary w-full" disabled={detectingAddress || storeClosed || (method === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
       </form>
     </div>
   );

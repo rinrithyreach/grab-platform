@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { adminCan, adminCovers, adminInitials, filterAdminTeam, type AdminProfile, type AdminRole, type AdminTeamMember } from "@/lib/admin-settings";
 import AdminIcon from "./AdminIcon";
+import { useAdminDialog } from "./useAdminDialog";
 
 const SUPER = "super";
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleString("en-GB", { timeZone: "Asia/Phnom_Penh", dateStyle: "medium", timeStyle: "short" }) : "Never";
@@ -94,12 +95,7 @@ export default function AdminTeamPanel({ me, revision, onSaved }: { me: AdminPro
   </div>;
 }
 
-function useModal(onClose: () => void, busy: boolean) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const el = dialog.current; el?.showModal(); return () => el?.close(); }, []);
-  const close = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
-  return { dialog, close };
-}
+const useModal = useAdminDialog;
 
 function MemberDialog({ me, member, roles, canManage, lastSuper, onClose, onSaved }: { me: AdminProfile; member: AdminTeamMember; roles: AdminRole[]; canManage: boolean; lastSuper: boolean; onClose: () => void; onSaved: (message: string) => void }) {
   const { api } = useAuth();

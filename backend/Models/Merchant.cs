@@ -29,6 +29,8 @@ public class MerchantListing
     public string Description { get; set; } = "";
     public decimal Price { get; set; }
     public Guid ImageId { get; set; }
+    public Guid? CategoryId { get; set; }
+    public ProductCategory? Category { get; set; }
     public bool IsPublished { get; set; }
     public bool ShowInSlideshow { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

@@ -3,16 +3,24 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Ride } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 import CustomerRideTracking from "./CustomerRideTracking";
 
-export default function RideBookingConfirmation({ initial, from, to, demo, onAnother }: { initial: Ride; from: string; to: string; demo: boolean; onAnother: () => void }) {
+/**
+ * After booking: live status, tracking map and next steps.
+ * `guestToken` is set for a ride booked without an account; it is the only way to read or cancel that ride.
+ */
+export default function RideBookingConfirmation({ initial, from, to, demo, guestToken = null, onAnother }: {
+  initial: Ride; from: string; to: string; demo: boolean; guestToken?: string | null; onAnother: () => void;
+}) {
   const { api } = useAuth();
-  const { t } = useT();
+  const { t, pick } = useT();
   const [ride, setRide] = useState(initial);
   const [error, setError] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const finished = ride.status === "Completed" || ride.status === "Cancelled";
   useEffect(() => {
     if (demo || finished) return;
@@ -22,7 +30,7 @@ export default function RideBookingConfirmation({ initial, from, to, demo, onAno
       if (busy) return;
       busy = true;
       try {
-        const next = await api.ride(initial.id, ctrl.signal);
+        const next = guestToken ? await api.guestRide(initial.id, guestToken, ctrl.signal) : await api.ride(initial.id, ctrl.signal);
         if (!ctrl.signal.aborted) { setRide(next); setError(false); }
       } catch { if (!ctrl.signal.aborted) setError(true); }
       finally { busy = false; }
@@ -32,7 +40,17 @@ export default function RideBookingConfirmation({ initial, from, to, demo, onAno
     const timer = setInterval(focus, 2000);
     window.addEventListener("focus", focus);
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", focus); };
-  }, [api, initial.id, demo, finished]);
+  }, [api, initial.id, demo, finished, guestToken]);
+
+  async function cancelGuestRide() {
+    if (!guestToken || cancelling) return;
+    setCancelling(true);
+    try { setRide(await api.cancelGuestRide(ride.id, guestToken)); toast(t("rides.cancelled")); }
+    catch (err) { toast(errorMessage(err, t), "error"); }
+    finally { setCancelling(false); }
+  }
+
+  const canCancel = !!guestToken && (ride.status === "Pending" || ride.status === "Accepted");
 
   return <div className="card mx-auto mt-6 max-w-2xl p-5 text-center sm:p-8">
     <p className="text-sm font-semibold text-brand">{t("ride.vehicle")}: {t(ride.vehicleType === "Motorcycle" ? "ride.moto" : ride.vehicleType === "Rickshaw" ? "ride.tuktuk" : "ride.car")}</p>
@@ -46,6 +64,12 @@ export default function RideBookingConfirmation({ initial, from, to, demo, onAno
     </div>
     {error && <p role="alert" className="mt-3 text-sm text-muted">{t("ride.statusUnavailable")}</p>}
     <CustomerRideTracking ride={ride} demo={demo} />
-    <div className="mt-6 flex flex-wrap justify-center gap-3"><Link href="/rides" className="btn-primary">{t("ride.track")}</Link><button className="btn-outline" onClick={onAnother}>{t("ride.another")}</button></div>
+    {guestToken && !finished && <p className="mt-4 text-sm text-muted">{pick("Keep this page open to follow your ride. The driver will call the phone number you gave.", "សូមបើកទំព័រនេះទុក ដើម្បីតាមដានការជិះ។ អ្នកបើកបរនឹងហៅទៅលេខទូរសព្ទដែលអ្នកបានផ្ដល់។")}</p>}
+    <div className="mt-6 flex flex-wrap justify-center gap-3">
+      {guestToken
+        ? canCancel && <button className="btn-outline" disabled={cancelling} onClick={() => void cancelGuestRide()}>{t("rides.cancel")}</button>
+        : <Link href="/rides" className="btn-primary">{t("ride.track")}</Link>}
+      <button className={guestToken ? "btn-primary" : "btn-outline"} onClick={onAnother}>{t("ride.another")}</button>
+    </div>
   </div>;
 }

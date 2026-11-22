@@ -84,6 +84,14 @@ The default browser API path is `/backend`, proxied by Next.js to `API_PROXY_URL
 
 ## Checks
 
+Both cart checkouts offer **Detect my location** under **Delivery address**. Detection runs only after a click and browser permission, fills GPS coordinates plus a nearby bundled landmark when available, and leaves the address editable for house/building details. Typing or choosing a saved address cancels pending detection. Checkout pauses while detection runs, and permission, timeout, unsupported-browser and insecure-connection errors preserve manual entry. English and Khmer messages are supported.
+
+On `/ride`, click or tap the booking map to choose a destination. The red pin, destination selector, trip distance and booking coordinates update together. Map locations remain correct when swapping pickup/destination, choosing a listed landmark or detecting the pickup with GPS. Blue partner markers open partner details without changing the destination. Tracking maps remain read-only. English and Khmer hints are included.
+
+GrabExpress shop checkout also accepts guests. Recipient name, valid contact phone and full delivery address are required; delivery instructions are optional. Orders are saved by the API and appear in merchant/admin order management with these details. Guests receive a private receipt with live status and cancellation while Pending. Receipt access survives refresh in the same tab using a secret kept in sessionStorage; the URL contains only the order ID. Guest checkout does not create an account or provide a wallet. GrabFood partner checkout still requires a customer account.
+
+GrabFood partner product cards open individual dish details at `/partners/{merchantId}/products/{listingId}`. The detail page shows the published photo and description, restaurant information, categories and promotions, a quantity selector, and other dishes from that restaurant. Adding uses the existing one-store cart and its 50-unit limit; totals and promotions are validated at checkout. GrabExpress keeps its product-details layout. Clicking a sample store's menu item opens a photo/description dialog with quantity controls and available options, including items without customization. Closed sample stores remain browsable but cannot add items from the dialog. Both flows support English and Khmer.
+
 ```powershell
 npm run lint
 npm test

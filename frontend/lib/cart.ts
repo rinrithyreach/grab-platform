@@ -11,7 +11,8 @@ import { useSyncExternalStore } from "react";
 import { getItem, getStore } from "./catalog";
 import { createLocalStore } from "./local-store";
 import { clearPartnerCart, partnerCart, putPartnerItem, type PartnerOffer } from "./partner-cart";
-import { cartDetails, lineKey, PROMO_CODES, type Cart, type Order, type PaymentMethod } from "./pricing";
+import { cartDetails, lineKey, type Cart, type Order, type PaymentMethod } from "./pricing";
+import { promotionTotals, subscribePromotions, getPromotionRules, DEFAULT_PROMOTIONS } from "./promotion-rules";
 import { payFromWallet } from "./wallet";
 
 export {
@@ -35,6 +36,7 @@ const shop = createLocalStore<State>("grab-shop-v1", EMPTY, (value): value is St
 });
 
 export function useShop() {
+  useSyncExternalStore(subscribePromotions, getPromotionRules, () => DEFAULT_PROMOTIONS);
   return useSyncExternalStore(shop.subscribe, shop.get, shop.getInitial);
 }
 
@@ -99,9 +101,10 @@ export function setTip(tip: number) {
 export function applyPromoCode(raw: string): "ok" | "invalid" | "minSpend" {
   const state = shop.get();
   const code = raw.trim().toUpperCase();
-  const promo = PROMO_CODES[code];
-  if (!promo) return "invalid";
-  if (promo.minSubtotal && cartDetails(state.cart).subtotal < promo.minSubtotal) return "minSpend";
+  const details = cartDetails(state.cart, state.orders);
+  const result = promotionTotals(state.cart.storeId ?? "", details.lines.map(l => ({ productId: l.itemId, price: l.price, qty: l.qty })), code, state.orders.length === 0);
+  if (result.codeError) return result.codeError;
+  if (!result.codeValid) return "invalid";
   shop.set({ ...state, cart: { ...state.cart, promoCode: code } });
   return "ok";
 }
@@ -152,7 +155,7 @@ export function addPartnerItem(offer: PartnerOffer, confirmReplace: (otherStoreN
  */
 export function placeOrder(address: string, payment: PaymentMethod, note: string, userId?: string | null): { order: Order } | { error: "empty" | "insufficient" | "loginRequired" } {
   const state = shop.get();
-  const { store, lines, subtotal, discount, promoCode, codeDiscount, codeValid, deliveryFee, tip, total } = cartDetails(state.cart, state.orders);
+  const { store, lines, subtotal, discount, promotionLabel, promoCode, codeDiscount, codeValid, deliveryFee, tip, total } = cartDetails(state.cart, state.orders);
   if (!store || store.kind !== "food" || !lines.length) return { error: "empty" };
   if (payment === "Wallet" && !userId) return { error: "loginRequired" };
   if (payment === "Wallet" && !payFromWallet(userId, total, store.name)) return { error: "insufficient" };
@@ -160,7 +163,7 @@ export function placeOrder(address: string, payment: PaymentMethod, note: string
     id: `ORD-${crypto.randomUUID()}`,
     storeId: store.id, storeName: store.name,
     lines: lines.map(({ itemId, name, price, qty, options, optionIds }) => ({ itemId, name, price, qty, options, optionIds })),
-    subtotal, discount,
+    subtotal, discount, promotionLabel,
     promoCode: codeValid ? promoCode : undefined, codeDiscount: codeValid ? codeDiscount : 0,
     deliveryFee, tip, total, address, payment, note, createdAt: new Date().toISOString(),
   };

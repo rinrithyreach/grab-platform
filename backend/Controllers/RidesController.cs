@@ -3,6 +3,7 @@ using Grab.Api.DTOs;
 using Grab.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 namespace Grab.Api.Controllers;
 [ApiController, Authorize, Route("api/rides")]
 public class RidesController(IRideService rides) : ApiControllerBase
@@ -25,4 +26,23 @@ public class RidesController(IRideService rides) : ApiControllerBase
     public Task<RideDto> Location(Guid id, RideLocationRequest r, CancellationToken ct) => rides.UpdateLocation(UserId, UserRole, id, r, ct);
     [HttpDelete("{id:guid}/location"), Authorize(Roles = "Merchant,Driver")]
     public Task<RideDto> StopSharing(Guid id, CancellationToken ct) => rides.UpdateLocation(UserId, UserRole, id, null, ct);
+}
+
+/// <summary>Book a ride without an account. Tracking and cancelling need the secret token returned at booking.</summary>
+[ApiController, AllowAnonymous, Route("api/rides/guest")]
+public class GuestRidesController(IRideService rides) : ControllerBase
+{
+    public const string TokenHeader = "X-Guest-Ride-Token";
+
+    [HttpPost, EnableRateLimiting("delivery-booking"), ProducesResponseType<GuestRideResponse>(201)]
+    public async Task<ActionResult<GuestRideResponse>> Book(GuestRideRequest r, CancellationToken ct) =>
+        StatusCode(201, await rides.BookGuest(r, ct));
+
+    [HttpGet("{id:guid}")]
+    public Task<RideDto> Get(Guid id, [FromHeader(Name = TokenHeader)] string? token, CancellationToken ct) =>
+        rides.GuestRide(id, token, false, ct);
+
+    [HttpPost("{id:guid}/cancel")]
+    public Task<RideDto> Cancel(Guid id, [FromHeader(Name = TokenHeader)] string? token, CancellationToken ct) =>
+        rides.GuestRide(id, token, true, ct);
 }

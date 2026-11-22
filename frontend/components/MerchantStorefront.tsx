@@ -49,7 +49,7 @@ export default function MerchantStorefront({ id }: { id: string }) {
       <div className="rounded-xl bg-brand-soft p-5"><dl className="space-y-4 text-sm"><div><dt className="font-semibold">{t("merchant.location")}</dt><dd className="mt-1">{[merchant.address, merchant.city].filter(Boolean).join(", ")}</dd></div>{merchant.openingHours && <div><dt className="font-semibold">{t("merchant.hours")}</dt><dd className="mt-1">{formatRideWorkSchedule(merchant.openingHours, (day) => t(`merchant.day.${day}`))}</dd></div>}</dl><a href={`tel:${merchant.contactPhone}`} className="btn-primary mt-5 w-full">{t("merchant.contact")}</a><p className="mt-2 text-center text-sm">{merchant.contactPhone}</p>{merchant.email && <a className="mt-3 block break-all text-center text-sm font-medium text-brand" href={`mailto:${merchant.email}`}>{merchant.email}</a>}<p className="mt-4 text-xs leading-relaxed text-muted">{t("merchant.contactHint")}</p></div>
     </section>
     <h2 className="mt-10 text-2xl font-bold">{t("merchant.offers")}</h2>
-    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{data.listings.map((listing) => <MerchantOfferCard key={listing.id} offer={listing} preview={merchant.service !== "GrabExpress"}><PartnerAddButton offer={listing} /></MerchantOfferCard>)}</div>
+    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{data.listings.map((listing) => <MerchantOfferCard key={listing.id} offer={listing}><PartnerAddButton offer={listing} /></MerchantOfferCard>)}</div>
     <PartnerCartBar merchantId={merchant.id} />
   </div>;
 }

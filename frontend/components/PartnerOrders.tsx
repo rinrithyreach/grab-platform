@@ -52,8 +52,9 @@ export function usePartnerOrders() {
   };
 }
 
-export function PartnerOrderList({ orders, error, placed, onChanged }: {
+export function PartnerOrderList({ orders, error, placed, onChanged, onCancel }: {
   orders: MerchantOrder[]; error: boolean; placed: string | null; onChanged: (order: MerchantOrder) => void;
+  onCancel?: (id: string) => Promise<MerchantOrder>;
 }) {
   const { api } = useAuth();
   const { t, lang, dateLocale } = useT();
@@ -64,7 +65,7 @@ export function PartnerOrderList({ orders, error, placed, onChanged }: {
   async function cancel(order: MerchantOrder) {
     if (!window.confirm(t("orders.cancelConfirm"))) return;
     setBusy(order.id);
-    try { onChanged(await api.cancelOrder(order.id)); toast(t("orders.cancelled")); }
+    try { onChanged(await (onCancel ? onCancel(order.id) : api.cancelOrder(order.id))); toast(t("orders.cancelled")); }
     catch (err) { toast(errorMessage(err, t), "error"); }
     finally { setBusy(null); }
   }
@@ -119,6 +120,8 @@ export function PartnerOrderList({ orders, error, placed, onChanged }: {
                 {o.items.map((i) => (
                   <div key={i.listingId} className="flex justify-between gap-4"><dt>{i.quantity} × {merchantProductTitle(i.title, lang, o.service)}</dt><dd className="shrink-0">{money(i.lineTotal)}</dd></div>
                 ))}
+                {!!o.discount && <div className="flex justify-between gap-4 text-brand"><dt>{t("cart.promo", { promo: "" })}</dt><dd>−{money(o.discount)}</dd></div>}
+                {!!o.codeDiscount && <div className="flex justify-between gap-4 text-brand"><dt>{t("cart.promo", { promo: o.promoCode ?? "" })}</dt><dd>−{money(o.codeDiscount)}</dd></div>}
                 <div className="flex justify-between gap-4 text-muted"><dt>{t("cart.deliveryFee")}</dt><dd>{money(o.deliveryFee)}</dd></div>
               </dl>
               {o.note && <p className="mt-2 text-sm text-muted">📝 {o.note}</p>}

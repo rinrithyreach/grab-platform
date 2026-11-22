@@ -44,7 +44,8 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "@/lib/cart": dataModule("const cart = {}; export const useShop = () => ({ cart }); export const cartDetails = () => ({ count: 2 });"),
       "@/lib/partner-cart": dataModule("const cart = {}; export const usePartnerCart = () => cart; export const partnerTotals = () => ({ count: 0 });"),
       "@/lib/catalog": dataModule("export const STORES = [];"),
-      "@/lib/brand": dataModule("export const BRAND = {name: 'Grab'}; export const PROJECT = {year: 2026}; export const SOCIAL_LINKS = [];"),
+      "@/lib/brand": dataModule("export const BRAND = {name: 'Grab'}; export const PROJECT = {year: 2026}; export const SOCIAL_LINKS = []; export const money = value => '$' + value;"),
+      "@/lib/wallet": dataModule("export const useWallet = () => ({ balance: 5, hasWallet: true });"),
       "./SettingsMenu": dataModule("export default () => null;"),
       "./social-icon-paths": dataModule("export const SOCIAL_ICON_PATHS = {};"),
       "@/lib/platform": dataModule("export const usePlatformSettings = () => null;"),
@@ -52,6 +53,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
     imports["./Icon"] = await compile("../components/Icon.tsx", imports);
     imports["./BrandMark"] = await compile("../components/BrandMark.tsx", imports);
     imports["./MobileNav"] = await compile("../components/MobileNav.tsx", imports);
+    imports["./AccountMenu"] = await compile("../components/AccountMenu.tsx", imports);
     const Navbar = (await import(await compile("../components/Navbar.tsx", imports))).default;
     const Footer = (await import(await compile("../components/Footer.tsx", imports))).default;
     let paused = false;
@@ -97,7 +99,9 @@ for (const destination of ["/merchant", "/store/test-store"]) {
     await act(async () => { paused = false; resume(); });
     assert.deepEqual(attributeWarnings, [], "Hydration must not warn about mismatched active-link or footer attributes");
     assert.deepEqual(recoverableErrors, []);
-    const desktopAccount = container.querySelector('header a[aria-label="nav.myMerchant"]');
+    // Personal links live in the avatar menu; open it to check them.
+    await act(async () => container.querySelector('header button[aria-label="nav.myMerchant"]').click());
+    const desktopAccount = container.querySelector('header [role="menu"] a[href="/merchant"]');
     assert.equal(desktopAccount.getAttribute("href"), "/merchant");
     assert.equal(desktopAccount.getAttribute("aria-current"), destination === "/merchant" ? "page" : null);
     assert.equal(container.querySelectorAll('a[href="/profile"]').length, 0);
@@ -106,7 +110,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
     router.setPath("/orders");
     await act(async () => root.render(h(App)));
     assert.equal(container.querySelector('header a[href="/orders"]').getAttribute("aria-current"), "page");
-    assert.equal(container.querySelector('header a[aria-label="nav.myMerchant"]').getAttribute("aria-current"), null);
+    assert.equal(container.querySelector('header [role="menu"] a[href="/merchant"]').getAttribute("aria-current"), null);
     assert.equal(container.querySelector("footer").classList.contains("pb-24"), false);
     assert.equal(container.querySelector('.mobile-bottom-nav a[href="/orders"]').getAttribute("aria-current"), "page", "Bottom navigation follows the hydrated route");
     assert.deepEqual(attributeWarnings, [], "Active links continue to update without warnings after navigation");

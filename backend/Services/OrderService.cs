@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Grab.Api.Data;
 using Grab.Api.DTOs;
 using Grab.Api.Middleware;
@@ -10,7 +12,7 @@ namespace Grab.Api.Services;
 /// Customer orders for merchant listings. Prices always come from the database at
 /// checkout, never from the browser, and are copied onto the order lines.
 /// </summary>
-public class OrderService(GrabDbContext db, PlatformSettingsService platform)
+public class OrderService(GrabDbContext db, PlatformSettingsService platform, PromotionService promotions)
 {
     private const int PageSize = 20;
 
@@ -44,8 +46,8 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform)
         o.Id, o.MerchantId, o.Merchant.BusinessName, o.Merchant.Service, o.Status, o.PaymentMethod,
         o.Items.Select(i => new MerchantOrderItemDto(i.ListingId, i.Title, i.UnitPrice, i.Quantity, i.UnitPrice * i.Quantity)).ToList(),
         o.Subtotal, o.DeliveryFee, o.Total, o.DeliveryAddress, o.Note, o.CreatedAt, o.UpdatedAt,
-        customer is null ? null : string.IsNullOrWhiteSpace(customer.FullName) ? "Customer" : customer.FullName,
-        customer?.PhoneNumber);
+        customer is null ? o.GuestName : string.IsNullOrWhiteSpace(customer.FullName) ? "Customer" : customer.FullName,
+        customer?.PhoneNumber ?? o.GuestPhone, o.Discount, o.CodeDiscount, o.PromoCode);
 
     private static void CheckPage(int page)
     {
@@ -54,12 +56,78 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform)
 
     public async Task<MerchantOrderDto> Place(Guid customerId, PlaceOrderRequest r, CancellationToken ct)
     {
-        if (r.Items is null || r.Items.Count is < 1 or > OrderLimits.MaxLines)
-            throw new ApiException(400, $"An order must contain 1–{OrderLimits.MaxLines} products.");
+        var order = await Prepare(customerId, r, ct);
+        db.MerchantOrders.Add(order);
+        await db.SaveChangesAsync(ct);
+        return Dto(order);
+    }
+
+    public async Task<GuestOrderResponse> PlaceGuest(GuestOrderRequest r, CancellationToken ct)
+    {
+        var name = r.ContactName?.Trim() ?? "";
+        if (name.Length is < 2 or > 120 || !name.Any(char.IsLetter) || name.Any(char.IsControl))
+            throw new ApiException(400, "Enter the recipient's full name (2 to 120 characters).");
+        var phone = PhoneNumbers.Normalize(r.ContactPhone)
+            ?? throw new ApiException(400, "Enter a valid contact phone number.");
+        var order = await Prepare(null, r.Order, ct);
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        order.GuestName = name; order.GuestPhone = phone; order.GuestTokenHash = TokenHash(token);
+        db.MerchantOrders.Add(order);
+        await db.SaveChangesAsync(ct);
+        return new(Dto(order), token);
+    }
+
+    private static string TokenHash(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    public async Task<MerchantOrderDto> GuestOrder(Guid id, string? token, bool cancel, CancellationToken ct)
+    {
+        // A receipt ID alone never grants access to guest contact details.
+        if (token is null || token.Length != 64) throw new ApiException(404, "Order not found.");
+        var hash = TokenHash(token);
+        var order = await db.MerchantOrders.Include(x => x.Merchant).Include(x => x.Items)
+            .SingleOrDefaultAsync(x => x.Id == id && x.CustomerId == null && x.GuestTokenHash == hash, ct)
+            ?? throw new ApiException(404, "Order not found.");
+        if (cancel)
+        {
+            if (order.Status != MerchantOrderStatus.Pending)
+                throw new ApiException(409, "The store has already responded to this order, so it can no longer be cancelled.");
+            order.Status = MerchantOrderStatus.Cancelled;
+            order.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+        return Dto(order);
+    }
+
+    private async Task<MerchantOrder> Prepare(Guid? customerId, PlaceOrderRequest r, CancellationToken ct)
+    {
         if (!Enum.IsDefined(r.PaymentMethod)) throw new ApiException(400, "Choose Cash or Card.");
+        var address = Address(r.DeliveryAddress); var note = Note(r.Note);
+        var order = await Build(customerId, r.MerchantId, r.Items, ct);
+        order.PaymentMethod = r.PaymentMethod; order.DeliveryAddress = address; order.Note = note;
+        var quote = await Price(customerId, order, r.PromoCode, ct);
+        if (r.ExpectedTotal.HasValue && r.ExpectedTotal.Value != quote.Total)
+            throw new ApiException(409, "Prices or promotions changed. Review the updated total and place the order again.");
+        order.Discount = quote.Discount; order.CodeDiscount = quote.CodeDiscount; order.PromoCode = quote.PromoCode;
+        order.DeliveryFee = quote.DeliveryFee; order.Total = quote.Total;
+        return order;
+    }
+
+    public async Task<OrderQuoteDto> Quote(Guid? customerId, OrderQuoteRequest r, CancellationToken ct)
+    {
+        var order = await Build(customerId, r.MerchantId, r.Items, ct);
+        return await Price(customerId, order, r.PromoCode, ct);
+    }
+
+    private Task<OrderQuoteDto> Price(Guid? customerId, MerchantOrder order, string? code, CancellationToken ct) =>
+        promotions.Calculate(customerId, order.MerchantId.ToString(), order.Items.Select(x => new PromotionService.Line(x.ListingId.ToString(), x.UnitPrice, x.Quantity)).ToList(), code, ct);
+
+    private async Task<MerchantOrder> Build(Guid? customerId, Guid merchantId, List<OrderItemRequest>? items, CancellationToken ct)
+    {
+        if (items is null || items.Count is < 1 or > OrderLimits.MaxLines)
+            throw new ApiException(400, $"An order must contain 1–{OrderLimits.MaxLines} products.");
         // The same product sent twice becomes one line with the combined quantity.
         var quantities = new Dictionary<Guid, int>();
-        foreach (var item in r.Items)
+        foreach (var item in items)
         {
             if (item is null || item.ListingId == Guid.Empty)
                 throw new ApiException(400, "Each order item must identify a product.");
@@ -69,12 +137,11 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform)
             if (quantities[item.ListingId] > OrderLimits.MaxQuantity)
                 throw new ApiException(400, $"Each quantity must be between 1 and {OrderLimits.MaxQuantity}.");
         }
-        var address = Address(r.DeliveryAddress);
-        var note = Note(r.Note);
-
-        var merchant = await db.Merchants.SingleOrDefaultAsync(x => x.Id == r.MerchantId && db.Users.Any(u => u.Id == x.UserId && u.IsActive), ct)
+        var merchant = await db.Merchants.SingleOrDefaultAsync(x => x.Id == merchantId && db.Users.Any(u => u.Id == x.UserId && u.IsActive), ct)
             ?? throw new ApiException(404, "This store is not available.");
         if (merchant.Service == MerchantServiceKind.GrabRide) throw new ApiException(400, "GrabRide partners do not sell products.");
+        if (!customerId.HasValue && merchant.Service != MerchantServiceKind.GrabExpress)
+            throw new ApiException(403, "Guest checkout is available for GrabExpress only. Sign in to order GrabFood.");
         await platform.RequireService(merchant.Service, ct);
         if (merchant.UserId == customerId) throw new ApiException(400, "You cannot order from your own store.");
 
@@ -88,7 +155,6 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform)
         var order = new MerchantOrder
         {
             CustomerId = customerId, MerchantId = merchant.Id, Merchant = merchant,
-            PaymentMethod = r.PaymentMethod, DeliveryAddress = address, Note = note,
             Items = listings.OrderBy(l => ids.IndexOf(l.Id)).Select(l => new MerchantOrderItem
             {
                 ListingId = l.Id, Title = l.Title, UnitPrice = l.Price, Quantity = quantities[l.Id],
@@ -97,9 +163,7 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform)
         order.Subtotal = order.Items.Sum(i => i.UnitPrice * i.Quantity);
         order.DeliveryFee = OrderLimits.DeliveryFee;
         order.Total = order.Subtotal + order.DeliveryFee;
-        db.MerchantOrders.Add(order);
-        await db.SaveChangesAsync(ct);
-        return Dto(order);
+        return order;
     }
 
     public async Task<List<MerchantOrderDto>> Mine(Guid customerId, int page, CancellationToken ct)
@@ -139,9 +203,9 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform)
                 : x.Status == MerchantOrderStatus.Accepted || x.Status == MerchantOrderStatus.OnTheWay ? 1 : 2)
             .ThenByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
             .Skip((page - 1) * PageSize).Take(PageSize).AsSplitQuery().ToListAsync(ct);
-        var customerIds = rows.Select(x => x.CustomerId).Distinct().ToList();
+        var customerIds = rows.Where(x => x.CustomerId.HasValue).Select(x => x.CustomerId!.Value).Distinct().ToList();
         var customers = await db.Users.AsNoTracking().Where(u => customerIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, ct);
-        return rows.Select(o => Dto(o, customers.GetValueOrDefault(o.CustomerId))).ToList();
+        return rows.Select(o => Dto(o, o.CustomerId.HasValue ? customers.GetValueOrDefault(o.CustomerId.Value) : null)).ToList();
     }
 
     public async Task<MerchantOrderDto> MerchantUpdate(Guid userId, Guid id, MerchantOrderStatus status, CancellationToken ct)

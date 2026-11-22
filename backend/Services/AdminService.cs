@@ -59,21 +59,33 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
                     .Where(x => f == "" || (f == "Published" && x.IsPublished) || (f == "Draft" && !x.IsPublished) || (f == "Featured" && x.IsPublished && x.ShowInSlideshow))
                     .OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
                     .Select(x => new { x.Id, x.MerchantId, MerchantName = x.Merchant.BusinessName, x.Title, x.Description, x.Price,
-                        x.IsPublished, x.ShowInSlideshow, x.ImageId, x.UpdatedAt }), page, ct);
+                        x.IsPublished, x.ShowInSlideshow, x.ImageId, x.UpdatedAt, x.CategoryId, Service = x.Merchant.Service,
+                        CategoryName = x.Category == null ? null : x.Category.Name }), page, ct);
             case "rides":
                 return await Page(db.Rides.AsNoTracking()
-                    .Where(x => q == "" || x.PickupLocation.Contains(q) || x.Destination.Contains(q) || x.Id.ToString() == q)
+                    .Where(x => q == "" || x.PickupLocation.Contains(q) || x.Destination.Contains(q) || x.Id.ToString() == q
+                        || (x.GuestName != null && x.GuestName.Contains(q)) || (x.GuestPhone != null && x.GuestPhone.Contains(q)))
                     .Where(x => f == "" || x.Status == rideStatus)
                     .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                    .Select(x => new { x.Id, x.CustomerId, CustomerName = db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.FullName).First(),
+                    .Select(x => new { x.Id, x.CustomerId,
+                        CustomerName = x.GuestName ?? db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.FullName).FirstOrDefault(),
+                        CustomerPhone = x.GuestPhone ?? db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.PhoneNumber).FirstOrDefault(),
+                        IsGuest = x.CustomerId == null,
                         x.DriverId, x.MerchantId, MerchantName = x.Merchant == null ? null : x.Merchant.BusinessName,
                         x.PickupLocation, x.Destination, x.VehicleType, x.Fare, x.Status, x.CreatedAt, x.CompletedAt }), page, ct);
-            case "orders":
+            // "orders" lists GrabFood orders; "express" lists GrabExpress shop orders. Both are merchant orders.
+            case "orders" or "express":
+                var orderService = resource == "express" ? MerchantServiceKind.GrabExpress : MerchantServiceKind.GrabFood;
                 return await Page(db.MerchantOrders.AsNoTracking()
-                    .Where(x => q == "" || x.Merchant.BusinessName.Contains(q) || x.DeliveryAddress.Contains(q) || x.Id.ToString() == q)
+                    .Where(x => x.Merchant.Service == orderService)
+                    .Where(x => q == "" || x.Merchant.BusinessName.Contains(q) || x.DeliveryAddress.Contains(q) || x.Id.ToString() == q
+                        || (x.GuestName != null && x.GuestName.Contains(q)) || (x.GuestPhone != null && x.GuestPhone.Contains(q)))
                     .Where(x => f == "" || x.Status == orderStatus)
                     .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-                    .Select(x => new { x.Id, x.CustomerId, CustomerName = db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.FullName).First(),
+                    .Select(x => new { x.Id, x.CustomerId,
+                        CustomerName = x.GuestName ?? db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.FullName).FirstOrDefault(),
+                        CustomerPhone = x.GuestPhone ?? db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.PhoneNumber).FirstOrDefault(),
+                        IsGuest = x.CustomerId == null,
                         x.MerchantId, MerchantName = x.Merchant.BusinessName, x.DeliveryAddress, x.Note, x.Status, x.PaymentMethod,
                         x.Subtotal, x.DeliveryFee, x.Total, x.CreatedAt, x.UpdatedAt,
                         Items = x.Items.Select(i => new { i.Title, i.Quantity, i.UnitPrice }).ToList() }), page, ct);
@@ -126,7 +138,11 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
             PublishedListings = await db.MerchantListings.CountAsync(x => x.IsPublished && x.Merchant.Service != MerchantServiceKind.GrabRide
                 && db.Users.Any(u => u.Id == x.Merchant.UserId && u.IsActive), ct),
             PendingRides = await db.Rides.CountAsync(x => x.Status == RideStatus.Pending, ct),
+            // PendingOrders/ActiveOrders cover every store order; the Express counts are the GrabExpress share of them.
             PendingOrders = await db.MerchantOrders.CountAsync(x => x.Status == MerchantOrderStatus.Pending, ct),
+            PendingExpressOrders = await db.MerchantOrders.CountAsync(x => x.Status == MerchantOrderStatus.Pending && x.Merchant.Service == MerchantServiceKind.GrabExpress, ct),
+            ActiveExpressOrders = await db.MerchantOrders.CountAsync(x => x.Merchant.Service == MerchantServiceKind.GrabExpress
+                && (x.Status == MerchantOrderStatus.Pending || x.Status == MerchantOrderStatus.Accepted || x.Status == MerchantOrderStatus.OnTheWay), ct),
             PendingDeliveries = await db.ParcelDeliveries.CountAsync(x => x.Status == ParcelDeliveryStatus.Pending || x.Status == ParcelDeliveryStatus.Scheduled, ct),
             ActiveRides = await db.Rides.CountAsync(x => x.Status == RideStatus.Pending || x.Status == RideStatus.Accepted || x.Status == RideStatus.InProgress, ct),
             ActiveOrders = await db.MerchantOrders.CountAsync(x => x.Status == MerchantOrderStatus.Pending || x.Status == MerchantOrderStatus.Accepted || x.Status == MerchantOrderStatus.OnTheWay, ct),
@@ -213,6 +229,8 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
         listing.Title = Clean(r.Title, 2, 120, "Title");
         listing.Description = r.Description?.Trim() ?? "";
         listing.Price = r.Price;
+        await CategoryService.ValidateAssignment(db, r.CategoryId, listing.Merchant.Service, ct);
+        listing.CategoryId = r.CategoryId;
         listing.IsPublished = r.IsPublished;
         listing.ShowInSlideshow = r.IsPublished && r.ShowInSlideshow;
         listing.UpdatedAt = DateTimeOffset.UtcNow;
@@ -249,8 +267,9 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
             case "rides" when r.Action == "Cancelled":
                 await rides.Transition(actorId, Role.Admin, id, RideStatus.Cancelled, ct);
                 break;
-            case "orders":
-                var order = await db.MerchantOrders.Include(x => x.Merchant).SingleOrDefaultAsync(x => x.Id == id, ct)
+            case "orders" or "express":
+                var actionService = resource == "express" ? MerchantServiceKind.GrabExpress : MerchantServiceKind.GrabFood;
+                var order = await db.MerchantOrders.Include(x => x.Merchant).SingleOrDefaultAsync(x => x.Id == id && x.Merchant.Service == actionService, ct)
                     ?? throw new ApiException(404, "Order not found.");
                 if (!Enum.TryParse<MerchantOrderStatus>(r.Action, out var status) || !Enum.IsDefined(status)) throw new ApiException(400, "Invalid order action.");
                 await orders.MerchantUpdate(order.Merchant.UserId, id, status, ct);

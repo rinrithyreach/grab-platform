@@ -10,15 +10,19 @@ import { money } from "@/lib/brand";
 import type { MenuItem } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
 import { defaultOptions, unitPrice } from "@/lib/pricing";
+import Icon from "./Icon";
 
 interface Props {
   item: MenuItem;
   open: boolean;
   onClose: () => void;
   onAdd: (options: string[], qty: number) => void;
+  storeName?: string;
+  imageUrl?: string;
+  closed?: boolean;
 }
 
-export default function ItemOptionsDialog({ item, open, onClose, onAdd }: Props) {
+export default function ItemOptionsDialog({ item, open, onClose, onAdd, storeName, imageUrl, closed = false }: Props) {
   const { t, pick } = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const [selected, setSelected] = useState<string[]>(() => defaultOptions(item));
@@ -48,20 +52,19 @@ export default function ItemOptionsDialog({ item, open, onClose, onAdd }: Props)
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }} // click on the backdrop
       aria-labelledby={`opt-title-${item.id}`}
-      className="item-dialog m-0 mt-auto w-full max-w-none rounded-t-3xl bg-surface p-0 text-foreground shadow-2xl sm:m-auto sm:max-w-md sm:rounded-3xl"
+      className="item-dialog food-item-dialog"
     >
-      <form method="dialog" onSubmit={(e) => { e.preventDefault(); onAdd(selected, qty); }} className="flex max-h-[85dvh] flex-col">
-        <div className="flex items-start gap-3 border-b border-border p-5">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-brand-soft text-3xl" aria-hidden>{item.emoji}</span>
-          <div className="min-w-0 flex-1">
-            <h2 id={`opt-title-${item.id}`} className="text-lg font-bold leading-snug">{pick(item.name, item.km?.name)}</h2>
-            <p className="text-sm text-muted">{pick(item.description, item.km?.description)}</p>
-            <p className="mt-1 font-semibold text-brand">{money(item.price)}</p>
+      <form method="dialog" onSubmit={(e) => { e.preventDefault(); if (!closed) onAdd(selected, qty); }} className="food-item-form">
+        <div className="food-item-scroll">
+          <div className={`food-item-hero ${imageUrl ? "has-photo" : ""}`}>
+            {/* The sample menu's existing local food photo, where available. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {imageUrl ? <img src={imageUrl} alt={pick(item.name, item.km?.name)} /> : <span className="food-item-emoji" aria-hidden>{item.emoji}</span>}
+            {storeName && <span className="food-item-store"><Icon name="food" />{storeName}</span>}
+            <button type="button" onClick={onClose} aria-label={t("common.close")} className="food-item-close"><Icon name="close" /></button>
           </div>
-          <button type="button" onClick={onClose} aria-label={t("common.close")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg hover:bg-brand-soft">✕</button>
-        </div>
-
-        <div className="flex-1 space-y-5 overflow-y-auto p-5">
+          <div className="food-item-intro"><div><h2 id={`opt-title-${item.id}`}>{pick(item.name, item.km?.name)}</h2><strong>{money(unitPrice(item, selected))}</strong></div><p>{pick(item.description, item.km?.description)}</p>{closed && <p role="status" className="text-brand">{t("hours.closed")}</p>}</div>
+          <div className="food-item-options space-y-5">
           {groups.map((g) => (
             <fieldset key={g.id}>
               <legend className="mb-2 flex w-full items-center justify-between font-semibold">
@@ -90,15 +93,16 @@ export default function ItemOptionsDialog({ item, open, onClose, onAdd }: Props)
               </div>
             </fieldset>
           ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 border-t border-border p-4">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label={t("store.decrease")} className="grid h-10 w-10 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">−</button>
-            <span className="w-6 text-center font-semibold" aria-live="polite">{qty}</span>
-            <button type="button" onClick={() => setQty((q) => q + 1)} aria-label={t("store.increase")} className="grid h-10 w-10 place-items-center rounded-full border border-border font-bold hover:bg-brand-soft">+</button>
+        <div className="food-item-footer">
+          <div className="food-quantity" role="group" aria-label={pick("Quantity", "ចំនួន")}>
+            <button type="button" disabled={qty <= 1} onClick={() => setQty(q => Math.max(1, q - 1))} aria-label={t("store.decrease")}>−</button>
+            <output aria-live="polite">{qty}</output>
+            <button type="button" disabled={qty >= 50} onClick={() => setQty(q => Math.min(50, q + 1))} aria-label={t("store.increase")}>+</button>
           </div>
-          <button type="submit" className="btn-primary flex-1">{t("options.add", { price: money(price) })}</button>
+          <button type="submit" className="food-add-button" disabled={closed}><Icon name="bag" /><span>{closed ? t("hours.closed") : t("partner.add")}</span><strong>{money(price)}</strong></button>
         </div>
       </form>
     </dialog>

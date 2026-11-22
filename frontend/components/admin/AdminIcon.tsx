@@ -9,6 +9,8 @@ export default function AdminIcon({ name, size = 20 }: { name: string; size?: nu
     users: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5" /></>,
     merchants: <><path d="m3 9 2-6h14l2 6M4 10v11h16V10M9 21v-7h6v7" /><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" /></>,
     listings: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 12h8M8 17h4" /></>,
+    categories: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /><path d="M6.5 10v7.5H14M14 6h7M17.5 3v7" /></>,
+    promotions: <><path d="M3 3h8l10 10-8 8L3 11V3Z" /><circle cx="7.5" cy="7.5" r="1" /><path d="m10 15 5-5" /></>,
     rides: <><path d="m4 10 2-6h12l2 6M3 16v-6h18v6H3Zm2 0v4m14-4v4M7 13h1m8 0h1" /></>,
     orders: <><path d="M5 7h14l1 14H4L5 7Zm3 0V5a4 4 0 0 1 8 0v2" /></>,
     deliveries: <><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 10v9M3 8l9 5 9-5M8 5l9 5" /></>,
@@ -25,9 +27,16 @@ export default function AdminIcon({ name, size = 20 }: { name: string; size?: nu
     close: <path d="m6 6 12 12M6 18 18 6" />,
     menu: <path d="M3 6h18M3 12h18M3 18h18" />,
     plus: <path d="M12 5v14M5 12h14" />,
+    edit: <><path d="m16 3 5 5-12 12-6 1 1-6L16 3Zm-2 2 5 5" /></>,
     team: <><circle cx="9" cy="7" r="3" /><path d="M3 20v-1a6 6 0 0 1 9-5.2" /><path d="m17 11 4 2v3c0 2.5-4 5-4 5s-4-2.5-4-5v-3l4-2Z" /></>,
     activity: <path d="M3 12h4l3-8 4 16 3-8h4" />,
     roles: <><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.7-8.7M17 6l2.5 2.5M14.5 8.5 17 11" /></>,
+    eye: <><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" /><circle cx="12" cy="12" r="3" /></>,
+    eyeOff: <><path d="M10.73 5.08A10.74 10.74 0 0 1 21.94 11.65a1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49M14.08 14.16a3 3 0 0 1-4.24-4.24M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14M2 2l20 20" /></>,
+    express: <><path d="M10 17h4V5H2v12h3m9-8h4l4 4v4h-3" /><circle cx="7.5" cy="17.5" r="2.5" /><circle cx="16.5" cy="17.5" r="2.5" /></>,
+    globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+    moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" />,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.overview}</svg>;
 }

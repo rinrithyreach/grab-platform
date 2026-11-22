@@ -35,8 +35,8 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
     finally { dom.window.close(); Object.assign(globalThis, previous); }
   });
   const leaf = data(`
-    export const groups = [], views = [], tiles = [];
-    export const map = () => ({ on() { return this; }, fitBounds: points => views.push(points), setView: point => views.push([point]), invalidateSize() {}, remove() {} });
+    export const groups = [], views = [], tiles = [], handlers = {};
+    export const map = () => ({ on(type, callback) { handlers[type] = callback; return this; }, fitBounds: points => views.push(points), setView: point => views.push([point]), invalidateSize() {}, remove() {} });
     export const layerGroup = () => { const group = { layers: [], addTo() { return this; }, clearLayers() { this.layers = []; } }; groups.push(group); return group; };
     function layer(kind, position, options) { return { kind, position, options,
       bindTooltip(value) { this.tooltip = value; return this; }, bindPopup(value) { this.popup = value; return this; },
@@ -47,7 +47,7 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
     export const divIcon = options => options;
     export const tileLayer = (url, options) => { tiles.push({url, options}); const handlers = {}; return { on(type, callback) { handlers[type] = callback; return this; }, addTo() { queueMicrotask(() => handlers.tileload()); return this; }, remove() {} }; };
   `);
-  const { groups, views, tiles } = await import(leaf);
+  const { groups, views, tiles, handlers } = await import(leaf);
   const auth = data("let api; export const setApi = value => { api = value; }; export const useAuth = () => ({ api });");
   const rows = Array.from({ length: 100 }, (_, i) => ({ id: `rider-${i}`, name: `Rider ${i}`, address: `GPS: ${(11.55 + Math.max(0, i - 1) / 10000).toFixed(6)}, 104.920000`, openingHours: "Mon 08:00-17:00" }));
   rows[1].name = '<img src=x onerror="alert(1)">';
@@ -75,9 +75,11 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   }))).default;
   const container = dom.window.document.getElementById("root");
   root = createRoot(container);
+  const destinations = [];
   await act(async () => root.render(h(Component, {
     from: { name: "Pickup", km: "", lat: 11.5564, lng: 104.9282 },
     to: { name: "Destination", km: "", lat: 11.5636, lng: 104.9312 }, label: "Trip and merchant areas",
+    onDestinationChange: point => destinations.push(point),
   })));
   assert.deepEqual(pages, [1, 2], "All pages are loaded, including merchants beyond the first hundred");
   assert.equal(tiles[0].url, "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "The booking map uses the standard key-free tile service");
@@ -85,6 +87,7 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   const markers = () => groups.at(-1).layers.filter((layer) => layer.kind === "merchant");
   assert.equal(markers().length, 99, "Two merchants at the same point share a selectable marker");
   const shared = markers().find((marker) => marker.position[0] === 11.55);
+  assert.equal(shared.options.bubblingMouseEvents, false, "Opening merchant details must not select a destination");
   assert.equal(shared.popup.querySelectorAll("strong").length, 2);
   assert.equal(shared.popup.querySelector("img"), null);
   assert.ok(shared.popup.textContent.includes(rows[1].name));
@@ -92,6 +95,12 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   assert.ok(views.at(-1).some((point) => point[0] === 11.55 && point[1] === 104.92));
   assert.ok(container.textContent.includes("Unmapped Rider"));
   assert.ok(container.textContent.includes("ride.merchantAreaMissing"));
+  assert.ok(container.textContent.includes("ride.mapDestinationHint"));
+  assert.ok(container.querySelector('[role="region"][aria-label="Trip and merchant areas"]'));
+  await act(async () => handlers.click({ latlng: { wrap: () => ({ lat: 11.58, lng: 104.94 }) } }));
+  assert.deepEqual(destinations, [{ lat: 11.58, lng: 104.94 }]);
+  await act(async () => handlers.click({ latlng: { wrap: () => ({ lat: NaN, lng: 104.94 }) } }));
+  assert.equal(destinations.length, 1, "Invalid coordinates are ignored");
 
   const viewCount = views.length;
   await act(async () => dom.window.dispatchEvent(new dom.window.Event("focus")));

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { adminCan, adminCovers, togglePermission, type AdminPermissionSection, type AdminProfile, type AdminRole, type AdminRoles } from "@/lib/admin-settings";
 import AdminIcon from "./AdminIcon";
+import { useAdminDialog } from "./useAdminDialog";
 
 const formatDate = (value: string) => new Date(value).toLocaleString("en-GB", { timeZone: "Asia/Phnom_Penh", dateStyle: "medium", timeStyle: "short" });
 const errorText = (err: unknown) => err instanceof TypeError ? "Cannot reach the API. Please try again." : err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -63,12 +64,7 @@ export default function AdminRolesPanel({ me, revision, onSaved }: { me: AdminPr
   </div>;
 }
 
-function useModal(onClose: () => void, busy: boolean) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const el = dialog.current; el?.showModal(); return () => el?.close(); }, []);
-  const close = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
-  return { dialog, close };
-}
+const useModal = useAdminDialog;
 
 function RoleDialog({ me, role, catalog, onClose, onSaved }: { me: AdminProfile; role: AdminRole | null; catalog: AdminPermissionSection[]; onClose: () => void; onSaved: (message: string) => void }) {
   const { api } = useAuth();

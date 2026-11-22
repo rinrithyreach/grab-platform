@@ -42,7 +42,9 @@ public class AdminAccountService(GrabDbContext db, IPasswordHasher<User> hasher,
         if (Convert.ToBase64String(p.Version) != r.Version) throw new ApiException(409, "Your profile changed in another session. Reload it before saving.");
         var name = PlatformSettingsService.Clean(r.FullName, 120, "Full name");
         if (name.Length < 2) throw new ApiException(400, "Enter a name of at least 2 characters.");
-        var email = r.Email.Trim().ToLowerInvariant();
+        var email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
+        if (email is null && !string.IsNullOrWhiteSpace(u.Email))
+            throw new ApiException(400, "Enter a sign-in email. Your existing sign-in email cannot be removed here.");
         var emailChanged = !string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase);
         if (emailChanged)
         {
@@ -54,7 +56,10 @@ public class AdminAccountService(GrabDbContext db, IPasswordHasher<User> hasher,
         u.FullName = name;
         p.ContactPhone = string.IsNullOrWhiteSpace(r.ContactPhone) ? "" : PhoneNumbers.Normalize(r.ContactPhone) ?? throw new ApiException(400, "Enter a valid contact phone number.");
         p.JobTitle = PlatformSettingsService.Clean(r.JobTitle, 100, "Job title");
-        p.Bio = PlatformSettingsService.Clean(r.Bio, 500, "Bio");
+        var bio = r.Bio?.Trim() ?? "";
+        if (bio.Length > 500 || bio.Any(c => char.IsControl(c) && c is not '\n' and not '\r'))
+            throw new ApiException(400, "Bio must contain at most 500 characters and may include line breaks.");
+        p.Bio = bio;
         p.RefreshSeconds = r.RefreshSeconds; p.CompactTables = r.CompactTables;
         await Save(u, p, emailChanged ? "Updated profile and sign-in email" : "Updated administrator profile", ct);
         return new(await Dto(u, p, ct), auth.Token(u));

@@ -9,6 +9,7 @@ import { addToCart, lineKey, setQty, useShop } from "@/lib/cart";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import ItemOptionsDialog from "./ItemOptionsDialog";
+import PromotionBadge from "./PromotionBadge";
 
 const roundBtn = "grid h-8 w-8 place-items-center rounded-full font-bold disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -40,14 +41,12 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
   return (
     // min-w-0 lets this card shrink inside the grid so long text truncates instead of widening the page.
     <div className={`menu-item-card card flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4 ${closed ? "opacity-60" : ""}`}>
-      <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-soft text-3xl sm:h-20 sm:w-20" aria-hidden>{photo ? <Image src={photo.src} alt="" fill sizes="80px" className="object-cover" /> : item.emoji}</div>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold leading-snug">{name}</p>
-        <p className="line-clamp-2 text-sm text-muted">{pick(item.description, item.km?.description)}</p>
-        <p className="mt-1 font-semibold text-brand">
-          {money(item.price)}
-          {hasOptions && <span className="ml-2 text-xs font-normal text-muted">{t("options.customisable")}</span>}
-        </p>
+        <button type="button" onClick={() => setDialogOpen(true)} aria-haspopup="dialog" aria-label={`${t("partner.viewDetails")}: ${name}`} className="menu-item-details-trigger flex w-full min-w-0 items-center gap-3 text-left sm:gap-4">
+          <span className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-soft text-3xl sm:h-20 sm:w-20" aria-hidden>{photo ? <Image src={photo.src} alt="" fill sizes="80px" className="object-cover" /> : item.emoji}</span>
+          <span className="min-w-0 flex-1"><span className="block font-semibold leading-snug">{name}</span><span className="line-clamp-2 text-sm text-muted">{pick(item.description, item.km?.description)}</span><span className="mt-1 block font-semibold text-brand">{money(item.price)}{hasOptions && <span className="ml-2 text-xs font-normal text-muted">{t("options.customisable")}</span>}</span></span>
+        </button>
+        <div className="pl-[76px] sm:pl-24"><PromotionBadge storeId={storeId} productId={item.id} /></div>
       </div>
 
       {hasOptions ? (
@@ -73,10 +72,13 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
         </div>
       )}
 
-      {hasOptions && dialogOpen && (
+      {dialogOpen && (
         <ItemOptionsDialog
           item={item}
           open={dialogOpen}
+          storeName={store?.name}
+          imageUrl={photo?.src}
+          closed={closed}
           onClose={() => setDialogOpen(false)}
           onAdd={(options, qty) => { if (add(options, qty)) setDialogOpen(false); }}
         />

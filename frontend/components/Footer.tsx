@@ -116,7 +116,6 @@ export default function Footer() {
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-5 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>{t("footer.copyright", { year: PROJECT.year, brand: BRAND.name, team: PROJECT.team })}</p>
-          <p>{t("footer.disclaimer")} · <Link href="/credits" className="underline hover:text-brand">{t("footer.credits")}</Link></p>
         </div>
       </div>
     </footer>

@@ -3,6 +3,8 @@
  * Never put a JWT signing key in NEXT_PUBLIC_ variables.
  */
 import type { AdminOverview, AdminPage, AdminResource } from "./admin";
+import type { Promotion, PromotionTarget, SavePromotion } from "./promotion-rules";
+import type { CategoryService, ProductCategory, SaveCategory } from "./category-types";
 import type { AdminActivity, AdminProfile, AdminRoles, AdminSettings, AdminTeamMember, CreateAdmin, CreateUser, PlatformSettings, SaveAdminProfile, SaveAdminRole } from "./admin-settings";
 export type Role = "Customer" | "Driver" | "Admin" | "Merchant";
 export type RideStatus = "Pending" | "Accepted" | "InProgress" | "Completed" | "Cancelled";
@@ -28,9 +30,10 @@ export interface MerchantProfile extends MerchantProfileRequest { id: string }
 export type MerchantPublic = Omit<MerchantProfile, "ownerName" | "motorcycleLicensePlate">;
 export interface MerchantListingRequest {
   title: string; description: string; price: number; imageId: string; isPublished: boolean; showInSlideshow: boolean;
+  categoryId?: string | null;
 }
 export interface MerchantListing extends MerchantListingRequest { id: string; imageUrl: string; updatedAt: string }
-export interface MerchantOffer { id: string; title: string; description: string; price: number; imageUrl: string; merchant: MerchantPublic }
+export interface MerchantOffer { id: string; title: string; description: string; price: number; imageUrl: string; merchant: MerchantPublic; categoryId?: string | null }
 export interface MerchantDashboard { profile: MerchantProfile; listings: MerchantListing[] }
 export interface RideMerchantArea { id: string; name: string; address: string; openingHours: string; vehicleType: RideVehicleType }
 export interface MerchantStorefront { merchant: MerchantPublic; listings: MerchantOffer[] }
@@ -40,13 +43,17 @@ export type OrderPaymentMethod = "Cash" | "Card";
 export interface PlaceOrderRequest {
   merchantId: string; items: { listingId: string; quantity: number }[];
   deliveryAddress: string; note: string; paymentMethod: OrderPaymentMethod;
+  promoCode?: string;
+  expectedTotal?: number;
 }
+export interface OrderQuote { subtotal: number; discount: number; codeDiscount: number; deliveryFee: number; total: number; promoCode: string | null; promotionNames: string[] }
 export interface MerchantOrderItem { listingId: string; title: string; unitPrice: number; quantity: number; lineTotal: number }
 export interface MerchantOrder {
   id: string; merchantId: string; merchantName: string; service: MerchantServiceKind; status: MerchantOrderStatus;
   paymentMethod: OrderPaymentMethod; items: MerchantOrderItem[]; subtotal: number; deliveryFee: number; total: number;
+  discount?: number; codeDiscount?: number; promoCode?: string | null;
   deliveryAddress: string; note: string; createdAt: string; updatedAt: string;
-  /** Only filled for the merchant who delivers the order. */
+  /** Contact details for the fulfilling merchant and the guest's private receipt. */
   customerName: string | null; customerPhone: string | null;
 }
 export interface BookRideRequest {
@@ -55,14 +62,17 @@ export interface BookRideRequest {
 }
 export interface Ride extends BookRideRequest {
   vehicleType: RideVehicleType;
-  id: string; customerId: string; driverId: string | null; fare: number; pricingMode: string;
+  /** Null for a guest ride. */
+  id: string; customerId: string | null; driverId: string | null; fare: number; pricingMode: string;
   status: RideStatus; createdAt: string; completedAt: string | null;
   merchantId?: string | null; merchantName?: string | null;
   driverLocation?: RideDriverLocation | null;
 }
 export interface RideLocation { latitude: number; longitude: number; accuracy: number | null }
 export interface RideDriverLocation extends RideLocation { updatedAt: string }
-export interface MerchantRideRequest { ride: Ride; customerName: string }
+/** `customerPhone` is only sent for the merchant’s accepted (active) ride. */
+export interface MerchantRideRequest { ride: Ride; customerName: string; customerPhone?: string | null }
+export interface GuestRideContact { contactName: string; contactPhone: string }
 export interface MerchantRideInbox { requests: MerchantRideRequest[]; activeRide: MerchantRideRequest | null }
 export interface Driver {
   id: string; fullName: string; vehicleType: string; vehiclePlate: string; isAvailable: boolean;
@@ -139,7 +149,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     session = next;
     listeners.forEach((listener) => listener(next));
   }
-  async function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal, authenticated = true): Promise<T> {
+  async function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal, authenticated = true, extraHeaders?: Record<string, string>): Promise<T> {
     if (session && Date.parse(session.expiresAt) <= Date.now()) setSession(null);
     const requestToken = authenticated ? session?.accessToken : undefined;
     const version = sessionVersion;
@@ -148,6 +158,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
       method, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, cache: "no-store", credentials: "omit",
       headers: { ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }),
+        ...extraHeaders,
         ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}) },
       body: body === undefined ? undefined : multipart ? body as FormData : JSON.stringify(body),
     });
@@ -206,6 +217,16 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     adminAction: (resource: AdminResource, id: string, action: string, reason: string) => request<{ saved: boolean }>(`/api/admin/${resource}/${encodeURIComponent(id)}/actions`, "POST", { action, reason }),
     adminCreateDriver: (body: { userId: string; vehicleType: string; vehiclePlate: string; reason: string }) => request<Driver>("/api/admin/drivers", "POST", body),
     adminBanners: async (signal?: AbortSignal) => (await request<AdminBanner[]>("/api/admin/banners", "GET", undefined, signal)).map(withImage),
+    promotions: (signal?: AbortSignal) => request<Promotion[]>("/api/promotions", "GET", undefined, signal),
+    adminPromotions: (signal?: AbortSignal) => request<Promotion[]>("/api/admin/promotions", "GET", undefined, signal),
+    categories: (service?: CategoryService, signal?: AbortSignal) => request<ProductCategory[]>(`/api/categories${service ? `?service=${encodeURIComponent(service)}` : ""}`, "GET", undefined, signal),
+    adminCategories: (signal?: AbortSignal) => request<ProductCategory[]>("/api/admin/categories", "GET", undefined, signal),
+    adminSaveCategory: (body: SaveCategory, id?: string) => request<{ id?: string }>(id ? `/api/admin/categories/${encodeURIComponent(id)}` : "/api/admin/categories", id ? "PUT" : "POST", body),
+    adminDeleteCategory: (id: string, reason: string) => request<{ saved: boolean }>(`/api/admin/categories/${encodeURIComponent(id)}?${new URLSearchParams({ reason })}`, "DELETE"),
+    adminPromotionTargets: (signal?: AbortSignal) => request<PromotionTarget[]>("/api/admin/promotions/targets", "GET", undefined, signal),
+    adminSavePromotion: (body: SavePromotion, id?: string) => request<{ id?: string }>(id ? `/api/admin/promotions/${encodeURIComponent(id)}` : "/api/admin/promotions", id ? "PUT" : "POST", body),
+    adminDeletePromotion: (id: string, reason: string) => request<{ saved: boolean }>(`/api/admin/promotions/${encodeURIComponent(id)}?${new URLSearchParams({ reason })}`, "DELETE"),
+    quoteOrder: (body: Pick<PlaceOrderRequest, "merchantId" | "items" | "promoCode">, signal?: AbortSignal) => request<OrderQuote>("/api/orders/quote", "POST", body, signal),
     /** Creates a banner when `id` is omitted (image required), otherwise updates it (image optional). */
     adminSaveBanner: (body: SaveAdminBanner, image: File | null, id?: string) => {
       const form = new FormData();
@@ -237,13 +258,17 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     },
     saveMerchantListing: async (body: MerchantListingRequest, id?: string) => withImage(await request<MerchantListing>(
       id ? `/api/merchants/listings/${encodeURIComponent(id)}` : "/api/merchants/listings", id ? "PATCH" : "POST", body)),
-    merchantOffers: async (service?: MerchantServiceKind, page = 1, signal?: AbortSignal) =>
-      (await request<MerchantOffer[]>(`/api/merchants/offers?page=${page}${service ? `&service=${encodeURIComponent(service)}` : ""}`, "GET", undefined, signal)).map(withImage),
+    merchantOffers: async (service?: MerchantServiceKind, page = 1, signal?: AbortSignal, categoryId?: string) =>
+      (await request<MerchantOffer[]>(`/api/merchants/offers?page=${page}${service ? `&service=${encodeURIComponent(service)}` : ""}${categoryId ? `&categoryId=${encodeURIComponent(categoryId)}` : ""}`, "GET", undefined, signal)).map(withImage),
     merchantStorefront: async (id: string, signal?: AbortSignal) => {
       const data = await request<MerchantStorefront>(`/api/merchants/${encodeURIComponent(id)}`, "GET", undefined, signal);
       return { ...data, listings: data.listings.map(withImage) };
     },
     placeOrder: (body: PlaceOrderRequest) => request<MerchantOrder>("/api/orders", "POST", body),
+    quoteGuestOrder: (body: Pick<PlaceOrderRequest, "merchantId" | "items" | "promoCode">, signal?: AbortSignal) => request<OrderQuote>("/api/orders/guest/quote", "POST", body, signal, false),
+    placeGuestOrder: (body: { order: PlaceOrderRequest; contactName: string; contactPhone: string }) => request<{ order: MerchantOrder; accessToken: string }>("/api/orders/guest", "POST", body, undefined, false),
+    guestOrder: (id: string, token: string, signal?: AbortSignal) => request<MerchantOrder>(`/api/orders/guest/${encodeURIComponent(id)}`, "GET", undefined, signal, false, { "X-Guest-Order-Token": token }),
+    cancelGuestOrder: (id: string, token: string) => request<MerchantOrder>(`/api/orders/guest/${encodeURIComponent(id)}/cancel`, "POST", undefined, undefined, false, { "X-Guest-Order-Token": token }),
     myOrders: (page = 1, signal?: AbortSignal) => request<MerchantOrder[]>(`/api/orders/mine?page=${page}`, "GET", undefined, signal),
     cancelOrder: (id: string) => request<MerchantOrder>(`/api/orders/${encodeURIComponent(id)}/cancel`, "POST"),
     merchantOrders: (page = 1, signal?: AbortSignal) => request<MerchantOrder[]>(`/api/merchants/orders?page=${page}`, "GET", undefined, signal),
@@ -311,6 +336,9 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     myRides: (page = 1, signal?: AbortSignal) => request<Ride[]>(`/api/rides/mine?page=${page}`, "GET", undefined, signal),
     ride: (id: string, signal?: AbortSignal) => request<Ride>(`/api/rides/${encodeURIComponent(id)}`, "GET", undefined, signal),
     bookRide: (body: BookRideRequest) => request<Ride>("/api/rides", "POST", body),
+    bookGuestRide: (ride: BookRideRequest, contact: GuestRideContact) => request<{ ride: Ride; accessToken: string }>("/api/rides/guest", "POST", { ride, ...contact }, undefined, false),
+    guestRide: (id: string, token: string, signal?: AbortSignal) => request<Ride>(`/api/rides/guest/${encodeURIComponent(id)}`, "GET", undefined, signal, false, { "X-Guest-Ride-Token": token }),
+    cancelGuestRide: (id: string, token: string) => request<Ride>(`/api/rides/guest/${encodeURIComponent(id)}/cancel`, "POST", undefined, undefined, false, { "X-Guest-Ride-Token": token }),
     updateRideStatus: (id: string, status: RideStatus) => request<Ride>(`/api/rides/${encodeURIComponent(id)}/status`, "PATCH", { status }),
     updateRideLocation: (id: string, location: RideLocation, signal?: AbortSignal) => request<Ride>(`/api/rides/${encodeURIComponent(id)}/location`, "PATCH", location, signal),
     stopRideLocation: (id: string, signal?: AbortSignal) => request<Ride>(`/api/rides/${encodeURIComponent(id)}/location`, "DELETE", undefined, signal),

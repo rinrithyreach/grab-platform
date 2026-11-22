@@ -9,10 +9,13 @@ namespace Grab.Api.Controllers;
 [ApiController, Route("api/admin"), Authorize(Roles = "Admin")]
 public class AdminController(AdminService admin, AdminAccessService access) : ApiControllerBase
 {
-    /// <summary>Requires "{section}.{level}" for catalog sections; unknown sections fall through to the service's 404.</summary>
+    /// <summary>
+    /// Requires "{section}.{level}" for catalog sections; unknown sections fall through to the service's 404.
+    /// The Express section lists GrabExpress shop orders, so it is covered by the Orders permission.
+    /// </summary>
     private async Task Require(string section, string level, CancellationToken ct)
     {
-        var permission = $"{section}.{level}";
+        var permission = $"{(section == "express" ? "orders" : section)}.{level}";
         if (AdminPermissions.All.Contains(permission)) await access.Require(UserId, permission, ct);
         else await access.Get(UserId, ct);
     }

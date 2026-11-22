@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { adminCan, type AdminProfile, type AdminRole } from "@/lib/admin-settings";
 import AdminIcon from "./AdminIcon";
+import { useAdminDialog } from "./useAdminDialog";
 import { AdminAccountFields, grantableRoles, SUPER_ROLE, temporaryPassword } from "./AdminTeamPanel";
 
 const errorText = (err: unknown) => err instanceof TypeError ? "Cannot reach the API. Please try again." : err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -11,7 +12,6 @@ const errorText = (err: unknown) => err instanceof TypeError ? "Cannot reach the
 /** Creates a customer account (phone sign-in) or, with team permission, an administrator account with a role. */
 export default function AdminCreateUserDialog({ me, onClose, onSaved }: { me: AdminProfile; onClose: () => void; onSaved: (message: string) => void }) {
   const { api } = useAuth();
-  const dialog = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const canAddAdmin = adminCan(me, "team", "manage");
@@ -20,7 +20,6 @@ export default function AdminCreateUserDialog({ me, onClose, onSaved }: { me: Ad
   const [show, setShow] = useState(false);
   const [roles, setRoles] = useState<AdminRole[] | null>(null);
   const [roleValue, setRoleValue] = useState("");
-  useEffect(() => { const el = dialog.current; el?.showModal(); return () => el?.close(); }, []);
   useEffect(() => {
     if (type !== "admin" || roles) return;
     const ctrl = new AbortController();
@@ -32,7 +31,7 @@ export default function AdminCreateUserDialog({ me, onClose, onSaved }: { me: Ad
     }).catch(err => { if (!ctrl.signal.aborted) setError(errorText(err)); });
     return () => ctrl.abort();
   }, [api, me, roles, type]);
-  const close = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
+  const { dialog, close } = useAdminDialog(onClose, busy);
   const options = roles ? grantableRoles(me, roles) : [];
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,8 +57,10 @@ export default function AdminCreateUserDialog({ me, onClose, onSaved }: { me: Ad
       <div className="admin-dialog-body">{error && <div className="admin-error" role="alert">{error}</div>}
         <fieldset disabled={busy} className="admin-form admin-account-type">
           <legend>Account type</legend>
-          <label className="admin-checkbox"><input type="radio" name="type" checked={type === "customer"} onChange={() => { setType("customer"); setError(""); }} />Customer: signs in to the app with a phone number</label>
-          {canAddAdmin && <label className="admin-checkbox"><input type="radio" name="type" checked={type === "admin"} onChange={() => { setType("admin"); setError(""); }} />Administrator: signs in to this console with an email and a role</label>}
+          <div className="admin-choice-group">
+            <label className="admin-choice"><input type="radio" name="type" checked={type === "customer"} onChange={() => { setType("customer"); setError(""); }} /><span className="admin-choice-icon"><AdminIcon name="users" size={18} /></span><span><strong>Customer</strong><small>Signs in to the app with a phone number</small></span></label>
+            {canAddAdmin && <label className="admin-choice"><input type="radio" name="type" checked={type === "admin"} onChange={() => { setType("admin"); setError(""); }} /><span className="admin-choice-icon"><AdminIcon name="shield" size={18} /></span><span><strong>Administrator</strong><small>Signs in to this console with an email and a role</small></span></label>}
+          </div>
           <p className="admin-field-help">Merchant and driver accounts are created through merchant registration and the Drivers section.</p>
         </fieldset>
         {type === "admin" ? <AdminAccountFields password={password} setPassword={setPassword} show={show} setShow={setShow} busy={busy}>

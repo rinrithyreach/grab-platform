@@ -60,7 +60,7 @@ export interface AdminTeamMember {
 }
 export interface CreateAdmin { fullName: string; email: string; jobTitle: string; temporaryPassword: string; reason: string; adminRoleId: string | null }
 export interface AdminActivity { id: string; resource: string; targetId: string; action: string; reason: string; createdAt: string }
-export type SaveAdminProfile =Pick<AdminProfile, "fullName" | "contactPhone" | "jobTitle" | "bio" | "refreshSeconds" | "compactTables" | "version"> & { email: string; currentPassword?: string };
+export type SaveAdminProfile =Pick<AdminProfile, "fullName" | "contactPhone" | "jobTitle" | "bio" | "refreshSeconds" | "compactTables" | "version"> & { email: string | null; currentPassword?: string };
 
 export function platformNotice(settings: PlatformSettings | null, pathname: string): string[] {
   if (!settings || pathname === "/admin" || pathname.startsWith("/admin/")) return [];

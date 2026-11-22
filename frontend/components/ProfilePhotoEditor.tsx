@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@/lib/api";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
@@ -11,7 +11,11 @@ const TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 512 * 1024;
 export const PROFILE_PHOTO_INPUT_ID = "profile-photo-file";
 
-export default function ProfilePhotoEditor({ user }: { user: User }) {
+/**
+ * The profile picture is the editor: tap it to pick a photo, see it in the circle,
+ * then Save or Cancel. `children` (name, phone) sits beside the picture.
+ */
+export default function ProfilePhotoEditor({ user, children }: { user: User; children?: ReactNode }) {
   const { api } = useAuth();
   const { t } = useT();
   const input = useRef<HTMLInputElement>(null);
@@ -46,20 +50,34 @@ export default function ProfilePhotoEditor({ user }: { user: User }) {
     finally { setBusy(false); }
   }
 
-  return <div className="w-full border-t border-border pt-4" aria-busy={busy}>
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><p className="text-sm font-semibold">{t("profile.photo")}</p><p id="profile-photo-hint" className="mt-1 text-xs text-muted">{t("profile.photoHint")}</p></div>
-      <div className="flex flex-wrap items-center gap-3">
-        <input ref={input} id={PROFILE_PHOTO_INPUT_ID} type="file" className="sr-only" accept={TYPES.join(",")} aria-label={t("profile.changePhoto")} aria-describedby={error ? "profile-photo-hint profile-photo-error" : "profile-photo-hint"} disabled={busy} onChange={choose} />
-        <button type="button" className="btn-outline h-10 text-xs" disabled={busy} onClick={() => input.current?.click()}><Icon name="camera" className="h-4 w-4" />{t("profile.changePhoto")}</button>
-        {user.avatarUrl && !file && <button type="button" className="min-h-10 text-xs font-semibold text-muted hover:text-red-600" disabled={busy} onClick={() => void save(true)}>{t("profile.removePhoto")}</button>}
+  const pickFile = () => input.current?.click();
+  const src = preview || user.avatarUrl;
+
+  return <div className="min-w-0 flex-1" aria-busy={busy}>
+    <input ref={input} id={PROFILE_PHOTO_INPUT_ID} type="file" className="sr-only" accept={TYPES.join(",")} aria-label={t("profile.changePhoto")} aria-describedby={error ? "profile-photo-error" : undefined} disabled={busy} onChange={choose} />
+    <div className="flex items-center gap-4">
+      <button type="button" onClick={pickFile} disabled={busy} aria-label={t("profile.changePhoto")} title={t("profile.changePhoto")} className="group relative shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand disabled:opacity-70">
+        <span className={`relative grid h-20 w-20 place-items-center overflow-hidden rounded-full bg-brand text-3xl font-bold text-white ring-4 dark:text-background ${file ? "ring-brand" : "ring-brand-soft"}`}>
+          {/* Local blob previews and private data URLs are intentionally rendered without an image proxy. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {src ? <img src={src} alt={preview ? t("profile.photoPreview") : ""} className="h-full w-full object-cover" /> : <span aria-hidden>{user.fullName[0]?.toUpperCase() ?? "👤"}</span>}
+          {/* Hover hint on desktop */}
+          <span aria-hidden className="absolute inset-0 grid place-items-center bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100"><Icon name="camera" className="h-6 w-6" /></span>
+        </span>
+        {/* Always-visible camera badge, so phone users know the photo can be tapped */}
+        <span aria-hidden className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-[3px] border-surface bg-brand text-white shadow-sm transition-transform group-hover:scale-110 group-active:scale-95 dark:text-background"><Icon name="camera" className="h-3.5 w-3.5" /></span>
+      </button>
+
+      <div className="min-w-0 flex-1">
+        {children}
+        {!file && user.avatarUrl && <button type="button" className="mt-1 min-h-8 text-sm font-semibold text-muted hover:text-red-600 disabled:opacity-50" disabled={busy} onClick={() => void save(true)}>{t("profile.removePhoto")}</button>}
       </div>
     </div>
-    {file && <div className="mt-4 flex flex-wrap items-center gap-4 rounded-2xl bg-brand-soft p-3">
-      {/* Local blob previews and private data URLs are intentionally rendered without an image proxy. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={preview} alt={t("profile.photoPreview")} className="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-surface" />
-      <div className="flex flex-wrap gap-2"><button type="button" className="btn-primary h-10" disabled={busy} onClick={() => void save()}>{t(busy ? "profile.saving" : "profile.save")}</button><button type="button" className="btn-outline h-10" disabled={busy} onClick={() => { reset(); setError(""); }}>{t("common.cancel")}</button></div>
+
+    {/* After picking: the new photo is already shown in the circle; confirm or undo. */}
+    {file && <div className="mt-4 flex gap-2">
+      <button type="button" className="btn-primary h-11 flex-1 sm:flex-none sm:px-6" disabled={busy} onClick={() => void save()}>{t(busy ? "profile.saving" : "profile.save")}</button>
+      <button type="button" className="btn-outline h-11 flex-1 sm:flex-none sm:px-6" disabled={busy} onClick={() => { reset(); setError(""); }}>{t("common.cancel")}</button>
     </div>}
     {busy && !file && <p role="status" className="mt-2 text-sm text-muted">{t("profile.saving")}</p>}
     {error && <p id="profile-photo-error" role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}

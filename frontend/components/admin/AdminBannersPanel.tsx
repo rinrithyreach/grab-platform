@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AdminBanner } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import AdminIcon from "./AdminIcon";
+import { useAdminDialog } from "./useAdminDialog";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -60,12 +61,7 @@ export default function AdminBannersPanel({ canManage, revision, onSaved }: { ca
   </section>;
 }
 
-function useModal(onClose: () => void, busy: boolean) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const el = ref.current; el?.showModal(); return () => el?.close(); }, []);
-  const close = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
-  return { ref, close };
-}
+const useModal = useAdminDialog;
 
 function BannerDialog({ banner, position, canManage, onClose, onSaved }: { banner: AdminBanner | null; position: number; canManage: boolean; onClose: () => void; onSaved: (message: string) => void }) {
   const { api } = useAuth();

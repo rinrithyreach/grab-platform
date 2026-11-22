@@ -41,6 +41,8 @@ builder.Services.AddScoped<ICommerceService, CommerceService>();
 builder.Services.AddScoped<MerchantService>();
 builder.Services.AddScoped<BannerService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<PromotionService>();
+builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<DeliveryService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -72,7 +74,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(o => o.AddPolicy("frontend", p => p.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:3000"])
-    .WithHeaders("Content-Type", "Authorization").WithMethods("GET", "POST", "PATCH", "DELETE")));
+    .WithHeaders("Content-Type", "Authorization", "X-Guest-Order-Token", "X-Guest-Ride-Token").WithMethods("GET", "POST", "PATCH", "DELETE")));
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;

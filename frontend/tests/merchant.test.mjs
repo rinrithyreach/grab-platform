@@ -17,6 +17,7 @@ const jsxModule = pathToFileURL(require.resolve("react/jsx-runtime")).href;
 const translationStub = dataModule('const t = key => key; export const useT = () => ({ t, pick: english => english });');
 
 async function component(relativePath, imports) {
+  imports["./CategoryPicker"] ??= dataModule('export default () => null;');
   const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
   let { outputText } = ts.transpileModule(source, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX,

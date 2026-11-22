@@ -28,7 +28,7 @@ public record MerchantListingRequest(
     [Required, StringLength(1500, MinimumLength = 10)] string Description,
     [property: JsonRequired] [Range(typeof(decimal), "0.01", "999999.99")] decimal Price,
     [property: JsonRequired] Guid ImageId,
-    bool IsPublished, bool ShowInSlideshow);
+    bool IsPublished, bool ShowInSlideshow, Guid? CategoryId = null);
 
 // Public names use BusinessName (the rider's name for GrabRide). License plates stay private.
 public record MerchantPublicDto(Guid Id, MerchantServiceKind Service, string BusinessName,
@@ -38,13 +38,14 @@ public record MerchantProfileDto(Guid Id, MerchantServiceKind Service, string Bu
     string OwnerName, string ContactPhone, string? Email, string Address, string City,
     string Category, string Description, string OpeningHours, string? MotorcycleLicensePlate, RideVehicleType? VehicleType);
 public record MerchantListingDto(Guid Id, string Title, string Description, decimal Price,
-    Guid ImageId, string ImageUrl, bool IsPublished, bool ShowInSlideshow, DateTimeOffset UpdatedAt);
+    Guid ImageId, string ImageUrl, bool IsPublished, bool ShowInSlideshow, DateTimeOffset UpdatedAt, Guid? CategoryId = null);
 public record MerchantOfferDto(Guid Id, string Title, string Description, decimal Price,
-    string ImageUrl, MerchantPublicDto Merchant);
+    string ImageUrl, MerchantPublicDto Merchant, Guid? CategoryId = null);
 public record MerchantStorefrontDto(MerchantPublicDto Merchant, List<MerchantOfferDto> Listings);
 public record MerchantDashboardDto(MerchantProfileDto Profile, List<MerchantListingDto> Listings);
 public record RideMerchantAreaDto(Guid Id, string Name, string Address, string OpeningHours, RideVehicleType VehicleType);
-public record MerchantRideRequestDto(RideDto Ride, string CustomerName);
+/// <summary>The rider phone is only filled in for the merchant’s accepted (active) ride, never for open requests.</summary>
+public record MerchantRideRequestDto(RideDto Ride, string CustomerName, string? CustomerPhone = null);
 public record MerchantRideInboxDto(List<MerchantRideRequestDto> Requests, MerchantRideRequestDto? ActiveRide);
 public record MerchantRideResponseRequest([property: JsonRequired] bool Accept);
 public record MerchantImageDto(Guid Id, string ImageUrl);

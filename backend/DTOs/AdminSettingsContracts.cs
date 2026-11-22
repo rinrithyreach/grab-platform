@@ -20,7 +20,7 @@ public record AdminProfileDto(Guid Id, string FullName, string? Email, string Co
     DateTimeOffset? PasswordChangedAt, string Version, Guid? RoleId = null, string RoleName = "Super administrator",
     bool IsSuperAdmin = true, IReadOnlyList<string>? Permissions = null);
 public record SaveAdminProfileRequest([Required, StringLength(120, MinimumLength = 2)] string FullName,
-    [Required, EmailAddress, StringLength(254)] string Email, [StringLength(30)] string? ContactPhone,
+    [EmailAddress, StringLength(254)] string? Email, [StringLength(30)] string? ContactPhone,
     [StringLength(100)] string? JobTitle, [StringLength(500)] string? Bio,
     int RefreshSeconds, bool CompactTables, [StringLength(32)] string Version, [StringLength(128)] string? CurrentPassword);
 public record AdminProfileResponse(AdminProfileDto Profile, AuthResponse Session);

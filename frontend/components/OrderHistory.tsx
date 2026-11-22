@@ -14,6 +14,7 @@ import { toast } from "@/lib/toast";
 import { useT, type MessageKey } from "@/lib/i18n";
 import RideMap from "./RideMap";
 import { PartnerOrderList, usePartnerOrders } from "./PartnerOrders";
+import GuestOrderReceipt from "./GuestOrderReceipt";
 
 // Demo delivery timeline (minutes after ordering).
 const PREPARING_UNTIL = 2;
@@ -47,7 +48,7 @@ function Receipt({ order }: { order: Order }) {
   const { t, pick } = useT();
   const lineText = useLineText();
   const store = getStore(order.storeId);
-  const promoLabel = store?.promo ? pick(store.promo, store.km?.promo) : "";
+  const promoLabel = order.promotionLabel ?? (store?.promo ? pick(store.promo, store.km?.promo) : "");
   const row = "flex justify-between gap-4";
   return (
     <dl className="mt-3 space-y-1 rounded-xl bg-background p-4 text-sm">
@@ -157,6 +158,9 @@ export default function OrderHistory() {
   const isOpen = (id: string, kind: string) => panel?.id === id && panel.kind === kind;
 
   const storeOrders = <PartnerOrderList orders={partner.orders} error={partner.error} placed={params.get("partner")} onChanged={partner.replace} />;
+
+  const guestOrder = params.get("guest");
+  if (guestOrder) return <GuestOrderReceipt key={guestOrder} id={guestOrder} />;
 
   if (!orders.length) {
     if (partner.orders.length || partner.error) return storeOrders;

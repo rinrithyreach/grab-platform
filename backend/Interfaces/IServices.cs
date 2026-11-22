@@ -13,6 +13,8 @@ public interface IAuthService
 public interface IRideService
 {
     Task<RideDto> Book(Guid customerId, BookRideRequest request, CancellationToken ct);
+    Task<GuestRideResponse> BookGuest(GuestRideRequest request, CancellationToken ct);
+    Task<RideDto> GuestRide(Guid id, string? token, bool cancel, CancellationToken ct);
     Task<List<RideDto>> List(Guid userId, Role role, bool mine, int page, CancellationToken ct);
     Task<RideDto> Get(Guid userId, Role role, Guid id, CancellationToken ct);
     Task<RideDto> Transition(Guid userId, Role role, Guid id, RideStatus status, CancellationToken ct);
