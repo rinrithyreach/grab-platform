@@ -3,6 +3,7 @@
  * Never put a JWT signing key in NEXT_PUBLIC_ variables.
  */
 import type { AdminOverview, AdminPage, AdminResource } from "./admin";
+import type { Currency } from "./currency";
 import type { Promotion, PromotionTarget, SavePromotion } from "./promotion-rules";
 import type { CategoryService, ProductCategory, SaveCategory } from "./category-types";
 import type { AdminActivity, AdminProfile, AdminRoles, AdminSettings, AdminTeamMember, CreateAdmin, CreateUser, PlatformSettings, SaveAdminProfile, SaveAdminRole } from "./admin-settings";
@@ -45,6 +46,8 @@ export interface PlaceOrderRequest {
   deliveryAddress: string; note: string; paymentMethod: OrderPaymentMethod;
   promoCode?: string;
   expectedTotal?: number;
+  /** Which currency the customer hands over (prices stay in USD). Defaults to USD. */
+  currency?: Currency;
 }
 export interface OrderQuote { subtotal: number; discount: number; codeDiscount: number; deliveryFee: number; total: number; promoCode: string | null; promotionNames: string[] }
 export interface MerchantOrderItem { listingId: string; title: string; unitPrice: number; quantity: number; lineTotal: number }
@@ -55,6 +58,8 @@ export interface MerchantOrder {
   deliveryAddress: string; note: string; createdAt: string; updatedAt: string;
   /** Contact details for the fulfilling merchant and the guest's private receipt. */
   customerName: string | null; customerPhone: string | null;
+  /** Payment currency; older API versions omit it (= USD). */
+  currency?: Currency; exchangeRate?: number; totalKhr?: number;
 }
 export interface BookRideRequest {
   pickupLocation: string; destination: string; pickupLatitude: number; pickupLongitude: number;
@@ -89,8 +94,9 @@ export interface Review { id: string; rideId: string; driverId: string; rating: 
  * the website uses a demo provider until NEXT_PUBLIC_PAYMENT_PROVIDER=api (see lib/payments.ts).
  *
  * Contract for the backend (all need login):
- *   POST /api/wallet/topups          body { amount, method: "bakong_khqr" }  -> TopUp (status "pending")
- *        The backend asks Bakong for a KHQR code for this amount and returns it in `qr`.
+ *   POST /api/wallet/topups          body { amount, currency, method: "bakong_khqr" }  -> TopUp (status "pending")
+ *        `amount` is the USD credited to the wallet; `currency` ("USD" | "KHR") is what the customer pays in.
+ *        The backend asks Bakong for a KHQR code for `paidAmount` in that currency and returns it in `qr`.
  *   GET  /api/wallet/topups/{id}                                             -> TopUp (latest status)
  *        The backend checks the payment with Bakong (e.g. by the KHQR md5 hash) and, the first
  *        time it sees "paid", credits the user's wallet. Calling it again must not credit twice.
@@ -99,8 +105,9 @@ export interface Review { id: string; rideId: string; driverId: string; rating: 
 export type TopUpStatus = "pending" | "paid" | "expired" | "failed" | "cancelled";
 export interface TopUp {
   id: string;
-  amount: number;          // USD
-  currency: "USD";
+  amount: number;          // USD credited to the wallet
+  currency: Currency;      // what the customer pays in
+  paidAmount?: number;     // in `currency` (riel for KHR); same as amount for USD
   method: "bakong_khqr";
   qr: string;              // the KHQR text; the website draws it as a QR code
   status: TopUpStatus;
@@ -347,7 +354,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     simulatePayment: (rideId: string) => request<Payment>("/api/payments", "POST", { rideId }),
     myPayments: (page = 1, signal?: AbortSignal) => request<Payment[]>(`/api/payments/mine?page=${page}`, "GET", undefined, signal),
     reviewRide: (rideId: string, rating: number, comment?: string) => request<Review>("/api/reviews", "POST", { rideId, rating, comment }),
-    createTopUp: (amount: number) => request<TopUp>("/api/wallet/topups", "POST", { amount, method: "bakong_khqr" }),
+    createTopUp: (amount: number, currency: Currency = "USD") => request<TopUp>("/api/wallet/topups", "POST", { amount, currency, method: "bakong_khqr" }),
     topUpStatus: (id: string, signal?: AbortSignal) => request<TopUp>(`/api/wallet/topups/${encodeURIComponent(id)}`, "GET", undefined, signal),
     cancelTopUp: (id: string) => request<TopUp>(`/api/wallet/topups/${encodeURIComponent(id)}/cancel`, "POST"),
     banners: async (signal?: AbortSignal) => (await request<Banner[]>("/api/banners", "GET", undefined, signal)).map(withImage),

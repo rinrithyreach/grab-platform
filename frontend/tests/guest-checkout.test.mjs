@@ -43,6 +43,9 @@ async function setup(t, { service = "GrabExpress", user = null } = {}) {
     "@/lib/partner-cart": stub('export const usePartnerCart=()=>globalThis.__guestTest.cart; export const partnerTotals=()=>({count:2,subtotal:14,deliveryFee:1.5,total:15.5}); export const clearSubmittedPartnerCart=()=>globalThis.__guestTest.calls.cleared++; export const clearPartnerCart=()=>{}; export const refreshPartnerCart=()=>false; export const setPartnerQty=()=>{}; export const MAX_PARTNER_QTY=50;'),
     "@/lib/promotions": stub('export const usePromotions=()=>globalThis.__guestTest.rules;'),
     "@/lib/toast": stub('export const toast=()=>{};'),
+    "@/lib/notifications": stub('export const notify=()=>true;'),
+    "@/lib/currency": stub('export const formatPaid = (usd, currency = "USD") => currency === "KHR" ? Math.round(usd * 41) * 100 + "៛" : "$" + usd.toFixed(2);'),
+    "./CurrencyPicker": stub('export default ()=>null;'),
     "@/lib/phone": stub('export const normalizePhoneNumber=v=>globalThis.__guestTest.libs.phone.normalizePhoneNumber(v);'),
     "@/lib/card": stub('export const {CARD_FIELDS,EMPTY_CARD,validateCard}=globalThis.__guestTest.libs.card;'),
     "@/lib/guest-orders": stub('export const rememberGuestOrder=(...args)=>globalThis.__guestTest.libs["guest-orders"].rememberGuestOrder(...args);'),
@@ -94,7 +97,7 @@ test("GrabExpress guests must supply recipient, callable phone and address befor
   assert.equal(calls.guest.length, 1);
   assert.deepEqual(calls.guest[0], { contactName: "Sok Dara", contactPhone: "+85512345678", order: {
     merchantId: "store", paymentMethod: "Cash", deliveryAddress: "House 12, Street 271", note: "Call on arrival",
-    expectedTotal: 15.5, promoCode: undefined, items: [{ listingId: "item", quantity: 2 }],
+    expectedTotal: 15.5, currency: "USD", promoCode: undefined, items: [{ listingId: "item", quantity: 2 }],
   } });
   assert.equal(calls.customer.length, 0); assert.equal(calls.cleared, 1);
   assert.deepEqual(calls.navigation, ["/orders?guest=guest-order"]);

@@ -11,6 +11,8 @@ import { reorder, useShop, type Order, type OrderLine, type PaymentMethod } from
 import { chosenOptions } from "@/lib/pricing";
 import { addReview, useReviewedOrders } from "@/lib/reviews";
 import { toast } from "@/lib/toast";
+import { formatPaid } from "@/lib/currency";
+import { askReplaceCart, withReplaceConfirm } from "@/lib/dialog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import RideMap from "./RideMap";
 import { PartnerOrderList, usePartnerOrders } from "./PartnerOrders";
@@ -64,6 +66,7 @@ function Receipt({ order }: { order: Order }) {
       <div className={`${row} text-muted`}><dt>{t("cart.deliveryFee")}</dt><dd>{order.deliveryFee ? money(order.deliveryFee) : t("cart.free")}</dd></div>
       {!!order.tip && <div className={`${row} text-muted`}><dt>{t("cart.tipLine")}</dt><dd>{money(order.tip)}</dd></div>}
       <div className={`${row} pt-1 text-base font-bold`}><dt>{t("cart.total")}</dt><dd>{money(order.total)}</dd></div>
+      {order.currency === "KHR" && <div className={`${row} font-semibold text-brand`}><dt>{t("currency.paidIn", { currency: "KHR" })}</dt><dd>{formatPaid(order.total, "KHR")}</dd></div>}
       {order.note && <p className="pt-2 text-muted">📝 {order.note}</p>}
     </dl>
   );
@@ -147,9 +150,9 @@ export default function OrderHistory() {
   // Shared clock (lib/clock.ts) keeps demo status and tracking fresh while this page is open.
   const now = useNow();
 
-  function orderAgain(o: Order) {
+  async function orderAgain(o: Order) {
     if (getStore(o.storeId)?.kind === "mart") { router.push("/express"); return; }
-    const result = reorder(o, (otherName) => window.confirm(t("cart.replace", { store: otherName })));
+    const result = await withReplaceConfirm((confirmReplace) => reorder(o, confirmReplace), askReplaceCart(t));
     if (result === "ok") { toast(t("orders.reordered")); router.push("/cart"); }
     else if (result === "unavailable") toast(t("partner.removed"), "error");
   }
@@ -195,7 +198,7 @@ export default function OrderHistory() {
                 <Link href={`/store/${o.storeId}`} className="font-semibold hover:text-brand">{o.storeName}</Link>
                 <p className="text-sm text-muted">{o.id} · {new Date(o.createdAt).toLocaleString(dateLocale)}</p>
               </div>
-              <p className="font-bold">{money(o.total)}</p>
+              <p className="text-right font-bold">{formatPaid(o.total, o.currency)}{o.currency === "KHR" && <span className="block text-xs font-normal text-muted">{t("currency.approx", { amount: money(o.total) })}</span>}</p>
             </div>
 
             <ol className="mt-4 grid grid-cols-3 gap-2 text-xs">
@@ -216,7 +219,7 @@ export default function OrderHistory() {
             {isOpen(o.id, "track") && p.step === 1 && <DeliveryTracker order={o} rider={p.rider} />}
             {isOpen(o.id, "rate") && <RateOrder order={o} onDone={() => setPanel(null)} />}
 
-            <p className="mt-2 text-sm text-muted">📍 {o.address} · {t(PAYMENT_LABEL[o.payment] ?? "cart.cash")}</p>
+            <p className="mt-2 text-sm text-muted">📍 {o.address} · {t(PAYMENT_LABEL[o.payment] ?? "cart.cash")} · {o.currency ?? "USD"}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {p.step === 1 && (
                 <button onClick={() => toggle(o.id, "track")} aria-expanded={isOpen(o.id, "track")} className="btn-primary h-9 text-sm">

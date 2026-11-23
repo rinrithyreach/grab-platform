@@ -58,10 +58,10 @@ async function setup(t, availableTypes = ["Motorcycle", "Rickshaw", "Classic"], 
     const listeners = new Set();
     export const setRegistered = (types) => { registered = types; for (const listener of listeners) listener(registered.map(vehicleType => ({ vehicleType }))); };
     export let chooseDestination;
-    export default ({ from, to, onAvailabilityChange, onDestinationChange }) => {
+    export default ({ from, to, showMap = true, onAvailabilityChange, onDestinationChange }) => {
       chooseDestination = onDestinationChange;
       useEffect(() => { listeners.add(onAvailabilityChange); onAvailabilityChange(registered.map(vehicleType => ({ vehicleType }))); return () => listeners.delete(onAvailabilityChange); }, [onAvailabilityChange]);
-      return createElement('div', { 'data-testid': 'map', 'data-from-lat': from.lat, 'data-from-lng': from.lng, 'data-to-lat': to.lat, 'data-to-lng': to.lng });
+      return createElement('div', { 'data-testid': 'map', 'data-visible': showMap, 'data-from-lat': from.lat, 'data-from-lng': from.lng, 'data-to-lat': to.lat, 'data-to-lng': to.lng });
     };`);
   const mapModule = await import(map);
   const { setRegistered } = mapModule;
@@ -71,6 +71,7 @@ async function setup(t, availableTypes = ["Motorcycle", "Rickshaw", "Classic"], 
     "@/lib/brand": dataModule("export const money = value => '$' + value;"), "@/lib/i18n": translations,
     "@/lib/places": placesModule, "@/lib/merchant-location": locationHelpers, "@/lib/rides": rides,
     "@/lib/toast": dataModule("export const toast = () => {};"),
+    "@/lib/notifications": dataModule("export const notify = () => true;"),
     "@/components/LoginRequired": dataModule("export default () => null;"),
     "@/components/Select": await compile("../components/Select.tsx"),
     "@/components/BackButton": link, "@/components/RideMerchantMap": map,
@@ -93,6 +94,22 @@ async function setup(t, availableTypes = ["Motorcycle", "Rickshaw", "Classic"], 
   const chooseMapDestination = async point => act(async () => mapModule.chooseDestination(point));
   return { dom, container, PLACES, bookings, guestBookings, remembered: (await import(remembered)).saved, locationRequests, button, click, choose, submit, setRegistered, chooseMapDestination };
 }
+
+test("the booking map stays visible before the location fields and preserves the selected route", async t => {
+  const app = await setup(t, ["Motorcycle"]);
+  const map = () => app.container.querySelector('[data-testid="map"]');
+  assert.equal(app.container.querySelector('[aria-controls="ride-map-preview"]'), null, "The map has no hide toggle");
+  assert.ok(app.container.querySelector("form").firstElementChild.contains(map()), "The map appears first on mobile");
+  assert.equal(map().dataset.visible, "true");
+  assert.equal(app.button("ride.moto").disabled, false);
+  await app.choose("ride.destination", app.PLACES[4].name);
+  assert.equal(map().dataset.visible, "true");
+  assert.equal(Number(map().dataset.toLat), app.PLACES[4].lat);
+  assert.equal(app.button("ride.moto").getAttribute("aria-pressed"), "true");
+  await app.submit();
+  assert.equal(app.bookings[0].body.destination, app.PLACES[4].name);
+  assert.equal(app.bookings[0].body.vehicleType, "Motorcycle");
+});
 
 test("a destination selected on the map updates the form and submits the exact coordinates", async t => {
   const app = await setup(t);

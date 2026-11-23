@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 import { MERCHANT_SERVICES } from "@/lib/merchant";
 import { normalizePhoneNumber } from "@/lib/phone";
 import MerchantDashboard from "@/components/MerchantDashboard";
@@ -22,7 +23,11 @@ export default function MerchantPage() {
     const normalized = normalizePhoneNumber(phone);
     if (!normalized) { setError(t("auth.phoneInvalid")); return; }
     setBusy(true); setError("");
-    try { await api.merchantLogin(normalized, password); }
+    try {
+      const user = await api.merchantLogin(normalized, password);
+      const name = user.fullName.trim() && user.fullName.trim() !== "Customer" ? user.fullName.trim() : user.phoneNumber;
+      toast(t("notify.welcomeBack", { name }));
+    }
     catch (err) { setError(errorMessage(err, t)); }
     finally { setBusy(false); }
   }

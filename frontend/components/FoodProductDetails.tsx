@@ -10,6 +10,7 @@ import CategoryBadge from "./CategoryBadge";
 import PromotionBadge from "./PromotionBadge";
 import Icon from "./Icon";
 import MerchantOfferCard from "./MerchantOfferCard";
+import WishlistButton from "./WishlistButton";
 import { PartnerCartBar, PartnerProductPurchase } from "./PartnerCartControls";
 
 export default function FoodProductDetails({ offer, others }: { offer: MerchantOffer; others: MerchantOffer[] }) {
@@ -36,7 +37,7 @@ export default function FoodProductDetails({ offer, others }: { offer: MerchantO
       <section className="food-detail-info" aria-labelledby="food-detail-title">
         <div className="food-detail-eyebrow"><span className="food-detail-dot" />{pick("A little something delicious", "អាហារឆ្ងាញ់សម្រាប់អ្នក")}</div>
         <CategoryBadge categoryId={offer.categoryId} />
-        <h1 id="food-detail-title">{title}</h1>
+        <div className="flex items-start justify-between gap-3"><h1 id="food-detail-title">{title}</h1><WishlistButton offer={offer} className="mt-1 shrink-0 border border-border" /></div>
         <div className="food-detail-price"><strong>{money(offer.price)}</strong><span>{pick("per item", "ក្នុងមួយមុខ")}</span></div>
         <div className="food-detail-promotions"><PromotionBadge storeId={merchant.id} productId={offer.id} /></div>
         <div className="food-dish-description"><h2>{pick("About this dish", "អំពីម្ហូបនេះ")}</h2><p>{description}</p></div>

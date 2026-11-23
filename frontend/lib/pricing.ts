@@ -6,6 +6,7 @@ import { DELIVERY_FEE } from "./brand";
 import { getItem, getStore, type MenuItem } from "./catalog";
 import { getPromotionRules, matchesPromotion, promotionStatus, promotionTotals } from "./promotion-rules";
 import type { Deal } from "./catalog";
+import type { Currency } from "./currency";
 
 export interface CartLine {
   itemId: string;
@@ -33,6 +34,8 @@ export interface Order {
   promotionLabel?: string;
   deliveryFee: number; tip?: number; total: number;
   address: string; payment: PaymentMethod; note: string; createdAt: string;
+  /** What the customer pays in; missing on older saved orders (= USD). Wallet orders are always USD. */
+  currency?: Currency;
 }
 
 /** Rider tip choices shown at checkout. */

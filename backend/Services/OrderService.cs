@@ -47,7 +47,8 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform, Pr
         o.Items.Select(i => new MerchantOrderItemDto(i.ListingId, i.Title, i.UnitPrice, i.Quantity, i.UnitPrice * i.Quantity)).ToList(),
         o.Subtotal, o.DeliveryFee, o.Total, o.DeliveryAddress, o.Note, o.CreatedAt, o.UpdatedAt,
         customer is null ? o.GuestName : string.IsNullOrWhiteSpace(customer.FullName) ? "Customer" : customer.FullName,
-        customer?.PhoneNumber ?? o.GuestPhone, o.Discount, o.CodeDiscount, o.PromoCode);
+        customer?.PhoneNumber ?? o.GuestPhone, o.Discount, o.CodeDiscount, o.PromoCode,
+        o.Currency, o.ExchangeRate, Currencies.ToKhr(o.Total, o.ExchangeRate));
 
     private static void CheckPage(int page)
     {
@@ -101,9 +102,11 @@ public class OrderService(GrabDbContext db, PlatformSettingsService platform, Pr
     private async Task<MerchantOrder> Prepare(Guid? customerId, PlaceOrderRequest r, CancellationToken ct)
     {
         if (!Enum.IsDefined(r.PaymentMethod)) throw new ApiException(400, "Choose Cash or Card.");
+        if (r.Currency is { } currency && !Enum.IsDefined(currency)) throw new ApiException(400, "Choose USD or KHR.");
         var address = Address(r.DeliveryAddress); var note = Note(r.Note);
         var order = await Build(customerId, r.MerchantId, r.Items, ct);
         order.PaymentMethod = r.PaymentMethod; order.DeliveryAddress = address; order.Note = note;
+        order.Currency = r.Currency ?? PaymentCurrency.USD; order.ExchangeRate = Currencies.KhrPerUsd;
         var quote = await Price(customerId, order, r.PromoCode, ct);
         if (r.ExpectedTotal.HasValue && r.ExpectedTotal.Value != quote.Total)
             throw new ApiException(409, "Prices or promotions changed. Review the updated total and place the order again.");

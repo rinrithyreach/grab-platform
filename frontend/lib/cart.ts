@@ -14,6 +14,7 @@ import { clearPartnerCart, partnerCart, putPartnerItem, type PartnerOffer } from
 import { cartDetails, lineKey, type Cart, type Order, type PaymentMethod } from "./pricing";
 import { promotionTotals, subscribePromotions, getPromotionRules, DEFAULT_PROMOTIONS } from "./promotion-rules";
 import { payFromWallet } from "./wallet";
+import type { Currency } from "./currency";
 
 export {
   cartDetails, isValidAddress, lineKey, PROMO_CODES, TIP_OPTIONS,
@@ -153,7 +154,7 @@ export function addPartnerItem(offer: PartnerOffer, confirmReplace: (otherStoreN
  * Places the order. "Wallet" payment needs a logged-in user (`userId`): it fails with
  * "loginRequired" for guests and "insufficient" if the balance is too low.
  */
-export function placeOrder(address: string, payment: PaymentMethod, note: string, userId?: string | null): { order: Order } | { error: "empty" | "insufficient" | "loginRequired" } {
+export function placeOrder(address: string, payment: PaymentMethod, note: string, userId?: string | null, currency: Currency = "USD"): { order: Order } | { error: "empty" | "insufficient" | "loginRequired" } {
   const state = shop.get();
   const { store, lines, subtotal, discount, promotionLabel, promoCode, codeDiscount, codeValid, deliveryFee, tip, total } = cartDetails(state.cart, state.orders);
   if (!store || store.kind !== "food" || !lines.length) return { error: "empty" };
@@ -166,6 +167,8 @@ export function placeOrder(address: string, payment: PaymentMethod, note: string
     subtotal, discount, promotionLabel,
     promoCode: codeValid ? promoCode : undefined, codeDiscount: codeValid ? codeDiscount : 0,
     deliveryFee, tip, total, address, payment, note, createdAt: new Date().toISOString(),
+    // The wallet holds US dollars, so wallet payments are always USD.
+    currency: payment === "Wallet" ? "USD" : currency,
   };
   shop.set({ cart: { storeId: null, lines: [] }, orders: [order, ...state.orders] });
   return { order };

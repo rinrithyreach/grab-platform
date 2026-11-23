@@ -14,6 +14,7 @@ import BrandMark from "./BrandMark";
 import Icon, { type IconName } from "./Icon";
 import MobileNav from "./MobileNav";
 import AccountMenu from "./AccountMenu";
+import NotificationBell from "./NotificationBell";
 
 const LINKS: { href: string; key: MessageKey }[] = [
   { href: "/ride", key: "nav.ride" },
@@ -114,6 +115,7 @@ export default function Navbar() {
 
           <div className="ml-auto flex items-center gap-1">
             <SettingsMenu />
+            <NotificationBell />
             <Link href="/cart" aria-label={t("nav.cart")} aria-current={pathname === "/cart" ? "page" : undefined} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-brand-soft">
               <Icon name="bag" />
               {count > 0 && (

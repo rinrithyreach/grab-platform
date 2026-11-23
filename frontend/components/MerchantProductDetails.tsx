@@ -11,6 +11,9 @@ import { PartnerAddButton, PartnerCartBar } from "./PartnerCartControls";
 import PromotionBadge from "./PromotionBadge";
 import CategoryBadge from "./CategoryBadge";
 import FoodProductDetails from "./FoodProductDetails";
+import WishlistButton from "./WishlistButton";
+import { useWishlist, watchForRestock } from "@/lib/wishlist";
+import { toast } from "@/lib/toast";
 
 export default function MerchantProductDetails({ merchantId, listingId }: { merchantId: string; listingId: string }) {
   const { api } = useAuth();
@@ -20,6 +23,7 @@ export default function MerchantProductDetails({ merchantId, listingId }: { merc
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<"missing" | "network" | null>(null);
   const [retry, setRetry] = useState(0);
+  const watching = useWishlist().some((item) => item.listingId === listingId);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -42,6 +46,10 @@ export default function MerchantProductDetails({ merchantId, listingId }: { merc
     <BackButton href={`/partners/${merchantId}`} />
     <p role="alert">{t(error === "missing" ? "partner.productUnavailable" : "merchant.unavailable")}</p>
     {error === "network" && <button type="button" className="btn-outline" onClick={() => { setLoading(true); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button>}
+    {/* Sold out (unpublished) products can be watched for a restock alert. */}
+    {error === "missing" && (watching
+      ? <p role="status" className="flex items-center gap-2 font-semibold text-brand"><span aria-hidden>🔔</span>{t("wish.watching")}</p>
+      : <button type="button" className="btn-primary" onClick={() => { watchForRestock(merchantId, listingId); toast(t("wish.watching")); }}>🔔 {t("wish.notifyBack")}</button>)}
   </div>;
 
   if (offer.merchant.service === "GrabFood") return <FoodProductDetails key={offer.id} offer={offer} others={others} />;
@@ -56,7 +64,7 @@ export default function MerchantProductDetails({ merchantId, listingId }: { merc
       </div>
       <div className="flex flex-col gap-5 p-6 sm:p-8">
         <p className="text-sm font-semibold text-brand">{offer.merchant.service} · {offer.merchant.businessName}</p>
-        <h1 className="break-words text-3xl font-bold">{offer.title}</h1>
+        <div className="flex items-start justify-between gap-3"><h1 className="break-words text-3xl font-bold">{offer.title}</h1><WishlistButton offer={offer} className="shrink-0 border border-border" /></div>
         <p className="text-2xl font-bold text-brand">{money(offer.price)}</p>
         <PromotionBadge storeId={merchantId} productId={listingId} />
         <CategoryBadge categoryId={offer.categoryId} />

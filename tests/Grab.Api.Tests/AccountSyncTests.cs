@@ -51,6 +51,7 @@ public partial class ApiTests
             ["grab-wallet-v1"] = new { balance = 15.5, txns = new[] { new { id = "payment-one", amount = -4.5 } } },
             ["grab-profile-v1"] = new { addresses = new[] { new { label = "home", text = "Private address 12" } } },
             ["grab-favorites-v1"] = new { storeIds = new[] { "rice-bowl" } },
+            ["grab-wishlist-v1"] = new { items = new[] { new { listingId = "listing-one", merchantId = "merchant-one", title = "Fried rice", price = 4.5 } } },
             ["grab-settings"] = new { lang = "km", theme = "dark" },
             ["grab-reviews-v1"] = new { reviews = new[] { new { id = "review-one", storeId = "rice-bowl", orderId = "private-order", name = "Reviewer", rating = 5, comment = "Good food", createdAt = DateTimeOffset.UtcNow.ToString("O") } } }
         };
@@ -58,7 +59,8 @@ public partial class ApiTests
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var onSecondDevice = await Read<AccountDataDto>(await b.GetAsync("/api/account-data"));
         Assert.Equal(1, onSecondDevice.Version);
-        Assert.Equal(7, onSecondDevice.Data.Count);
+        Assert.Equal(8, onSecondDevice.Data.Count);
+        Assert.Equal("Fried rice", onSecondDevice.Data["grab-wishlist-v1"].GetProperty("items")[0].GetProperty("title").GetString());
         Assert.Equal("Private address 12", onSecondDevice.Data["grab-profile-v1"].GetProperty("addresses")[0].GetProperty("text").GetString());
         Assert.Equal(0, (await Read<AccountDataDto>(await other.GetAsync("/api/account-data"))).Version);
         Assert.Equal(HttpStatusCode.Conflict, (await b.PatchAsJsonAsync("/api/account-data", new { version = 0, data })).StatusCode);

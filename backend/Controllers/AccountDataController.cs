@@ -13,7 +13,7 @@ namespace Grab.Api.Controllers;
 public class AccountDataController(GrabDbContext db) : ApiControllerBase
 {
     private static readonly HashSet<string> Keys = ["grab-shop-v1", "grab-express-demo-v1", "grab-wallet-v1",
-        "grab-profile-v1", "grab-favorites-v1", "grab-reviews-v1", "grab-settings"];
+        "grab-profile-v1", "grab-favorites-v1", "grab-wishlist-v1", "grab-reviews-v1", "grab-settings"];
 
     [HttpGet]
     public async Task<AccountDataDto> Get(CancellationToken ct)

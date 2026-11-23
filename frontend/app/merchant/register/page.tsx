@@ -6,6 +6,7 @@ import { useState } from "react";
 import MerchantProfileFields from "@/components/MerchantProfileFields";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 import { EMPTY_MERCHANT_PROFILE, merchantRegistrationProfile } from "@/lib/merchant";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { validRideWorkSchedule } from "@/lib/ride-work-schedule";
@@ -33,6 +34,7 @@ export default function MerchantRegisterPage() {
     setBusy(true); setError("");
     try {
       await api.merchantRegister({ phoneNumber, password, profile: merchantRegistrationProfile(profile) });
+      toast(t("notify.merchantWelcome"));
       router.replace("/merchant");
     } catch (err) { setError(errorMessage(err, t)); }
     finally { setBusy(false); }

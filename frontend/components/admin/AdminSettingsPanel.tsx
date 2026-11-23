@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import type { AdminSettings, PlatformSettings } from "@/lib/admin-settings";
 import { useAdminT } from "@/lib/admin-i18n";
+import { confirmDialog } from "@/lib/dialog";
 import { setPlatformSettings } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
 import { LanguageSwitch, ThemeSwitch } from "./AdminPreferenceSwitches";
@@ -59,7 +60,7 @@ export default function AdminSettingsPanel({ revision, canManage, onSaved }: { r
   return <div className="admin-settings-layout">
     {nav}
     <form onSubmit={submit} className="admin-settings-main">
-      {error && <div className="admin-error" role="alert">{error}<button className="admin-text-link" type="button" onClick={() => { if (!dirty || window.confirm(a("Discard your unsaved changes and reload the latest settings?"))) setReload(v => v + 1); }}>{a("Reload latest settings")}</button></div>}
+      {error && <div className="admin-error" role="alert">{error}<button className="admin-text-link" type="button" onClick={async () => { if (!dirty || await confirmDialog({ title: a("Discard your unsaved changes and reload the latest settings?"), confirmLabel: a("Reload latest settings"), tone: "danger" })) setReload(v => v + 1); }}>{a("Reload latest settings")}</button></div>}
       {!canManage && <div className="admin-notice" role="status">{a("Your role can view platform settings but not change them.")}</div>}
       <fieldset disabled={busy || !canManage} className="admin-settings-fieldset">
         {tab === "general" && <section className="admin-panel admin-settings-card"><header><span className="admin-settings-card-icon"><AdminIcon name="support" /></span><div><h2>{a("Support details")}</h2><p>{a("Help customers reach your team. These details appear in the customer app’s footer.")}</p></div></header><div className="admin-form"><div className="admin-form-columns">{field("supportEmail", "Support email", "support@example.com", 254, "email")}{field("supportPhone", "Support phone", "+855 12 345 678", 30, "tel")}</div>{field("supportHours", "Support hours", "Monday–Friday, 08:00–18:00 (Cambodia time)", 120)}{field("officeAddress", "Office address", "Your customer support or business address", 300)}<p className="admin-field-help">{a("Leave optional fields blank to hide them. Phone numbers are saved in international format.")}</p></div></section>}

@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n";
 import { merchantProductText } from "@/lib/merchant-content";
 import PromotionBadge from "./PromotionBadge";
 import CategoryBadge from "./CategoryBadge";
+import WishlistButton from "./WishlistButton";
 
 /** Optional actions sit outside the product link so the whole card stays clickable. */
 export default function MerchantOfferCard({ offer, preview = false, compact = false, children }: { offer: MerchantOffer; preview?: boolean; compact?: boolean; children?: ReactNode }) {
@@ -39,12 +40,15 @@ export default function MerchantOfferCard({ offer, preview = false, compact = fa
       {!preview && <p className="hidden pt-1 text-sm font-semibold text-brand sm:block">{t(offer.merchant.service !== "GrabRide" ? "partner.viewDetails" : "merchant.viewStore")} →</p>}
     </div>}
   </>;
+  // Rides aren't products, and previews (the merchant's own editor) can't be saved.
+  const heart = !preview && offer.merchant.service !== "GrabRide" ? <WishlistButton offer={offer} className="absolute right-2.5 top-2.5 z-10" /> : null;
   return preview
     ? <article className="card flex flex-col overflow-hidden">{content}{children && <div className="mt-auto px-3 pb-3 sm:px-5 sm:pb-5">{children}</div>}</article>
     : children
-      ? <article className="card group flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
+      ? <article className="card group relative flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
           <Link href={href} className="block flex-1">{content}</Link>
+          {heart}
           <div className="mt-auto px-3 pb-3 sm:px-5 sm:pb-5">{children}</div>
         </article>
-      : <Link href={href} className="card group block overflow-hidden transition-shadow hover:shadow-lg">{content}</Link>;
+      : <div className="relative h-full"><Link href={href} className="card group block h-full overflow-hidden transition-shadow hover:shadow-lg">{content}</Link>{heart}</div>;
 }

@@ -6,6 +6,7 @@ import { money } from "@/lib/brand";
 import type { MenuItem } from "@/lib/catalog";
 import { STORES } from "@/lib/catalog";
 import { addToCart, lineKey, setQty, useShop } from "@/lib/cart";
+import { askReplaceCart, withReplaceConfirm } from "@/lib/dialog";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import ItemOptionsDialog from "./ItemOptionsDialog";
@@ -32,8 +33,8 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
   const plainKey = lineKey({ itemId: item.id });
   const plainQty = inThisStore ? cart.lines.find((l) => lineKey(l) === plainKey)?.qty ?? 0 : 0;
 
-  function add(options: string[] = [], qty = 1) {
-    const added = addToCart(storeId, item.id, (otherName) => window.confirm(t("cart.replace", { store: otherName })), options, qty);
+  async function add(options: string[] = [], qty = 1) {
+    const added = await withReplaceConfirm((confirmReplace) => addToCart(storeId, item.id, confirmReplace, options, qty), askReplaceCart(t));
     if (added) toast(t("store.added", { name }));
     return added;
   }
@@ -80,7 +81,7 @@ export default function MenuItemCard({ storeId, item, closed = false }: { storeI
           imageUrl={photo?.src}
           closed={closed}
           onClose={() => setDialogOpen(false)}
-          onAdd={(options, qty) => { if (add(options, qty)) setDialogOpen(false); }}
+          onAdd={async (options, qty) => { if (await add(options, qty)) setDialogOpen(false); }}
         />
       )}
     </div>

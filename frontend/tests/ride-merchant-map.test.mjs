@@ -76,11 +76,21 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   const container = dom.window.document.getElementById("root");
   root = createRoot(container);
   const destinations = [];
-  await act(async () => root.render(h(Component, {
+  const availability = [];
+  const props = {
     from: { name: "Pickup", km: "", lat: 11.5564, lng: 104.9282 },
     to: { name: "Destination", km: "", lat: 11.5636, lng: 104.9312 }, label: "Trip and merchant areas",
-    onDestinationChange: point => destinations.push(point),
-  })));
+    onDestinationChange: point => {
+      destinations.push(point);
+      props.to = { ...props.to, ...point };
+      root.render(h(Component, props));
+    },
+    onAvailabilityChange: areas => availability.push(areas),
+  };
+  await act(async () => root.render(h(Component, { ...props, showMap: false })));
+  assert.equal(container.querySelector(".ride-map"), null, "The collapsed map does not initialize Leaflet");
+  assert.equal(availability.at(-1).length, 101, "Vehicle availability loads even with the map closed");
+  await act(async () => root.render(h(Component, { ...props, showMap: true })));
   assert.deepEqual(pages, [1, 2], "All pages are loaded, including merchants beyond the first hundred");
   assert.equal(tiles[0].url, "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "The booking map uses the standard key-free tile service");
   assert.ok(tiles[0].options.attribution.includes("openstreetmap.org/copyright"));
@@ -97,10 +107,18 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   assert.ok(container.textContent.includes("ride.merchantAreaMissing"));
   assert.ok(container.textContent.includes("ride.mapDestinationHint"));
   assert.ok(container.querySelector('[role="region"][aria-label="Trip and merchant areas"]'));
+  const beforeSelection = views.length;
   await act(async () => handlers.click({ latlng: { wrap: () => ({ lat: 11.58, lng: 104.94 }) } }));
   assert.deepEqual(destinations, [{ lat: 11.58, lng: 104.94 }]);
+  assert.equal(views.length, beforeSelection, "Choosing a destination preserves the customer's zoom and pan");
+  assert.ok(groups.at(-1).layers.some(layer => layer.kind === "trip" && layer.position[0] === 11.58 && layer.position[1] === 104.94), "The destination pin moves to the tapped point");
+  await act(async () => handlers.click({ latlng: { wrap: () => ({ lat: 11.581, lng: 104.941 }) } }));
+  assert.equal(views.length, beforeSelection, "A second tap can refine the destination without zooming out");
   await act(async () => handlers.click({ latlng: { wrap: () => ({ lat: NaN, lng: 104.94 }) } }));
-  assert.equal(destinations.length, 1, "Invalid coordinates are ignored");
+  assert.equal(destinations.length, 2, "Invalid coordinates are ignored");
+  props.to = { ...props.to, lat: 11.59, lng: 104.95 };
+  await act(async () => root.render(h(Component, props)));
+  assert.ok(views.length > beforeSelection, "Choosing a different place outside the map still fits the new route");
 
   const viewCount = views.length;
   await act(async () => dom.window.dispatchEvent(new dom.window.Event("focus")));

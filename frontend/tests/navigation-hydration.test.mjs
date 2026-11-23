@@ -47,6 +47,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "@/lib/brand": dataModule("export const BRAND = {name: 'Grab'}; export const PROJECT = {year: 2026}; export const SOCIAL_LINKS = []; export const money = value => '$' + value;"),
       "@/lib/wallet": dataModule("export const useWallet = () => ({ balance: 5, hasWallet: true });"),
       "./SettingsMenu": dataModule("export default () => null;"),
+      "./NotificationBell": dataModule("export default () => null;"),
       "./social-icon-paths": dataModule("export const SOCIAL_ICON_PATHS = {};"),
       "@/lib/platform": dataModule("export const usePlatformSettings = () => null;"),
     };
@@ -107,12 +108,12 @@ for (const destination of ["/merchant", "/store/test-store"]) {
     assert.equal(container.querySelectorAll('a[href="/profile"]').length, 0);
     assert.equal(container.querySelector("footer").classList.contains("pb-24"), destination.startsWith("/store/"));
 
-    router.setPath("/orders");
+    router.setPath("/food");
     await act(async () => root.render(h(App)));
-    assert.equal(container.querySelector('header a[href="/orders"]').getAttribute("aria-current"), "page");
+    assert.equal(container.querySelector('header a[href="/food"]').getAttribute("aria-current"), "page");
     assert.equal(container.querySelector('header [role="menu"] a[href="/merchant"]').getAttribute("aria-current"), null);
     assert.equal(container.querySelector("footer").classList.contains("pb-24"), false);
-    assert.equal(container.querySelector('.mobile-bottom-nav a[href="/orders"]').getAttribute("aria-current"), "page", "Bottom navigation follows the hydrated route");
+    assert.equal(container.querySelector('.mobile-bottom-nav a[href="/food"]').getAttribute("aria-current"), "page", "Bottom navigation follows the hydrated route");
     assert.deepEqual(attributeWarnings, [], "Active links continue to update without warnings after navigation");
   });
 }

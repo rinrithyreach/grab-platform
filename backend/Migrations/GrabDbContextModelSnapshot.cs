@@ -528,6 +528,11 @@ namespace Grab.Api.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
@@ -541,6 +546,10 @@ namespace Grab.Api.Migrations
                         .HasColumnType("decimal(12,2)");
 
                     b.Property<decimal>("Discount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("ExchangeRate")
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
 

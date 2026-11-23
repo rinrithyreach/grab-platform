@@ -10,9 +10,9 @@ export default function MobileNav({ accountHref }: { accountHref: string }) {
   const { t, pick } = useT();
   const links: { href: string; label: string; icon: IconName; active?: boolean }[] = [
     { href: "/", label: t("nav.home"), icon: "home" },
-    { href: "/orders", label: pick("Orders", "ការបញ្ជាទិញ"), icon: "bag" },
-    { href: "/favorites", label: pick("Saved", "ចូលចិត្ត"), icon: "heart" },
     { href: "/ride", label: t("nav.ride"), icon: "car", active: pathname === "/ride" || pathname === "/rides" },
+    { href: "/food", label: t("nav.food"), icon: "food" },
+    { href: "/express", label: t("nav.express"), icon: "parcel" },
     { href: accountHref, label: pick("Account", "គណនី"), icon: "user" },
   ];
   return <nav className="mobile-bottom-nav" aria-label={pick("Quick navigation", "ការរុករករហ័ស")} style={{ viewTransitionName: "bottom-navigation" }}>

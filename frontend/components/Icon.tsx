@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 
-export type IconName = "home" | "bag" | "heart" | "user" | "car" | "food" | "parcel" | "pin" | "search" | "arrow" | "clock" | "menu" | "close" | "wallet" | "star" | "chevron" | "settings" | "check" | "logout" | "camera" | "pencil" | "sun" | "moon" | "receipt" | "truck" | "store";
+export type IconName = "home" | "bag" | "heart" | "user" | "car" | "food" | "parcel" | "pin" | "search" | "arrow" | "clock" | "menu" | "close" | "wallet" | "star" | "chevron" | "settings" | "check" | "logout" | "camera" | "pencil" | "sun" | "moon" | "receipt" | "truck" | "store" | "bell" | "info" | "warning" | "alert";
 
 const paths: Record<IconName, ReactNode> = {
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
@@ -29,6 +29,10 @@ const paths: Record<IconName, ReactNode> = {
   receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
   store: <><path d="M3 9 4.5 4h15L21 9M3 9v1.5a3 3 0 0 0 6 0V9m0 1.5a3 3 0 0 0 6 0V9m0 1.5a3 3 0 0 0 6 0V9M3 9h18M5 13v8h14v-8M10 21v-5h4v5" /></>,
   truck: <><path d="M2 6h12v10H2zM14 10h4l3 3v3h-7" /><circle cx="6" cy="18" r="2" fill="var(--surface)" /><circle cx="17" cy="18" r="2" fill="var(--surface)" /></>,
+  bell: <><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9Z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.5v.01" /></>,
+  warning: <><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9.5v4M12 17v.01" /></>,
+  alert: <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6m0-6-6 6" /></>,
 };
 
 export default function Icon({ name, className = "", filled = false, style }: { name: IconName; className?: string; filled?: boolean; style?: CSSProperties }) {

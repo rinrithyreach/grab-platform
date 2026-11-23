@@ -41,6 +41,7 @@ async function registration(service) {
     "@/lib/auth": dataModule('export const useAuth = () => ({ api: {} }); export const errorMessage = () => "";'),
     "@/lib/phone": dataModule('export const normalizePhoneNumber = value => value;'),
     "@/lib/ride-work-schedule": await component("../lib/ride-work-schedule.ts", {}),
+    "@/lib/toast": dataModule('export const toast = () => {};'),
     "next/navigation": dataModule('export const useRouter = () => ({ replace: () => {} });'),
     "next/link": dataModule(`import { createElement } from "${reactModule}"; export default ({ children, ...props }) => createElement("a", props, children);`),
   });

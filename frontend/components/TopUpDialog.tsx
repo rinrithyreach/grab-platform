@@ -12,10 +12,16 @@ import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
 import { getPaymentProvider, type TopUp } from "@/lib/payments";
 import { toast } from "@/lib/toast";
+import { notify } from "@/lib/notifications";
 import { topUp } from "@/lib/wallet";
+import { formatPaid, riel, usdToKhr, type Currency } from "@/lib/currency";
+import CurrencyPicker from "./CurrencyPicker";
 
 type Step = "choose" | "starting" | "qr" | "paid" | "expired" | "error";
 const POLL_MS = 2000;
+
+/** What the customer scans and pays: riel for a KHR top-up, otherwise the dollar amount. */
+const paidText = (t: TopUp) => t.currency === "KHR" ? riel(t.paidAmount ?? usdToKhr(t.amount)) : money(t.amount);
 
 export default function TopUpDialog({ amount, onClose }: { amount: number; onClose: () => void }) {
   const { t } = useT();
@@ -27,6 +33,7 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
   const [qrImage, setQrImage] = useState("");
   const [error, setError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [currency, setCurrency] = useState<Currency>("USD");
 
   // Open as a modal when mounted.
   useEffect(() => { ref.current?.showModal(); }, []);
@@ -58,9 +65,11 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
     setTopup(latest);
     if (latest.status === "paid") {
       // `reference` makes this safe to call more than once: the same top-up is credited only once.
-      topUp(user?.id, latest.amount, { method: "Bakong KHQR", reference: latest.id });
+      // The wallet is in US dollars; a riel payment credits its dollar amount.
+      topUp(user?.id, latest.amount, { method: latest.currency === "KHR" ? `Bakong KHQR · ${paidText(latest)}` : "Bakong KHQR", reference: latest.id });
       setStep("paid");
       toast(t("wallet.topUpDone", { amount: money(latest.amount) }));
+      notify({ id: `wallet:${latest.id}`, kind: "wallet", title: t("notify.walletTitle"), body: t("wallet.topUpDone", { amount: money(latest.amount) }), href: "/wallet" });
     } else if (latest.status === "expired") setStep("expired");
     else if (latest.status === "failed") { setError(t("topup.failed")); setStep("error"); }
     else if (latest.status === "cancelled") onClose();
@@ -68,7 +77,7 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
 
   async function start() {
     setStep("starting"); setError("");
-    try { setTopup(await provider.create(amount)); setStep("qr"); }
+    try { setTopup(await provider.create(amount, currency)); setStep("qr"); }
     catch (err) { setError(err instanceof Error ? err.message : t("error.generic")); setStep("error"); }
   }
 
@@ -105,22 +114,23 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
                 <span className="block text-xs text-muted">{t("topup.methodText")}</span>
               </span>
             </label>
+            <CurrencyPicker value={currency} onChange={setCurrency} usd={amount} disabled={step === "starting"} name="topup-currency" />
             <button onClick={start} disabled={step === "starting"} className="btn-primary w-full">
-              {step === "starting" ? t("common.loading") : t("topup.continue", { amount: money(amount) })}
+              {step === "starting" ? t("common.loading") : t("topup.continue", { amount: formatPaid(amount, currency) })}
             </button>
           </div>
         )}
 
         {step === "qr" && topup && (
           <div className="space-y-4 text-center">
-            <p className="text-sm text-muted">{t("topup.scan")}</p>
+            <p className="text-sm text-muted">{topup.currency === "KHR" ? t("topup.payKhr", { khr: paidText(topup), amount: money(topup.amount) }) : t("topup.scan")}</p>
             <div className="mx-auto w-fit rounded-2xl border-4 border-red-600 bg-white p-3">
               <p className="mb-2 text-xs font-extrabold tracking-widest text-red-600">KHQR</p>
               {qrImage
                 // eslint-disable-next-line @next/next/no-img-element -- a generated data: image, nothing to optimise
-                ? <img src={qrImage} alt={t("topup.qrAlt", { amount: money(topup.amount) })} width={200} height={200} className="h-[200px] w-[200px]" />
+                ? <img src={qrImage} alt={t("topup.qrAlt", { amount: paidText(topup) })} width={200} height={200} className="h-[200px] w-[200px]" />
                 : <div className="h-[200px] w-[200px] animate-pulse rounded bg-zinc-200" aria-busy />}
-              <p className="mt-2 text-lg font-bold text-black">{money(topup.amount)}</p>
+              <p className="mt-2 text-lg font-bold text-black">{paidText(topup)}</p>
             </div>
             <p className="flex items-center justify-center gap-2 text-sm font-medium" aria-live="polite">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden />

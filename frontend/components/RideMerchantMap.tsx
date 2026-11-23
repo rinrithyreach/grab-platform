@@ -9,8 +9,10 @@ import { rideMerchantMapArea } from "@/lib/ride-merchant-areas";
 import { formatRideWorkSchedule } from "@/lib/ride-work-schedule";
 import RideMap from "./RideMap";
 
-export default function RideMerchantMap({ from, to, label, vehicleType, onAvailabilityChange, onDestinationChange }: {
+export default function RideMerchantMap({ from, to, label, vehicleType, showMap = true, onAvailabilityChange, onDestinationChange }: {
   from: Place; to: Place; label: string; vehicleType?: RideVehicleType;
+  /** Keep checking availability while the optional mobile map is closed. */
+  showMap?: boolean;
   onAvailabilityChange?: (areas: RideMerchantArea[] | null) => void;
   onDestinationChange?: (point: Pick<Place, "lat" | "lng">) => void;
 }) {
@@ -54,10 +56,12 @@ export default function RideMerchantMap({ from, to, label, vehicleType, onAvaila
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", focus); };
   }, [api, retry, onAvailabilityChange]);
 
-  // The map comes first; a single quiet legend line replaces the old heading and hint.
+  // Mount Leaflet only when visible so it can measure the map's real dimensions.
+  if (!showMap) return null;
+
   return <section className="space-y-2" aria-label={t("ride.merchantAreas")}>
-    <RideMap from={from} to={to} label={label} merchantAreas={areas} onDestinationChange={onDestinationChange} tall />
     {onDestinationChange && <p className="px-1 text-sm font-medium text-brand">{t("ride.mapDestinationHint")}</p>}
+    <RideMap from={from} to={to} label={label} merchantAreas={areas} onDestinationChange={onDestinationChange} tall />
     <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted" title={t("ride.merchantAreasHint")}>
       <span>🟢 {t("ride.pickup")}</span><span>🔴 {t("ride.destination")}</span><span>🛵 {t("ride.merchantAreasCount", { n: areas.length })}</span>
     </div>

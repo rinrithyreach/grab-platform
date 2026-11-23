@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
 import { BRAND } from "@/lib/brand";
 import { normalizePhoneNumber } from "@/lib/phone";
@@ -29,6 +30,8 @@ export default function LoginPage() {
     setBusy(true); setError("");
     try {
       const user = await login(phone, password);
+      const name = user.fullName.trim() && user.fullName.trim() !== "Customer" ? user.fullName.trim() : user.phoneNumber;
+      toast(t("notify.welcomeBack", { name }));
       router.replace(authDestination(user.role, window.location.search));
     } catch (err) {
       setError(errorMessage(err, t));

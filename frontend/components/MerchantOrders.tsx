@@ -6,6 +6,8 @@ import { errorMessage, useAuth } from "@/lib/auth";
 import { money } from "@/lib/brand";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
+import { formatPaid } from "@/lib/currency";
+import { confirmDialog } from "@/lib/dialog";
 
 /** The next step the store can take for each status (Reject/Cancel → Rejected is offered beside it). */
 const NEXT: Partial<Record<MerchantOrderStatus, { status: MerchantOrderStatus; label: MessageKey }>> = {
@@ -54,7 +56,13 @@ export default function MerchantOrders({ onPending }: { onPending?: (count: numb
   }, [load]);
 
   async function move(order: MerchantOrder, status: MerchantOrderStatus) {
-    if (status === "Rejected" && !window.confirm(t(order.status === "Pending" ? "merchant.order.rejectConfirm" : "merchant.order.cancelConfirm"))) return;
+    if (status === "Rejected" && !(await confirmDialog({
+      title: t(order.status === "Pending" ? "dialog.rejectOrder" : "dialog.cancelOrder"),
+      message: t(order.status === "Pending" ? "merchant.order.rejectConfirm" : "merchant.order.cancelConfirm"),
+      confirmLabel: t(order.status === "Pending" ? "dialog.rejectOrder" : "dialog.cancelOrder"),
+      cancelLabel: t("dialog.keep"),
+      tone: "danger",
+    }))) return;
     setBusy(order.id);
     try {
       const updated = await api.updateMerchantOrder(order.id, status);
@@ -98,7 +106,9 @@ export default function MerchantOrders({ onPending }: { onPending?: (count: numb
                   {!!o.discount && <div className="flex justify-between gap-4 text-brand"><dt>{t("cart.promo", { promo: "" })}</dt><dd>−{money(o.discount)}</dd></div>}
                   {!!o.codeDiscount && <div className="flex justify-between gap-4 text-brand"><dt>{t("cart.promo", { promo: o.promoCode ?? "" })}</dt><dd>−{money(o.codeDiscount)}</dd></div>}
                   <div className="flex justify-between gap-4 border-t border-border pt-1 text-muted"><dt>{t("cart.deliveryFee")}</dt><dd>{money(o.deliveryFee)}</dd></div>
-                  <div className="flex justify-between gap-4 font-bold"><dt>{t("cart.total")} · {t(o.paymentMethod === "Card" ? "cart.card" : "cart.cash")}</dt><dd>{money(o.total)}</dd></div>
+                  <div className="flex justify-between gap-4 font-bold"><dt>{t("cart.total")} · {t(o.paymentMethod === "Card" ? "cart.card" : "cart.cash")} · {o.currency ?? "USD"}</dt><dd>{money(o.total)}</dd></div>
+                  {/* Riders need to know whether to collect dollars or riel at the door. */}
+                  {o.currency === "KHR" && <div className="flex justify-between gap-4 rounded-lg bg-brand-soft px-2 py-1 font-bold text-brand"><dt>{o.paymentMethod === "Cash" ? t("currency.collectCash") : t("currency.paidIn", { currency: "KHR" })}</dt><dd>{formatPaid(o.total, "KHR", o.exchangeRate)}</dd></div>}
                 </dl>
                 <div className="mt-3 space-y-1 rounded-xl bg-background p-3 text-sm">
                   <p><span className="font-semibold">{t("merchant.order.customer")}:</span> {o.customerName}{o.customerPhone && <> · <a className="text-brand underline" href={`tel:${o.customerPhone}`}>{o.customerPhone}</a></>}</p>

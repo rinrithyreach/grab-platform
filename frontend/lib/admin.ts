@@ -28,6 +28,7 @@ export const ADMIN_CONFIG: Record<AdminResource, { title: string; description: s
   audit: { title: "Activity log", description: "A permanent record of changes made through the admin console.", filters: ["users", "merchants", "listings", "rides", "orders", "express", "deliveries", "drivers", "reviews", "categories", "promotions", "settings", "team", "roles", "profile"], columns: [{ key: "actorName", label: "Administrator" }, { key: "resource", label: "Section" }, { key: "action", label: "Change" }, { key: "reason", label: "Reason" }, { key: "createdAt", label: "Time", format: "date" }] },
 };
 export function adminValue(row: AdminRecord, key: string): unknown {
+  if ((key === "vehicleType" || (key === "category" && row.service === "GrabRide")) && row[key] === "Rickshaw") return "TukTuk";
   if (key === "contact") return row.email || row.phoneNumber;
   if (key === "accountStatus") return row.isActive ? "Active" : "Suspended";
   if (key === "publicationStatus") return !row.isPublished ? "Draft" : row.showInSlideshow ? "Featured" : "Published";

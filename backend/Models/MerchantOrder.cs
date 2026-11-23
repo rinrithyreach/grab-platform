@@ -10,6 +10,19 @@ public enum MerchantOrderStatus { Pending, Accepted, OnTheWay, Delivered, Reject
 /// <summary>Payments are simulated; no money is taken.</summary>
 public enum OrderPaymentMethod { Cash, Card }
 
+/// <summary>The currency the customer pays in. Prices are always stored in USD.</summary>
+public enum PaymentCurrency { USD, KHR }
+
+/// <summary>Fixed demo exchange rate, mirrored by the frontend (lib/currency.ts KHR_PER_USD).</summary>
+public static class Currencies
+{
+    public const decimal KhrPerUsd = 4100m;
+
+    /// <summary>USD → riel, rounded to the nearest 100 ៛ (the smallest note in everyday use).</summary>
+    public static long ToKhr(decimal usd, decimal khrPerUsd = KhrPerUsd) =>
+        (long)(Math.Round(usd * khrPerUsd / 100m, MidpointRounding.AwayFromZero) * 100m);
+}
+
 public class MerchantOrder
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -21,6 +34,9 @@ public class MerchantOrder
     public Merchant Merchant { get; set; } = null!;
     public MerchantOrderStatus Status { get; set; } = MerchantOrderStatus.Pending;
     public OrderPaymentMethod PaymentMethod { get; set; }
+    public PaymentCurrency Currency { get; set; } = PaymentCurrency.USD;
+    /// <summary>Riel per US dollar when the order was placed, so later rate changes never alter a receipt.</summary>
+    public decimal ExchangeRate { get; set; } = Currencies.KhrPerUsd;
     public string DeliveryAddress { get; set; } = "";
     public string Note { get; set; } = "";
     public decimal Subtotal { get; set; }

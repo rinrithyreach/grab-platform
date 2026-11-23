@@ -12,10 +12,13 @@ import { merchantProductTitle } from "@/lib/merchant-content";
 import { clearPartnerCart, clearSubmittedPartnerCart, MAX_PARTNER_QTY, partnerTotals, refreshPartnerCart, setPartnerQty, usePartnerCart } from "@/lib/partner-cart";
 import { usePromotions } from "@/lib/promotions";
 import { toast } from "@/lib/toast";
+import { notify } from "@/lib/notifications";
 import BackButton from "./BackButton";
 import LoginRequired from "./LoginRequired";
 import DeliveryAddressField from "./DeliveryAddressField";
 import CardPaymentFields from "./CardPaymentFields";
+import CurrencyPicker from "./CurrencyPicker";
+import { formatPaid, type Currency } from "@/lib/currency";
 import { CARD_FIELDS, EMPTY_CARD, validateCard } from "@/lib/card";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { rememberGuestOrder } from "@/lib/guest-orders";
@@ -60,6 +63,7 @@ export default function PartnerCheckout() {
   const [addressError, setAddressError] = useState(false);
   const [detectingAddress, setDetectingAddress] = useState(false);
   const [payment, setPayment] = useState<OrderPaymentMethod>("Cash");
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [note, setNote] = useState("");
   // Card details stay in memory only; the API receives just the payment method.
   const [card, setCard] = useState(EMPTY_CARD);
@@ -129,6 +133,7 @@ export default function PartnerCheckout() {
         merchantId, paymentMethod: payment, deliveryAddress: address.trim(), note: note.trim(),
         promoCode: promoCode || undefined,
         expectedTotal: quote.total,
+        currency,
         items: cart.lines.map((l) => ({ listingId: l.listingId, quantity: l.qty })),
       };
       let order: MerchantOrder;
@@ -138,6 +143,9 @@ export default function PartnerCheckout() {
         rememberGuestOrder(order.id, result.accessToken);
       } else order = await api.placeOrder(request);
       clearSubmittedPartnerCart(cart);
+      const placedText = t("notify.orderPlaced", { store: order.merchantName });
+      notify({ id: `order:${order.id}:placed`, kind: "order", title: t("notify.orderPlacedTitle"), body: placedText, href: `/orders?${guest ? "guest" : "partner"}=${encodeURIComponent(order.id)}` });
+      toast(placedText);
       router.push(`/orders?${guest ? "guest" : "partner"}=${encodeURIComponent(order.id)}`);
     } catch (err) {
       setError(errorMessage(err, t));
@@ -219,6 +227,7 @@ export default function PartnerCheckout() {
                   </button>
                 ))}
               </div>
+              <div className="mt-3"><CurrencyPicker value={currency} onChange={setCurrency} usd={total} name="partner-currency" /></div>
               {payment === "Card" && <div className="mt-3"><CardPaymentFields value={card} onChange={setCard} showAllErrors={cardChecked} idPrefix="partner-card" /></div>}
             </div>
             <div>
@@ -232,11 +241,12 @@ export default function PartnerCheckout() {
           {!!quote?.codeDiscount && <div className="flex justify-between text-brand"><dt>{t("cart.promo", { promo: quote.promoCode ?? "" })}</dt><dd>−{money(quote.codeDiscount)}</dd></div>}
           <div className="flex justify-between"><dt className="text-muted">{t("cart.deliveryFee")}</dt><dd>{money(deliveryFee)}</dd></div>
           <div className="flex justify-between pt-1 text-base font-bold"><dt>{t("cart.total")}</dt><dd>{money(total)}</dd></div>
+          {currency === "KHR" && <div className="flex justify-between font-semibold text-brand"><dt>{t("currency.payIn")} KHR</dt><dd>{formatPaid(total, "KHR")}</dd></div>}
         </dl>
         {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
         {canCheckout && (
           <button type="submit" className="btn-primary w-full" disabled={busy || !count || !quote || detectingAddress}>
-            {busy ? t("partner.placing") : t("cart.placeOrder", { total: money(total) })}
+            {busy ? t("partner.placing") : t("cart.placeOrder", { total: formatPaid(total, currency) })}
           </button>
         )}
         <p className="text-center text-xs text-muted">{t("partner.payNote")}</p>

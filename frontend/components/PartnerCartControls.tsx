@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { MerchantOffer } from "@/lib/api";
 import { money } from "@/lib/brand";
 import { addPartnerItem } from "@/lib/cart";
+import { askReplaceCart, withReplaceConfirm } from "@/lib/dialog";
 import { useT } from "@/lib/i18n";
 import { merchantProductTitle } from "@/lib/merchant-content";
 import { MAX_PARTNER_QTY, partnerTotals, setPartnerQty, usePartnerCart } from "@/lib/partner-cart";
@@ -21,9 +22,9 @@ export function PartnerProductPurchase({ offer }: { offer: MerchantOffer }) {
   const remaining = Math.max(0, MAX_PARTNER_QTY - inCart);
   const qty = Math.min(quantity, Math.max(1, remaining));
   const title = merchantProductTitle(offer.title, lang, offer.merchant.service);
-  function add() {
+  async function add() {
     if (!remaining) return;
-    const result = addPartnerItem(offer, otherName => window.confirm(t("cart.replace", { store: otherName })), qty);
+    const result = await withReplaceConfirm(confirmReplace => addPartnerItem(offer, confirmReplace, qty), askReplaceCart(t));
     if (result === "ok") { toast(t("store.added", { name: title })); setQuantity(1); }
     else if (result === "limit") toast(t("partner.limit"), "error");
   }
@@ -51,8 +52,8 @@ export function PartnerAddButton({ offer }: { offer: MerchantOffer }) {
   const cart = usePartnerCart();
   const qty = cart.merchantId === offer.merchant.id ? cart.lines.find((l) => l.listingId === offer.id)?.qty ?? 0 : 0;
 
-  function add() {
-    const result = addPartnerItem(offer, (otherName) => window.confirm(t("cart.replace", { store: otherName })));
+  async function add() {
+    const result = await withReplaceConfirm((confirmReplace) => addPartnerItem(offer, confirmReplace), askReplaceCart(t));
     if (result === "ok") { if (!qty) toast(t("store.added", { name: title })); }
     else if (result === "limit") toast(t("partner.limit"), "error");
   }

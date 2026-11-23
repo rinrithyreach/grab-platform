@@ -10,6 +10,8 @@ import { addPartnerItem } from "@/lib/cart";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { merchantProductTitle } from "@/lib/merchant-content";
 import { toast } from "@/lib/toast";
+import { formatPaid } from "@/lib/currency";
+import { askReplaceCart, confirmDialog, withReplaceConfirm } from "@/lib/dialog";
 
 const STEPS: { status: MerchantOrderStatus; label: MessageKey }[] = [
   { status: "Pending", label: "orders.stepPlaced" },
@@ -63,18 +65,18 @@ export function PartnerOrderList({ orders, error, placed, onChanged, onCancel }:
   const placedOrder = placed ? orders.find((o) => o.id === placed) : undefined;
 
   async function cancel(order: MerchantOrder) {
-    if (!window.confirm(t("orders.cancelConfirm"))) return;
+    if (!(await confirmDialog({ title: t("orders.cancelConfirm"), confirmLabel: t("dialog.cancelOrder"), cancelLabel: t("dialog.keep"), tone: "danger" }))) return;
     setBusy(order.id);
     try { onChanged(await (onCancel ? onCancel(order.id) : api.cancelOrder(order.id))); toast(t("orders.cancelled")); }
     catch (err) { toast(errorMessage(err, t), "error"); }
     finally { setBusy(null); }
   }
 
-  function orderAgain(order: MerchantOrder) {
+  async function orderAgain(order: MerchantOrder) {
+    const ask = askReplaceCart(t);
     for (const [index, item] of order.items.entries()) {
-      const result = addPartnerItem(
-        { id: item.listingId, title: item.title, price: item.unitPrice, imageUrl: "", merchant: { id: order.merchantId, businessName: order.merchantName } },
-        (otherName) => window.confirm(t("cart.replace", { store: otherName })), item.quantity);
+      const offer = { id: item.listingId, title: item.title, price: item.unitPrice, imageUrl: "", merchant: { id: order.merchantId, businessName: order.merchantName } };
+      const result = await withReplaceConfirm((confirmReplace) => addPartnerItem(offer, confirmReplace, item.quantity), ask);
       if (result === "declined" && index === 0) return;
       if (result === "limit") { toast(t("partner.limit"), "error"); break; }
     }
@@ -103,7 +105,7 @@ export function PartnerOrderList({ orders, error, placed, onChanged, onCancel }:
                   <Link href={`/partners/${o.merchantId}`} className="font-semibold hover:text-brand">{o.merchantName}</Link>
                   <p className="text-sm text-muted">#{o.id.slice(0, 8).toUpperCase()} · {new Date(o.createdAt).toLocaleString(dateLocale)}</p>
                 </div>
-                <p className="font-bold">{money(o.total)}</p>
+                <p className="text-right font-bold">{formatPaid(o.total, o.currency, o.exchangeRate)}{o.currency === "KHR" && <span className="block text-xs font-normal text-muted">{t("currency.approx", { amount: money(o.total) })}</span>}</p>
               </div>
               {!ended && (
                 <ol className="mt-4 grid grid-cols-4 gap-2 text-xs">
@@ -125,7 +127,7 @@ export function PartnerOrderList({ orders, error, placed, onChanged, onCancel }:
                 <div className="flex justify-between gap-4 text-muted"><dt>{t("cart.deliveryFee")}</dt><dd>{money(o.deliveryFee)}</dd></div>
               </dl>
               {o.note && <p className="mt-2 text-sm text-muted">📝 {o.note}</p>}
-              <p className="mt-2 text-sm text-muted">📍 {o.deliveryAddress} · {t(o.paymentMethod === "Card" ? "cart.card" : "cart.cash")}</p>
+              <p className="mt-2 text-sm text-muted">📍 {o.deliveryAddress} · {t(o.paymentMethod === "Card" ? "cart.card" : "cart.cash")} · {o.currency ?? "USD"}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {o.status === "Pending" && (
                   <button type="button" onClick={() => void cancel(o)} disabled={busy === o.id} className="btn-outline h-9 text-sm hover:text-red-600">{t("orders.cancel")}</button>

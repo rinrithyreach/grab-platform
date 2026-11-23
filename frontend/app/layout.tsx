@@ -11,6 +11,8 @@ import PromotionsSync from "@/components/PromotionsSync";
 import CategoriesSync from "@/components/CategoriesSync";
 import Footer from "@/components/Footer";
 import Toaster from "@/components/Toaster";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import NotificationWatcher from "@/components/NotificationWatcher";
 import SkipLink from "@/components/SkipLink";
 import LocalizedTitle from "@/components/LocalizedTitle";
 import PlatformStatus from "@/components/PlatformStatus";
@@ -88,6 +90,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </main>
           <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
           <Toaster />
+          <ConfirmDialog />
+          <NotificationWatcher />
         </AuthProvider>
       </body>
     </html>

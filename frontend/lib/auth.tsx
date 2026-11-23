@@ -132,7 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return u;
     },
     updateProfile: (fullName) => api.updateProfile({ fullName }),
-    logout: () => { api.logout(); saveSession(null); setUser(null); },
+    logout: () => {
+      // Lets the notification watcher say "logged out" instead of "session expired" (LOGOUT_EVENT in lib/notifications.ts).
+      try { window.dispatchEvent(new window.Event("grab:logout")); } catch { /* only affects the toast wording */ }
+      api.logout(); saveSession(null); setUser(null);
+    },
   }), [api, user, ready, online, checkOnline]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

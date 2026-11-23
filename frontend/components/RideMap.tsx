@@ -39,7 +39,7 @@ interface Props {
   driver?: RideDriverLocation;
   trackingPhase?: "waiting" | "pickup" | "trip";
   merchantAreas?: RideMerchantMapArea[];
-  /** Booking page: a taller map that fills the desktop column. */
+  /** Booking page: a large destination picker on phones and desktop. */
   tall?: boolean;
   /** Booking only: click/tap the map to choose the destination. */
   onDestinationChange?: (point: Pick<Place, "lat" | "lng">) => void;
@@ -58,6 +58,7 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
   const roadPoints = useRef<MapPoint[]>([]);
   const following = useRef(false);
   const destinationChange = useRef(onDestinationChange);
+  const tappedDestination = useRef<Pick<Place, "lat" | "lng"> | null>(null);
   useEffect(() => { destinationChange.current = onDestinationChange; }, [onDestinationChange]);
   const view = useRef("");
   const [status, setStatus] = useState<Status>("loading");
@@ -106,6 +107,7 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
         if (tracking || !destinationChange.current) return;
         const point = event.latlng.wrap();
         if (!Number.isFinite(point.lat) || point.lat < -90 || point.lat > 90 || !Number.isFinite(point.lng) || point.lng < -180 || point.lng > 180) return;
+        tappedDestination.current = { lat: point.lat, lng: point.lng };
         destinationChange.current({ lat: point.lat, lng: point.lng });
       });
 
@@ -147,6 +149,7 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
       displayedPosition.current = null;
       routeLines.current = [];
       view.current = "";
+      tappedDestination.current = null;
     };
   }, [attempt, tracking]);
 
@@ -197,11 +200,16 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
         }
         const points: MapPoint[] = tracking ? [start, end, ...(route?.points ?? [])] : [a, b, ...merchantAreas.map((merchant) => merchant.position)];
         const nextView = JSON.stringify(tracking ? [a, b, trackingPhase, hasDriver, !!route] : points);
+        // Keep the customer's zoom while they refine a destination by tapping.
+        const keepView = !tracking && !!view.current && tappedDestination.current?.lat === to.lat && tappedDestination.current?.lng === to.lng;
         if (view.current !== nextView) {
-          if (points.every((point) => point[0] === a[0] && point[1] === a[1])) map.current.setView(a, tracking ? 17 : 15);
-          else map.current.fitBounds(points, { padding: [40, 40], maxZoom: tracking ? 17 : 16 });
+          if (!keepView) {
+            if (points.every((point) => point[0] === a[0] && point[1] === a[1])) map.current.setView(a, tracking ? 17 : 15);
+            else map.current.fitBounds(points, { padding: [40, 40], maxZoom: tracking ? 17 : 16 });
+          }
           view.current = nextView;
         }
+        tappedDestination.current = null;
       }).catch(() => { if (!cancelled) setStatus("failed"); });
     }
     draw();
@@ -273,8 +281,10 @@ export default function RideMap({ from, to, label, rider, driver, trackingPhase,
   }
 
   return (
-    <div className="relative isolate" data-tracking-paused={paused || !hasDriver}>
-      <div key={attempt} ref={el} role={onDestinationChange && !tracking ? "region" : "img"} aria-label={label} className={`ride-map w-full overflow-hidden rounded-2xl border border-border bg-background ${tracking ? "h-96 sm:h-[420px]" : tall ? "h-56 sm:h-80 lg:h-140" : "h-64 sm:h-72"}`} />
+    <div className={`relative isolate ${tall && !tracking ? "ride-booking-map-frame" : ""}`} data-tracking-paused={paused || !hasDriver}>
+      <div key={attempt} ref={el} role={onDestinationChange && !tracking ? "region" : "img"} aria-label={label}
+        style={tall && !tracking ? { minHeight: 320 } : undefined}
+        className={`ride-map w-full overflow-hidden rounded-2xl border border-border bg-background ${tracking ? "h-96 sm:h-[420px]" : tall ? "ride-map-booking h-96 sm:h-[420px] lg:h-140" : "h-64 sm:h-72"}`} />
       {tracking && status === "ready" && <>
         <div className="pointer-events-none absolute right-3 top-3 z-[500] flex items-center gap-2 rounded-full border border-white/80 bg-surface/95 px-3 py-2 text-xs font-semibold shadow-sm backdrop-blur-sm">
           <span className={`h-2 w-2 rounded-full ${hasDriver && !paused ? "animate-pulse bg-emerald-500" : "bg-amber-500"}`} />

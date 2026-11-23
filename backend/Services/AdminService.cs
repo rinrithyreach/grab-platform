@@ -86,7 +86,7 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
                         CustomerName = x.GuestName ?? db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.FullName).FirstOrDefault(),
                         CustomerPhone = x.GuestPhone ?? db.Users.Where(u => u.Id == x.CustomerId).Select(u => u.PhoneNumber).FirstOrDefault(),
                         IsGuest = x.CustomerId == null,
-                        x.MerchantId, MerchantName = x.Merchant.BusinessName, x.DeliveryAddress, x.Note, x.Status, x.PaymentMethod,
+                        x.MerchantId, MerchantName = x.Merchant.BusinessName, x.DeliveryAddress, x.Note, x.Status, x.PaymentMethod, x.Currency,
                         x.Subtotal, x.DeliveryFee, x.Total, x.CreatedAt, x.UpdatedAt,
                         Items = x.Items.Select(i => new { i.Title, i.Quantity, i.UnitPrice }).ToList() }), page, ct);
             case "deliveries":

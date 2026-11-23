@@ -25,6 +25,9 @@ async function component(path, imports) {
   imports["./PromotionBadge"] ??= data('export default () => null;');
   imports["./CategoryBadge"] ??= data('export default () => null;');
   imports["./FoodProductDetails"] ??= data('export default () => null;');
+  imports["./WishlistButton"] ??= data('export default () => null;');
+  imports["@/lib/wishlist"] ??= data('export const useWishlist = () => globalThis.__wishlist ?? []; export const watchForRestock = (merchantId, listingId) => { (globalThis.__wishlist ??= []).push({ merchantId, listingId }); };');
+  imports["@/lib/toast"] ??= data('export const toast = () => {};');
   let source = ts.transpileModule(await readFile(new URL(path, import.meta.url), "utf8"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
@@ -92,4 +95,11 @@ test("product details show the published listing and reject a missing listing", 
   await act(async () => root.render(createElement(Details, { key: "missing", merchantId: "merchant-1", listingId: "unpublished" })));
   assert.equal(container.querySelector("h1"), null);
   assert.equal(container.querySelector('[role="alert"]').textContent, "partner.productUnavailable");
+  // A sold-out (unpublished) product can be watched for a restock alert.
+  globalThis.__wishlist = [];
+  t.after(() => { delete globalThis.__wishlist; });
+  const notify = container.querySelector("button.btn-primary");
+  assert.ok(notify.textContent.includes("wish.notifyBack"));
+  await act(async () => notify.click());
+  assert.deepEqual(globalThis.__wishlist, [{ merchantId: "merchant-1", listingId: "unpublished" }]);
 });

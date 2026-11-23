@@ -20,13 +20,13 @@ async function withBrowser(fn) {
 }
 
 test("top-up amounts: $1 to $500, whole cents only", async () => {
-  const { isValidTopUpAmount } = await loadLib("payments", "local-store");
+  const { isValidTopUpAmount } = await loadLib("payments", "local-store", "currency");
   for (const ok of [1, 5, 10.5, 500]) assert.equal(isValidTopUpAmount(ok), true, `${ok}`);
   for (const bad of [0, 0.99, -1, 500.01, NaN, Infinity, 1.005]) assert.equal(isValidTopUpAmount(bad), false, `${bad}`);
 });
 
 test("demo Bakong provider: pending -> paid, cancel, and refuses bad amounts", () => withBrowser(async () => {
-  const { demoProvider, getPaymentProvider } = await loadLib("payments", "local-store");
+  const { demoProvider, getPaymentProvider } = await loadLib("payments", "local-store", "currency");
   assert.equal(getPaymentProvider({}).kind, "demo"); // default when NEXT_PUBLIC_PAYMENT_PROVIDER isn't "api"
 
   const t = await demoProvider.create(1);
@@ -50,13 +50,13 @@ test("demo Bakong provider: pending -> paid, cancel, and refuses bad amounts", (
 }));
 
 test("demo QR codes expire after their time runs out", () => withBrowser(async () => {
-  const { demoProvider } = await loadLib("payments", "local-store");
+  const { demoProvider } = await loadLib("payments", "local-store", "currency");
   const t = await demoProvider.create(10);
   // Pretend 11 minutes have passed by moving the saved expiry into the past.
   const saved = JSON.parse(window.localStorage.getItem("grab-demo-topups-v1"));
   saved.topups[t.id].expiresAt = new Date(Date.now() - 60_000).toISOString();
   window.localStorage.setItem("grab-demo-topups-v1", JSON.stringify(saved));
-  const fresh = await loadLib("payments", "local-store"); // reload, like a page refresh
+  const fresh = await loadLib("payments", "local-store", "currency"); // reload, like a page refresh
   assert.equal((await fresh.demoProvider.status(t.id)).status, "expired");
   assert.equal((await fresh.demoProvider.simulatePaid(t.id)).status, "expired");
 }));

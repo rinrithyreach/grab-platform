@@ -10,6 +10,7 @@ import { PLACES, distanceKm, type Place } from "@/lib/places";
 import { DeviceLocationError, deviceRideLocation, getDeviceLocation, type DeviceLocation, type LocationFailure } from "@/lib/merchant-location";
 import { demoFare, rideVehicleType, useRideService, type RideView, type VehicleId } from "@/lib/rides";
 import { toast } from "@/lib/toast";
+import { notify } from "@/lib/notifications";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { rememberGuestRide } from "@/lib/guest-rides";
 import Select from "@/components/Select";
@@ -120,7 +121,9 @@ export default function RidePage() {
     const contactPhone = normalizePhoneNumber(guestPhone);
     if (guest && (guestNameInvalid || !contactPhone)) {
       setGuestChecked(true);
-      document.getElementById(guestNameInvalid ? "ride-guest-name" : "ride-guest-phone")?.focus();
+      const field = document.getElementById(guestNameInvalid ? "ride-guest-name" : "ride-guest-phone");
+      field?.focus();
+      field?.scrollIntoView({ block: "center" });
       return;
     }
     setBusy(true); setError("");
@@ -147,6 +150,7 @@ export default function RidePage() {
       }, vehicle, km);
       setBooked(ride);
       toast(t("ride.requested"));
+      notify({ id: `ride:${ride.id}:requested`, kind: "ride", title: t("notify.rideTitle"), body: t("notify.rideRequested", { destination: toLabel }), href: "/rides" });
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {
@@ -157,12 +161,13 @@ export default function RidePage() {
   // Live mode: customers book with their account; guests book with a name and phone.
   const guest = rides?.mode === "live" && !user;
   const customerBlocked = !demo && !!user && user.role !== "Customer";
+  const selectedVehicle = VEHICLES.find((option) => option.id === vehicle);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pt-6">
+    <div className="ride-booking-page mx-auto max-w-6xl px-4 pb-8 pt-4 sm:pt-6">
       <BackButton href="/" />
       <h1 className="text-2xl font-bold sm:text-3xl">{t("ride.title")}</h1>
-      <p className="mt-1 text-sm text-muted sm:text-base">{t("ride.subtitle")}</p>
+      <p className="mt-1 text-base text-muted">{t("ride.subtitle")}</p>
 
       {!rides || !ready ? (
         <div className="mt-5 grid animate-pulse gap-5 lg:grid-cols-[minmax(0,420px)_1fr]" aria-busy>
@@ -171,85 +176,76 @@ export default function RidePage() {
       ) : booked ? (
         <RideBookingConfirmation key={booked.id} initial={booked} from={fromLabel} to={toLabel} demo={demo} guestToken={guestToken} onAnother={() => { setBooked(null); setGuestToken(null); }} />
       ) : (
-        // Phones: map on top, then one simple form. Desktop: form left, map right.
-        <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-6">
-          <div className="order-first min-w-0 lg:sticky lg:top-24 lg:order-last">
-            <RideMerchantMap from={from} to={to} vehicleType={vehicle ? rideVehicleType[vehicle] : undefined} onAvailabilityChange={updateMerchantAvailability} onDestinationChange={busy ? undefined : selectMapDestination} label={t("ride.mapLabel", { from: fromLabel, to: toLabel })} />
-          </div>
-
-          <form onSubmit={book} className="card min-w-0 space-y-5 p-4 sm:p-5">
-            {/* Step 1: where from, where to */}
-            <section className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-bold">{pick("Where to?", "ទៅណា?")}</h2>
-                <button type="button" onClick={detectLocation} disabled={detecting || busy} aria-busy={detecting} aria-describedby={locationError ? "ride-location-error" : undefined} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-soft px-3 text-sm font-semibold text-brand transition hover:brightness-95 disabled:opacity-50">
-                  <Icon name="pin" className="h-4 w-4" />{t(detecting ? "ride.detectingLocation" : "ride.detectLocation")}
-                </button>
+        <form onSubmit={book} className="ride-booking-layout mt-5">
+            <aside className="ride-map-panel min-w-0">
+              <div id="ride-map-preview" className="relative isolate">
+                <RideMerchantMap from={from} to={to} vehicleType={vehicle ? rideVehicleType[vehicle] : undefined} onAvailabilityChange={updateMerchantAvailability} onDestinationChange={busy ? undefined : selectMapDestination} label={t("ride.mapLabel", { from: fromLabel, to: toLabel })} />
               </div>
+            </aside>
 
-              <div className="ride-where relative rounded-2xl border border-border bg-background/60">
-                {/* Dotted line joining the two stops */}
-                <span aria-hidden className="absolute bottom-9 left-[1.15rem] top-9 border-l-2 border-dotted border-border" />
-                <div className="flex items-center gap-3 py-2 pl-3 pr-14">
-                  <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500/20"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /></span>
+            <section className="ride-route-card card min-w-0 space-y-3 p-4 sm:p-5" aria-labelledby="ride-route-heading">
+              <h2 id="ride-route-heading" className="text-lg font-bold">{pick("Where to?", "ទៅណា?")}</h2>
+              <div className="ride-where rounded-2xl border border-border bg-background/60">
+                <div className="ride-stop">
+                  <span aria-hidden className="ride-stop-marker bg-brand"><span className="h-2 w-2 rounded-full bg-white" /></span>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted">{t("ride.pickup")}</span>
+                    <span className="block text-sm font-medium text-muted">{t("ride.pickup")}</span>
                     <Select label={t("ride.pickup")} value={mappedPickup ? MAP_LOCATION : pickup} options={pickupOptions} onChange={(value) => { if (value === MAP_LOCATION) return; cancelDetection(); setMappedPickup(null); setPickup(value); setError(""); }} />
                   </div>
                 </div>
-                <div className="ml-11 mr-14 border-t border-border" />
-                <div className="flex items-center gap-3 py-2 pl-3 pr-14">
-                  <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center text-red-500"><Icon name="pin" className="h-5 w-5" /></span>
+                <div className="ride-stop-divider">
+                  <span className="flex-1 border-t border-border" />
+                </div>
+                <div className="ride-stop">
+                  <span aria-hidden className="ride-stop-marker text-red-500"><Icon name="pin" className="h-5 w-5" /></span>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted">{t("ride.destination")}</span>
+                    <span className="block text-sm font-medium text-muted">{t("ride.destination")}</span>
                     <Select label={t("ride.destination")} value={mappedDestination ? MAP_LOCATION : dropoff} options={destinationOptions} onChange={(value) => { if (value === MAP_LOCATION) return; setMappedDestination(null); setDropoff(value); setError(""); }} />
                   </div>
                 </div>
-                <button
-                  type="button" aria-label={t("ride.swap")} title={t("ride.swap")}
-                  onClick={swapLocations}
-                  className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface text-lg shadow-sm transition hover:border-brand hover:text-brand"
-                ><span aria-hidden>⇅</span></button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={detectLocation} disabled={detecting || busy} aria-busy={detecting} aria-describedby={locationError ? "ride-location-error" : undefined}
+                  className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-soft px-3 py-2 text-sm font-semibold text-brand transition hover:brightness-95 disabled:opacity-50">
+                  <Icon name="pin" className="h-4 w-4" />{t(detecting ? "ride.detectingLocation" : "ride.detectLocation")}
+                </button>
+                <button type="button" aria-label={t("ride.swap")} title={t("ride.swap")} onClick={swapLocations} disabled={busy}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-surface text-xl transition hover:border-brand hover:text-brand disabled:opacity-50">
+                  <span aria-hidden>⇅</span>
+                </button>
               </div>
 
               {detecting && <p role="status" className="text-sm text-muted">{t("ride.detectingLocation")}</p>}
               {locationError && <p id="ride-location-error" role="alert" className="text-sm text-red-600 dark:text-red-400">{t(`ride.location.error.${locationError}`)}</p>}
               {location && ((!mappedPickup && pickup === CURRENT_LOCATION) || (!mappedDestination && dropoff === CURRENT_LOCATION)) && location.accuracy !== null && (
-                <p role="status" className="text-xs text-muted">{t("ride.locationAccuracy", { n: Math.round(location.accuracy) })}</p>
+                <p role="status" className="text-sm text-muted">{t("ride.locationAccuracy", { n: Math.round(location.accuracy) })}</p>
               )}
-
-              {/* Trip at a glance */}
-              {!sameLocation && (
-                <div className="flex flex-wrap gap-2 text-sm">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-3 py-1.5 font-semibold"><Icon name="arrow" className="h-4 w-4 text-muted" />{t("ride.km", { n: km.toFixed(1) })}</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-3 py-1.5 font-semibold"><Icon name="clock" className="h-4 w-4 text-muted" />~{t("store.min", { n: etaMin })}</span>
-                </div>
-              )}
+              {sameLocation && !error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{t("ride.same")}</p>}
             </section>
 
-            {/* Step 2: pick a vehicle */}
-            <section>
-              <h2 className="mb-2 font-bold">{pick("Choose a ride", "ជ្រើសរើសយានជំនិះ")}</h2>
-              <div className="space-y-2">
+            <section className="ride-vehicle-card card min-w-0 p-4 sm:p-5" aria-labelledby="ride-vehicle-heading">
+              <h2 id="ride-vehicle-heading" className="mb-3 text-lg font-bold">{pick("Choose a ride", "ជ្រើសរើសយានជំនិះ")}</h2>
+              <div className="grid grid-cols-3 gap-2" role="group" aria-labelledby="ride-vehicle-heading">
                 {VEHICLES.map((v) => {
                   const available = demo || (merchantAvailability.phase === "ready" && merchantAvailability.types.includes(rideVehicleType[v.id]));
                   const selected = available && vehicle === v.id;
                   return (
                     <button
                       type="button" key={v.id} onClick={() => setVehicle(v.id)} disabled={!available} aria-pressed={selected}
-                      className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${available ? selected ? "border-brand bg-brand-soft ring-1 ring-brand" : "border-border hover:border-brand" : "cursor-not-allowed border-border opacity-45"}`}
+                      className={`ride-vehicle-option relative flex min-w-0 flex-col items-center justify-start rounded-2xl border px-2 py-3 text-center transition ${available ? selected ? "border-brand bg-brand-soft ring-1 ring-brand" : "border-border hover:border-brand" : "cursor-not-allowed border-border opacity-45"}`}
                     >
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-background text-2xl" aria-hidden>{v.emoji}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">{t(v.name)}</span>
-                        <span className="block text-xs text-muted">
+                      <span className="mb-1 grid h-10 w-10 shrink-0 place-items-center text-3xl" aria-hidden>{v.emoji}</span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">{t(v.name)}</span>
+                        <span className="mt-1 block text-sm text-muted">
                           {v.seats > 1 ? t("ride.seats", { n: v.seats }) : t("ride.seat")}
-                          {!available && merchantAvailability.phase === "ready" && <> · {t("ride.vehicleUnregistered")}</>}
                         </span>
+                        {!available && merchantAvailability.phase === "ready" && <span className="mt-1 block text-sm text-muted"><span aria-hidden>{pick("Unavailable", "មិនទំនេរ")}</span><span className="sr-only">{t("ride.vehicleUnregistered")}</span></span>}
                       </span>
                       {/* Demo mode prices by vehicle and distance; the real backend sets its own fare. */}
-                      {demo && !sameLocation && <span className="shrink-0 font-bold">{money(demoFare(v.id, km))}</span>}
-                      <span aria-hidden className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${selected ? "border-brand bg-brand text-white dark:text-background" : "border-border"}`}>
+                      {demo && !sameLocation && <span className="mt-2 text-sm font-bold">{money(demoFare(v.id, km))}</span>}
+                      <span aria-hidden className={`absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full border-2 ${selected ? "border-brand bg-brand text-white dark:text-background" : "border-border bg-surface"}`}>
                         {selected && <Icon name="check" className="h-3.5 w-3.5" />}
                       </span>
                     </button>
@@ -257,46 +253,50 @@ export default function RidePage() {
                 })}
               </div>
               {!demo && merchantAvailability.phase === "loading" && <p role="status" className="mt-2 text-sm text-muted">{t("ride.vehicleAvailabilityLoading")}</p>}
-              {!demo && merchantAvailability.phase === "error" && <p role="alert" className="mt-2 text-sm text-muted">{t("ride.vehicleAvailabilityError")}</p>}
+              {!demo && merchantAvailability.phase === "error" && <p role="alert" className="mt-3 text-sm text-muted">{t("ride.vehicleAvailabilityError")}</p>}
               {!demo && merchantAvailability.phase === "ready" && merchantAvailability.types.length === 0 && <p role="status" className="mt-2 text-sm text-muted">{t("ride.noMerchantAreas")}</p>}
             </section>
 
             {/* Step 3 (guests only): who the driver should call */}
             {guest && (
-              <section className="space-y-3 rounded-2xl bg-brand-soft p-3 sm:p-4">
+              <section className="ride-contact-card card min-w-0 space-y-3 p-4 sm:p-5" aria-labelledby="ride-contact-heading">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <h2 className="font-bold">{pick("Your details", "ព័ត៌មានរបស់អ្នក")}</h2>
-                  <Link href="/login?next=%2Fride" className="text-sm font-semibold text-brand hover:underline">{pick("Have an account? Log in", "មានគណនីហើយ? ចូល")}</Link>
+                  <h2 id="ride-contact-heading" className="text-lg font-bold">{pick("Your details", "ព័ត៌មានរបស់អ្នក")}</h2>
+                  <Link href="/login?next=%2Fride" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand hover:underline">{pick("Log in", "ចូល")}</Link>
                 </div>
-                <p className="text-xs text-muted">{pick("No account needed. The driver uses these to contact you at pickup.", "មិនចាំបាច់មានគណនីទេ។ អ្នកបើកបរប្រើព័ត៌មាននេះដើម្បីទាក់ទងអ្នកពេលមកទទួល។")}</p>
+                <p className="text-sm text-muted">{pick("No account needed. Your driver will use these to reach you.", "មិនចាំបាច់មានគណនីទេ។ អ្នកបើកបរនឹងប្រើព័ត៌មាននេះដើម្បីទាក់ទងអ្នក។")}</p>
                 <div>
-                  <label htmlFor="ride-guest-name" className="mb-1 block text-xs font-semibold text-muted">{pick("Full name", "ឈ្មោះពេញ")}</label>
+                  <label htmlFor="ride-guest-name" className="mb-1 block text-sm font-semibold">{pick("Full name", "ឈ្មោះពេញ")}</label>
                   <input id="ride-guest-name" className={`input ${guestChecked && guestNameInvalid ? "border-red-500" : ""}`} autoComplete="name" maxLength={120} value={guestName}
                     onChange={(e) => setGuestName(e.target.value)} placeholder={pick("e.g. Sok Dara", "ឧ. សុខ ដារា")}
                     aria-invalid={guestChecked && guestNameInvalid} aria-describedby={guestChecked && guestNameInvalid ? "ride-guest-name-error" : undefined} />
-                  {guestChecked && guestNameInvalid && <p id="ride-guest-name-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{pick("Enter your name so the driver knows who to pick up.", "សូមបញ្ចូលឈ្មោះ ដើម្បីឱ្យអ្នកបើកបរដឹងថាត្រូវទទួលអ្នកណា។")}</p>}
+                  {guestChecked && guestNameInvalid && <p id="ride-guest-name-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{pick("Enter your name so the driver knows who to pick up.", "សូមបញ្ចូលឈ្មោះ ដើម្បីឱ្យអ្នកបើកបរដឹងថាត្រូវទទួលអ្នកណា។")}</p>}
                 </div>
                 <div>
-                  <label htmlFor="ride-guest-phone" className="mb-1 block text-xs font-semibold text-muted">{pick("Phone number", "លេខទូរសព្ទ")}</label>
+                  <label htmlFor="ride-guest-phone" className="mb-1 block text-sm font-semibold">{pick("Phone number", "លេខទូរសព្ទ")}</label>
                   <input id="ride-guest-phone" className={`input ${guestChecked && guestPhoneInvalid ? "border-red-500" : ""}`} type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={guestPhone}
                     onChange={(e) => setGuestPhone(e.target.value)} placeholder="012 345 678"
                     aria-invalid={guestChecked && guestPhoneInvalid} aria-describedby={guestChecked && guestPhoneInvalid ? "ride-guest-phone-error" : undefined} />
-                  {guestChecked && guestPhoneInvalid && <p id="ride-guest-phone-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{pick("Enter a phone number the driver can call, e.g. 012 345 678.", "សូមបញ្ចូលលេខទូរសព្ទដែលអ្នកបើកបរអាចហៅបាន ឧ. 012 345 678។")}</p>}
+                  {guestChecked && guestPhoneInvalid && <p id="ride-guest-phone-error" role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{pick("Enter a phone number the driver can call, e.g. 012 345 678.", "សូមបញ្ចូលលេខទូរសព្ទដែលអ្នកបើកបរអាចហៅបាន ឧ. 012 345 678។")}</p>}
                 </div>
               </section>
             )}
 
-            {customerBlocked && <p role="alert" className="text-sm text-muted">{t("ride.customerOnly")}</p>}
-            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-
-            {/* Step 3: one big button that stays in reach while scrolling on phones */}
-            <div className="ride-cta -mx-4 -mb-4 rounded-b-2xl border-t border-border bg-surface/95 px-4 pb-4 pt-3 backdrop-blur sm:-mx-5 sm:-mb-5 sm:px-5 sm:pb-5">
-              <button className="btn-primary h-13 w-full text-base" disabled={busy || detecting || sameLocation || !selectedVehicleAvailable || customerBlocked}>
+            {/* Fixed above mobile navigation; stays in the form on larger screens. */}
+            <div className="ride-cta">
+              <div className="ride-cta-inner">
+              {customerBlocked && <p role="alert" className="mb-2 text-sm text-muted">{t("ride.customerOnly")}</p>}
+              {error && <p role="alert" className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
+              {selectedVehicle && !sameLocation && <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+                <span className="font-semibold">{t(selectedVehicle.name)}</span>
+                <span className="flex items-center gap-1.5 text-muted"><Icon name="clock" className="h-4 w-4" />{pick("Approx.", "ប្រហែល")} {t("store.min", { n: etaMin })} · {t("ride.km", { n: km.toFixed(1) })}</span>
+              </div>}
+              <button type="submit" className="btn-primary min-h-13 w-full text-base" aria-busy={busy} disabled={busy || detecting || sameLocation || !selectedVehicleAvailable || customerBlocked}>
                 {busy ? t("ride.busy") : demo ? `${t("ride.submit")} · ${money(demoFare(vehicle ?? "car", km))}` : t("ride.submit")}
               </button>
+              </div>
             </div>
-          </form>
-        </div>
+        </form>
       )}
     </div>
   );

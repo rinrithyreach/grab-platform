@@ -11,13 +11,14 @@
  */
 import type { TopUp } from "./api";
 import { createLocalStore } from "./local-store";
+import { usdToKhr, type Currency } from "./currency";
 
 export type { TopUp, TopUpStatus } from "./api";
 
 export interface PaymentProvider {
   kind: "demo" | "api";
-  /** Start a top-up: returns the QR code to show. */
-  create(amount: number): Promise<TopUp>;
+  /** Start a top-up of `amount` USD, paid in `currency`: returns the QR code to show. */
+  create(amount: number, currency?: Currency): Promise<TopUp>;
   /** Latest state of a top-up (poll this while it's "pending"). */
   status(id: string, signal?: AbortSignal): Promise<TopUp>;
   cancel(id: string): Promise<TopUp>;
@@ -25,7 +26,7 @@ export interface PaymentProvider {
   simulatePaid?(id: string): Promise<TopUp>;
 }
 
-/** Top-up limits (USD). */
+/** Top-up limits (USD credited to the wallet, whichever currency pays for it). */
 export const MIN_TOPUP = 1;
 export const MAX_TOPUP = 500;
 /** How long a QR code stays valid. */
@@ -53,14 +54,16 @@ function find(id: string): TopUp {
 
 export const demoProvider: PaymentProvider = {
   kind: "demo",
-  async create(amount) {
-    if (!isValidTopUpAmount(amount)) throw new Error(`Top-up must be between $${MIN_TOPUP} and $${MAX_TOPUP}.`);
+  async create(amount, currency = "USD") {
+    if (!isValidTopUpAmount(amount)) throw new Error(`Top-up must be between ${MIN_TOPUP} and ${MAX_TOPUP}.`);
+    if (currency !== "USD" && currency !== "KHR") throw new Error("Choose USD or KHR.");
+    const paidAmount = currency === "KHR" ? usdToKhr(amount) : amount;
     const now = Date.now();
     const id = `TU-${now.toString(36).toUpperCase()}${Math.floor(Math.random() * 1000)}`;
     return save({
-      id, amount, currency: "USD", method: "bakong_khqr",
+      id, amount, currency, paidAmount, method: "bakong_khqr",
       // Deliberately NOT a real KHQR payload, so a banking app can't try to pay it.
-      qr: `DEMO-ONLY|grab-platform|topup:${id}|amount:${amount.toFixed(2)}USD`,
+      qr: `DEMO-ONLY|grab-platform|topup:${id}|amount:${currency === "KHR" ? paidAmount : paidAmount.toFixed(2)}${currency}`,
       status: "pending",
       createdAt: new Date(now).toISOString(),
       expiresAt: new Date(now + TOPUP_EXPIRES_MINUTES * 60_000).toISOString(),
@@ -83,7 +86,7 @@ export const demoProvider: PaymentProvider = {
 // ---------- real provider (backend + Bakong) ----------
 
 interface TopUpApi {
-  createTopUp(amount: number): Promise<TopUp>;
+  createTopUp(amount: number, currency?: Currency): Promise<TopUp>;
   topUpStatus(id: string, signal?: AbortSignal): Promise<TopUp>;
   cancelTopUp(id: string): Promise<TopUp>;
 }
@@ -91,7 +94,7 @@ interface TopUpApi {
 export function apiProvider(api: TopUpApi): PaymentProvider {
   return {
     kind: "api",
-    create: (amount) => api.createTopUp(amount),
+    create: (amount, currency) => api.createTopUp(amount, currency),
     status: (id, signal) => api.topUpStatus(id, signal),
     cancel: (id) => api.cancelTopUp(id),
   };

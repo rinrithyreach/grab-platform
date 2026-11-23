@@ -2,7 +2,7 @@
 
 export type AccountValues = Record<string, object>;
 export interface AccountCache { version: number; base: AccountValues; data: AccountValues; pending: boolean; revision: number }
-export const ACCOUNT_KEYS = ["grab-shop-v1", "grab-express-demo-v1", "grab-wallet-v1", "grab-profile-v1", "grab-favorites-v1", "grab-reviews-v1", "grab-settings"];
+export const ACCOUNT_KEYS = ["grab-shop-v1", "grab-express-demo-v1", "grab-wallet-v1", "grab-profile-v1", "grab-favorites-v1", "grab-wishlist-v1", "grab-reviews-v1", "grab-settings"];
 const accountKeys = new Set(ACCOUNT_KEYS);
 const stores = new Map<string, { reload: () => void; isInitial: (value: object) => boolean }>();
 const changeListeners = new Set<() => void>();

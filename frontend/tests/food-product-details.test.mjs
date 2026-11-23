@@ -36,6 +36,7 @@ async function setup(t) {
     "next/link": link, "@/lib/brand": data('export const money = n => `$${n.toFixed(2)}`;'), "@/lib/i18n": i18n, "@/lib/merchant-content": merchantContent,
     "@/lib/cart": data('export const addPartnerItem = (...args) => globalThis.__foodTest.libs.cart.addPartnerItem(...args);'),
     "@/lib/partner-cart": data('export const MAX_PARTNER_QTY = 50; export const usePartnerCart = () => globalThis.__foodTest.libs["partner-cart"].usePartnerCart(); export const partnerTotals = cart => globalThis.__foodTest.libs["partner-cart"].partnerTotals(cart); export const setPartnerQty = (...args) => globalThis.__foodTest.libs["partner-cart"].setPartnerQty(...args);'),
+    "@/lib/dialog": data('export const askReplaceCart = () => async name => window.confirm(name); export const withReplaceConfirm = async (run, ask) => { let asked = null; const first = run(name => { asked ??= name; return false; }); if (asked === null) return first; return (await ask(asked)) ? run(() => true) : first; };'),
     "@/lib/toast": data('export const toast = text => globalThis.__foodTest.toasts.push(text);'), "./Icon": data('export default () => null;'),
   });
   return { root, dom, libs, controls };
@@ -71,6 +72,7 @@ test("food details show localized dish information, real related dishes and an i
   const Details = (await import(await component("../components/FoodProductDetails.tsx", {
     "next/link": link, "@/lib/brand": data('export const money = n => `$${n.toFixed(2)}`;'), "@/lib/i18n": i18n, "@/lib/merchant-content": merchantContent,
     "./CategoryBadge": data('export default () => null;'), "./PromotionBadge": data('export default () => null;'), "./Icon": data('export default () => null;'),
+    "./WishlistButton": data('export default () => null;'),
     "./PartnerCartControls": controls, "./MerchantOfferCard": data(`import { createElement } from "${react}"; export default ({offer}) => createElement("a", {href: '/partners/'+offer.merchant.id+'/products/'+offer.id},offer.title);`),
   }))).default;
   const other = { ...food, id: "noodles", title: "Noodle bowl" };
@@ -116,6 +118,7 @@ test("clicking a sample menu product opens its detail dialog and adds through th
     "@/lib/brand": data('export const money = n => `$${n.toFixed(2)}`;'), "@/lib/i18n": i18n,
     "@/lib/catalog": data('export const STORES = globalThis.__foodTest.libs.catalog.STORES;'),
     "@/lib/cart": data('export const useShop = () => globalThis.__foodTest.libs.cart.useShop(); export const addToCart = (...args) => globalThis.__foodTest.libs.cart.addToCart(...args); export const lineKey = (...args) => globalThis.__foodTest.libs.cart.lineKey(...args); export const setQty = (...args) => globalThis.__foodTest.libs.cart.setQty(...args);'),
+    "@/lib/dialog": data('export const askReplaceCart = () => async name => window.confirm(name); export const withReplaceConfirm = async (run, ask) => { let asked = null; const first = run(name => { asked ??= name; return false; }); if (asked === null) return first; return (await ask(asked)) ? run(() => true) : first; };'),
     "@/lib/toast": data('export const toast = () => {};'), "./ItemOptionsDialog": Dialog, "./PromotionBadge": data('export default () => null;'),
   }))).default;
   const store = libs.catalog.getStore("golden-noodle"); const item = store.items.find(i => !i.options?.length);

@@ -14,7 +14,8 @@ public record PlaceOrderRequest(
     [Required, StringLength(300, MinimumLength = 5)] string DeliveryAddress,
     [StringLength(500)] string? Note,
     [property: JsonRequired] [EnumDataType(typeof(OrderPaymentMethod))] OrderPaymentMethod PaymentMethod,
-    [StringLength(32)] string? PromoCode = null, [Range(0, 100000000)] decimal? ExpectedTotal = null);
+    [StringLength(32)] string? PromoCode = null, [Range(0, 100000000)] decimal? ExpectedTotal = null,
+    [EnumDataType(typeof(PaymentCurrency))] PaymentCurrency? Currency = null);
 
 public record OrderStatusRequest([property: JsonRequired] [EnumDataType(typeof(MerchantOrderStatus))] MerchantOrderStatus Status);
 
@@ -31,7 +32,8 @@ public record MerchantOrderDto(Guid Id, Guid MerchantId, string MerchantName, Me
     MerchantOrderStatus Status, OrderPaymentMethod PaymentMethod, List<MerchantOrderItemDto> Items,
     decimal Subtotal, decimal DeliveryFee, decimal Total, string DeliveryAddress, string Note,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? CustomerName, string? CustomerPhone,
-    decimal Discount = 0, decimal CodeDiscount = 0, string? PromoCode = null);
+    decimal Discount = 0, decimal CodeDiscount = 0, string? PromoCode = null,
+    PaymentCurrency Currency = PaymentCurrency.USD, decimal ExchangeRate = Currencies.KhrPerUsd, long TotalKhr = 0);
 
 public static class OrderLimits
 {

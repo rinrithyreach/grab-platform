@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorMessage, useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 import BackButton from "@/components/BackButton";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { authDestination } from "@/lib/auth-destination";
@@ -33,6 +34,7 @@ export default function RegisterPage() {
     setBusy(true); setError("");
     try {
       const user = await register({ phoneNumber, password: form.password });
+      toast(t("notify.welcomeNew"));
       router.replace(authDestination(user.role, window.location.search));
     } catch (err) {
       setError(errorMessage(err, t));

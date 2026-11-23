@@ -123,4 +123,45 @@ public partial class ApiTests
         Assert.Equal(HttpStatusCode.Conflict, await Place(OrderFor(profile.Id, (listing.Id, 1))));
         Assert.Equal(HttpStatusCode.BadRequest, (await customer.GetAsync("/api/orders/mine?page=0")).StatusCode);
     }
+
+    [Fact]
+    public async Task Customers_choose_to_pay_in_USD_or_KHR_and_the_merchant_sees_the_riel_amount()
+    {
+        await using var f = new ApiFactory();
+        await f.InitializeDatabase();
+        using var merchant = f.CreateClient();
+        using var customer = f.CreateClient();
+        await MerchantAccount(merchant, f.Password);
+        await Register(customer, f.Password);
+        var (profile, listing) = await PublishedListing(merchant, 4.50m);
+
+        // Without a currency the order is paid in dollars, as before.
+        var usd = await Read<MerchantOrderDto>(await customer.PostAsJsonAsync("/api/orders", OrderFor(profile.Id, (listing.Id, 1)), Json));
+        Assert.Equal(PaymentCurrency.USD, usd.Currency);
+        Assert.Equal(Currencies.KhrPerUsd, usd.ExchangeRate);
+
+        // $4.50 + $1.50 delivery = $6.00 → 24,600 ៛ at 4,100 ៛ per dollar.
+        var request = OrderFor(profile.Id, (listing.Id, 1)) with { Currency = PaymentCurrency.KHR };
+        var khr = await Read<MerchantOrderDto>(await customer.PostAsJsonAsync("/api/orders", request, Json));
+        Assert.Equal(PaymentCurrency.KHR, khr.Currency);
+        Assert.Equal(6.00m, khr.Total);
+        Assert.Equal(24_600, khr.TotalKhr);
+
+        var inbox = await Read<List<MerchantOrderDto>>(await merchant.GetAsync("/api/merchants/orders"));
+        Assert.Equal(PaymentCurrency.KHR, inbox.Single(o => o.Id == khr.Id).Currency);
+        Assert.Equal(24_600, inbox.Single(o => o.Id == khr.Id).TotalKhr);
+
+        // Unknown currencies are rejected.
+        var bad = await customer.PostAsync("/api/orders", new StringContent(
+            $$"""{"merchantId":"{{profile.Id}}","items":[{"listingId":"{{listing.Id}}","quantity":1}],"deliveryAddress":"House 12, Street 271","paymentMethod":"Cash","currency":"EUR"}""",
+            System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(6.00, 24_600)]
+    [InlineData(1.25, 5_100)]   // 5,125 ៛ rounds up to the nearest 100
+    [InlineData(0.01, 0)]
+    [InlineData(19.99, 82_000)] // 81,959 ៛
+    public void Riel_amounts_round_to_the_nearest_100(decimal usd, long khr) => Assert.Equal(khr, Currencies.ToKhr(usd));
 }

@@ -296,6 +296,8 @@ Apply the `ProductPromotions` migration before starting the updated API.
 
 Promotion writes accept `name`, nullable `code` (automatic when empty), `kind` (`percent`, `amount`, `freeDelivery`, `buyGetFree`), `value`, `minSubtotal`, nullable `maxDiscount`, `buyQuantity`, `freeQuantity`, nullable `storeId`/`productId`, `firstOrderOnly`, `isActive`, nullable ISO `startsAt`/`endsAt`, and an audit `reason`. Percentages are 0–100 (positive for percent discounts); money has at most two decimal places. Product targeting requires its store. Code matching is case-insensitive and codes are unique even while paused. End times are exclusive.
 
+**Payment currency.** `POST /api/orders` and the guest `order` body accept optional `currency`: `"USD"` (default) or `"KHR"`; anything else → 400. Prices, totals and discounts stay in USD. Order responses add `currency`, `exchangeRate` (riel per dollar saved with the order, currently a fixed 4100) and `totalKhr` (the total in riel, rounded to the nearest 100 ៛) so riders know what to collect in cash. Older orders read as USD.
+
 `POST /api/orders` also accepts optional `promoCode` and `expectedTotal`. Prices and promotions are recalculated from SQL; an outdated expected total returns 409. Merchant order responses include saved `discount`, `codeDiscount` and `promoCode`. Best automatic product discount plus automatic free delivery may stack with one coupon. Coupons reduce the eligible amount remaining after the automatic discount. First-order checks exclude cancelled/rejected merchant orders. These endpoints do not implement usage quotas.
 
 ## Product categories and subcategories

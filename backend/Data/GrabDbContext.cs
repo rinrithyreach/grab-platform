@@ -155,6 +155,8 @@ public class GrabDbContext(DbContextOptions<GrabDbContext> options) : DbContext(
         b.Entity<MerchantOrder>().HasMany(x => x.Items).WithOne().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<MerchantOrder>().Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
         b.Entity<MerchantOrder>().Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+        b.Entity<MerchantOrder>().Property(x => x.Currency).HasConversion<string>().HasMaxLength(3);
+        b.Entity<MerchantOrder>().Property(x => x.ExchangeRate).HasPrecision(12, 2);
         b.Entity<MerchantOrder>().Property(x => x.Discount).HasPrecision(12, 2);
         b.Entity<MerchantOrder>().Property(x => x.CodeDiscount).HasPrecision(12, 2);
         b.Entity<MerchantOrder>().Property(x => x.PromoCode).HasMaxLength(32);

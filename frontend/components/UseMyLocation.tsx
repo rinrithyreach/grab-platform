@@ -47,7 +47,7 @@ export default function UseMyLocation({ onDetected, cancelOn }: {
     }
   }
 
-  const label = t(detecting ? "ride.detectingLocation" : "ride.detectLocation");
+  const label = t(detecting ? "cart.detectingLocation" : "cart.detectLocation");
   const message = failure === "permission"
     ? pick("Location access is blocked. Allow it in your browser, or type your address.", "ការចូលប្រើទីតាំងត្រូវបានបិទ។ សូមអនុញ្ញាតក្នុងកម្មវិធីរុករក ឬវាយអាសយដ្ឋានរបស់អ្នក។")
     : failure === "insecure"
@@ -57,12 +57,8 @@ export default function UseMyLocation({ onDetected, cancelOn }: {
   const pin = <Icon name="pin" className={`h-4 w-4 ${detecting ? "animate-pulse" : ""}`} />;
 
   return <>
-    <button type="button" onClick={detect} disabled={detecting} aria-busy={detecting} className="flex w-full items-center gap-3 rounded-xl border border-dashed border-brand/50 bg-brand-soft px-3 py-2.5 text-left text-sm font-semibold text-brand transition hover:border-brand disabled:opacity-60">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface">{pin}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block">{label}</span>
-        <span className="block text-xs font-normal text-muted">{pick("Fills the address from where you are now — add a house number if you like.", "បំពេញអាសយដ្ឋានពីទីតាំងបច្ចុប្បន្ន — អាចបន្ថែមលេខផ្ទះបាន។")}</span>
-      </span>
+    <button type="button" onClick={detect} disabled={detecting} aria-busy={detecting} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-brand bg-brand-soft px-3 py-2 text-sm font-semibold text-brand transition hover:brightness-95 disabled:opacity-60">
+      {pin}{label}
     </button>
     {error}
   </>;

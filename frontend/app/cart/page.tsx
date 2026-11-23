@@ -21,6 +21,8 @@ import BackButton from "@/components/BackButton";
 import PartnerCheckout from "@/components/PartnerCheckout";
 import DeliveryAddressField from "@/components/DeliveryAddressField";
 import CardPaymentFields from "@/components/CardPaymentFields";
+import CurrencyPicker from "@/components/CurrencyPicker";
+import { formatPaid, type Currency } from "@/lib/currency";
 import { CARD_FIELDS, EMPTY_CARD, validateCard } from "@/lib/card";
 
 const PAYMENTS: { value: PaymentMethod; icon: string; label: MessageKey }[] = [
@@ -56,6 +58,9 @@ export default function CartPage() {
   const [payment, setPayment] = useState<PaymentMethod>("Cash");
   // Guests have no wallet; if Wallet was picked before logging out, fall back to Cash.
   const method: PaymentMethod = payment === "Wallet" && !hasWallet ? "Cash" : payment;
+  const [chosenCurrency, setCurrency] = useState<Currency>("USD");
+  // The wallet holds US dollars, so a wallet payment is always in USD.
+  const currency: Currency = method === "Wallet" ? "USD" : chosenCurrency;
   const [note, setNote] = useState("");
   // Card details live only in this component state; they are never saved with the order.
   const [card, setCard] = useState(EMPTY_CARD);
@@ -78,7 +83,7 @@ export default function CartPage() {
         <p className="mt-2 text-muted">{t("cart.emptyText")}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/food" className="btn-primary">{t("cart.browseFood")}</Link>
-          <Link href="/express" className="btn-outline">{t("express.submit")}</Link>
+          <Link href="/express" className="btn-outline">{t("cart.browseExpress")}</Link>
         </div>
         {cart.lines.length > 0 && <button onClick={clearCart} className="mt-4 text-sm text-muted underline">{t("cart.clear")}</button>}
       </div>
@@ -107,7 +112,7 @@ export default function CartPage() {
       const first = CARD_FIELDS.find((f) => cardErrors[f]);
       if (first) { setCardChecked(true); document.getElementById(`card-${first}`)?.focus(); return; }
     }
-    const result = placeOrder(address.trim(), method, note.trim(), userId);
+    const result = placeOrder(address.trim(), method, note.trim(), userId, currency);
     if ("error" in result) {
       if (result.error === "insufficient") toast(t("wallet.insufficient", { balance: money(balance) }), "error");
       if (result.error === "loginRequired") toast(t("wallet.loginToUse"), "error");
@@ -194,6 +199,7 @@ export default function CartPage() {
               </button>
             ))}
           </div>
+          <div className="mt-3"><CurrencyPicker value={currency} onChange={setCurrency} usd={total} disabled={method === "Wallet"} hint={method === "Wallet" ? t("currency.walletUsd") : undefined} /></div>
           {method === "Card" && <div className="mt-3"><CardPaymentFields value={card} onChange={setCard} showAllErrors={cardChecked} /></div>}
           {/* Checked live against the current total, so it updates as soon as the cart or balance changes. */}
           {!hasWallet && (
@@ -264,8 +270,9 @@ export default function CartPage() {
             <div className="flex justify-between"><dt className="text-muted">{t("cart.tipLine")}</dt><dd>{money(tip)}</dd></div>
           )}
           <div className="flex justify-between pt-1 text-base font-bold"><dt>{t("cart.total")}</dt><dd>{money(total)}</dd></div>
+          {currency === "KHR" && <div className="flex justify-between font-semibold text-brand"><dt>{t("currency.payIn")} KHR</dt><dd>{formatPaid(total, "KHR")}</dd></div>}
         </dl>
-        <button type="submit" className="btn-primary w-full" disabled={detectingAddress || storeClosed || (method === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: money(total) })}</button>
+        <button type="submit" className="btn-primary w-full" disabled={detectingAddress || storeClosed || (method === "Wallet" && walletShort)}>{t("cart.placeOrder", { total: formatPaid(total, currency) })}</button>
       </form>
     </div>
   );
