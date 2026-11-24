@@ -82,7 +82,7 @@ export default function WalletPage() {
           </ul>
         )}
       </section>
-      {topUpAmount !== null && <TopUpDialog amount={topUpAmount} onClose={() => setTopUpAmount(null)} />}
+      {topUpAmount !== null && <TopUpDialog key={userId} amount={topUpAmount} onClose={() => setTopUpAmount(null)} />}
       </>)}
     </div>
   );

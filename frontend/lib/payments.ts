@@ -33,11 +33,23 @@ export const MAX_TOPUP = 500;
 export const TOPUP_EXPIRES_MINUTES = 10;
 
 export const isValidTopUpAmount = (amount: number) =>
-  Number.isFinite(amount) && amount >= MIN_TOPUP && amount <= MAX_TOPUP && Math.round(amount * 100) === amount * 100;
+  Number.isFinite(amount) && amount >= MIN_TOPUP && amount <= MAX_TOPUP && Math.round(amount * 100) / 100 === amount;
 
 // ---------- demo provider ----------
 
-const demoStore = createLocalStore<{ topups: Record<string, TopUp> }>("grab-demo-topups-v1", { topups: {} });
+const demoStore = createLocalStore<{ topups: Record<string, TopUp> }>("grab-demo-topups-v1", { topups: {} },
+  (value): value is { topups: Record<string, TopUp> } => {
+    const topups = (value as { topups?: unknown })?.topups;
+    return !!topups && typeof topups === "object" && !Array.isArray(topups)
+      && Object.entries(topups).every(([id, t]) => t && t.id === id && isValidTopUpAmount(t.amount)
+        && (t.currency === "USD" || t.currency === "KHR") && t.method === "bakong_khqr"
+        && typeof t.qr === "string" && t.qr.startsWith("DEMO-ONLY|")
+        && ["pending", "paid", "expired", "failed", "cancelled"].includes(t.status)
+        && typeof t.createdAt === "string" && Number.isFinite(Date.parse(t.createdAt))
+        && typeof t.expiresAt === "string" && Number.isFinite(Date.parse(t.expiresAt))
+        && (t.paidAt == null || typeof t.paidAt === "string" && Number.isFinite(Date.parse(t.paidAt)))
+        && (t.paidAmount === undefined || Number.isFinite(t.paidAmount) && t.paidAmount >= 0));
+  });
 
 function save(t: TopUp) {
   demoStore.update((s) => ({ topups: { ...s.topups, [t.id]: t } }));
@@ -45,8 +57,9 @@ function save(t: TopUp) {
 }
 
 function find(id: string): TopUp {
-  const t = demoStore.get().topups[id];
-  if (!t) throw new Error("Top-up not found.");
+  const topups = demoStore.get().topups;
+  if (!Object.hasOwn(topups, id)) throw new Error("Top-up not found.");
+  const t = topups[id];
   // A pending QR code that has run out of time becomes "expired".
   if (t.status === "pending" && Date.now() >= Date.parse(t.expiresAt)) return save({ ...t, status: "expired" });
   return t;
@@ -59,7 +72,7 @@ export const demoProvider: PaymentProvider = {
     if (currency !== "USD" && currency !== "KHR") throw new Error("Choose USD or KHR.");
     const paidAmount = currency === "KHR" ? usdToKhr(amount) : amount;
     const now = Date.now();
-    const id = `TU-${now.toString(36).toUpperCase()}${Math.floor(Math.random() * 1000)}`;
+    const id = `TU-${crypto.randomUUID()}`;
     return save({
       id, amount, currency, paidAmount, method: "bakong_khqr",
       // Deliberately NOT a real KHQR payload, so a banking app can't try to pay it.

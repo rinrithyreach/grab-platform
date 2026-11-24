@@ -225,7 +225,9 @@ button:not(:disabled), a { cursor: pointer; }
 .app-drawer nav ul ul { background: #007a35; border-radius: 16px; }
 .app-drawer nav ul ul a { color: #fff; }
 .app-drawer > div:last-child .btn-primary { background: white; color: #008b3e; }
-.app-drawer > div:last-child .btn-outline { background: transparent; border-color: #ffffff50; color: white; }
+.app-drawer > div:last-child .btn-outline { background: #ffffff14; border: 2px solid #ffffffb0; color: white; }
+.app-drawer > div:last-child .btn-outline:hover { background: #ffffff26; }
+.app-drawer > div:last-child { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
 
 /* Compact, swipeable promotions. All slides share a stable frame. */
 .hero-carousel > div:first-child { border-radius: 26px; isolation: isolate; }

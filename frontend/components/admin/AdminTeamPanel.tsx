@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { adminCan, adminCovers, adminInitials, filterAdminTeam, type AdminProfile, type AdminRole, type AdminTeamMember } from "@/lib/admin-settings";
@@ -12,7 +13,7 @@ const formatDate = (value: string | null) => value ? new Date(value).toLocaleStr
 const errorText = (err: unknown) => err instanceof TypeError ? "Cannot reach the API. Please try again." : err instanceof Error ? err.message : "Something went wrong. Please try again.";
 
 function Avatar({ member, size = "md" }: { member: Pick<AdminTeamMember, "fullName" | "avatarUrl">; size?: "md" | "lg" }) {
-  return <span className={`admin-team-avatar ${size}`}>{member.avatarUrl ? <img src={member.avatarUrl} alt="" /> : adminInitials(member.fullName)}</span>;
+  return <span className={`admin-team-avatar ${size}`}>{member.avatarUrl ? <Image src={member.avatarUrl} alt="" width={size === "lg" ? 64 : 46} height={size === "lg" ? 64 : 46} unoptimized /> : adminInitials(member.fullName)}</span>;
 }
 function RoleChip({ member }: { member: Pick<AdminTeamMember, "roleId" | "roleName"> }) {
   return <span className={`admin-chip admin-role-chip ${member.roleId ? "" : "super"}`}><AdminIcon name={member.roleId ? "roles" : "shield"} size={13} />{member.roleName}</span>;

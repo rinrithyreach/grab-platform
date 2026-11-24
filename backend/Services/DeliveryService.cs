@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Grab.Api.Services;
 
-public class DeliveryService(GrabDbContext db, PlatformSettingsService platform)
+public class DeliveryService(GrabDbContext db, PlatformSettingsService platform, AdminAccessService access)
 {
     private static ParcelDeliveryDto Dto(ParcelDelivery delivery) => new(
         delivery.Id, delivery.CustomerId, delivery.CourierMerchantId,
@@ -112,6 +112,7 @@ public class DeliveryService(GrabDbContext db, PlatformSettingsService platform)
 
     public async Task<ParcelDeliveryDto> Get(Guid userId, Role role, Guid id, CancellationToken ct)
     {
+        if (role == Role.Admin) await access.Require(userId, "deliveries.view", ct);
         var delivery = await Details().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new ApiException(404, "Delivery not found.");
         var courierOwns = role == Role.Merchant && delivery.CourierMerchant?.UserId == userId

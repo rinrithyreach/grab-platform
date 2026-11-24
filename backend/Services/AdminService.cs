@@ -225,7 +225,8 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
         var listing = await db.MerchantListings.Include(x => x.Merchant).SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new ApiException(404, "Listing not found.");
         if (listing.Merchant.Service == MerchantServiceKind.GrabRide) throw new ApiException(400, "Ride partners do not sell listings.");
-        if (r.Price is < 0.01m or > 999999.99m) throw new ApiException(400, "Enter a valid positive price.");
+        if (r.Price is < 0.01m or > 999999.99m || decimal.Round(r.Price, 2) != r.Price)
+            throw new ApiException(400, "Enter a USD price between 0.01 and 999999.99 with at most two decimal places.");
         listing.Title = Clean(r.Title, 2, 120, "Title");
         listing.Description = r.Description?.Trim() ?? "";
         listing.Price = r.Price;

@@ -1,16 +1,26 @@
 using System.ComponentModel.DataAnnotations;
 using Grab.Api.DTOs;
 using Grab.Api.Interfaces;
+using Grab.Api.Models;
+using Grab.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Grab.Api.Controllers;
 [ApiController, Authorize, Route("api/drivers")]
-public class DriversController(IDriverService drivers, ICommerceService commerce) : ControllerBase
+public class DriversController(IDriverService drivers, ICommerceService commerce, AdminAccessService access) : ApiControllerBase
 {
     [HttpGet("available")]
-    public Task<List<DriverDto>> Available(CancellationToken ct) => drivers.Available(ct);
+    public async Task<List<DriverDto>> Available(CancellationToken ct)
+    {
+        if (UserRole == Role.Admin) await access.Require(UserId, "drivers.view", ct);
+        return await drivers.Available(ct);
+    }
     [HttpPost, Authorize(Roles = "Admin"), ProducesResponseType<DriverDto>(201)]
-    public async Task<ActionResult<DriverDto>> Create(DriverRequest r, CancellationToken ct) => StatusCode(201, await drivers.Create(r, ct));
+    public async Task<ActionResult<DriverDto>> Create(DriverRequest r, CancellationToken ct)
+    {
+        await access.Require(UserId, "drivers.manage", ct);
+        return StatusCode(201, await drivers.Create(r, ct));
+    }
     [HttpGet("{id:guid}/reviews")]
     public Task<List<ReviewDto>> Reviews(Guid id, [FromQuery, Range(1, 100000)] int page = 1, CancellationToken ct = default) => commerce.Reviews(id, page, ct);
 }

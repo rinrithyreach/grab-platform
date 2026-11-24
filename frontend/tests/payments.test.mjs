@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadLib } from "./load-lib.mjs";
+import { loadLib, loadLibGroup } from "./load-lib.mjs";
 
 function browser() {
   const values = new Map();
@@ -21,8 +21,14 @@ async function withBrowser(fn) {
 
 test("top-up amounts: $1 to $500, whole cents only", async () => {
   const { isValidTopUpAmount } = await loadLib("payments", "local-store", "currency");
-  for (const ok of [1, 5, 10.5, 500]) assert.equal(isValidTopUpAmount(ok), true, `${ok}`);
+  for (const ok of [1, 1.1, 1.09, 4.1, 5, 10.5, 19.99, 500]) assert.equal(isValidTopUpAmount(ok), true, `${ok}`);
   for (const bad of [0, 0.99, -1, 500.01, NaN, Infinity, 1.005]) assert.equal(isValidTopUpAmount(bad), false, `${bad}`);
+});
+
+test("valid top-ups accept every whole-cent amount within the limits", async () => {
+  const { isValidTopUpAmount } = await loadLib("payments", "local-store", "currency");
+  for (let cents = 100; cents <= 50_000; cents++)
+    assert.equal(isValidTopUpAmount(cents / 100), true, `${cents} cents`);
 });
 
 test("demo Bakong provider: pending -> paid, cancel, and refuses bad amounts", () => withBrowser(async () => {
@@ -61,8 +67,34 @@ test("demo QR codes expire after their time runs out", () => withBrowser(async (
   assert.equal((await fresh.demoProvider.simulatePaid(t.id)).status, "expired");
 }));
 
+test("demo top-ups created at the same instant keep separate payment records", () => withBrowser(async () => {
+  const originalNow = Date.now, originalRandom = Math.random;
+  Date.now = () => 1_800_000_000_000;
+  Math.random = () => 0.5;
+  try {
+    const { demoProvider } = await loadLib("payments", "local-store", "currency");
+    const first = await demoProvider.create(1);
+    const second = await demoProvider.create(5);
+    assert.notEqual(first.id, second.id);
+    assert.equal((await demoProvider.status(first.id)).amount, 1);
+    assert.equal((await demoProvider.status(second.id)).amount, 5);
+  } finally { Date.now = originalNow; Math.random = originalRandom; }
+}));
+
+test("corrupt demo payment caches recover and inherited object properties are never payments", () => withBrowser(async () => {
+  for (const topups of [null, [], { broken: null }, { broken: { id: "broken", status: "pending" } }]) {
+    window.localStorage.setItem("grab-demo-topups-v1", JSON.stringify({ topups }));
+    const { demoProvider } = await loadLib("payments", "local-store", "currency");
+    const created = await demoProvider.create(1.09);
+    assert.equal((await demoProvider.status(created.id)).amount, 1.09);
+    for (const id of ["toString", "constructor", "__proto__"])
+      await assert.rejects(demoProvider.status(id), /Top-up not found/);
+  }
+}));
+
 test("a paid top-up is added to the wallet exactly once", () => withBrowser(async () => {
-  const wallet = await loadLib("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+  const { wallet, "local-store": local } = await loadLibGroup("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+  local.selectLocalAccount("user-1");
   const payment = { method: "Bakong KHQR", reference: "TU-ABC" };
   assert.equal(wallet.topUp("user-1", 1, payment), true);
   assert.equal(wallet.topUp("user-1", 1, payment), false); // seen again (e.g. two tabs polling)

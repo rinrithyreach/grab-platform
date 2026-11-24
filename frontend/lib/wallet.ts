@@ -11,7 +11,7 @@
  * Wallets start at $0; money only comes from top-ups (see lib/payments.ts).
  */
 import { useMemo, useSyncExternalStore } from "react";
-import { createLocalStore } from "./local-store";
+import { activeLocalAccount, createLocalStore } from "./local-store";
 import { canPayWithWallet } from "./pricing";
 
 export interface WalletTxn {
@@ -56,20 +56,22 @@ const current = () => withoutWelcomeBonus(store.get());
 // What guests "see": no balance, no history.
 const GUEST: WalletState = { balance: 0, txns: [] };
 const noWallet = { subscribe: () => () => {}, get: () => GUEST, getInitial: () => GUEST };
+const ownsWallet = (userId: string | null | undefined) => !!userId && activeLocalAccount() === userId;
 
 /**
  * The wallet of the logged-in user: pass `user?.id` from useAuth().
  * For guests (no id) `hasWallet` is false, the balance is 0 and there's no history.
  */
 export function useWallet(userId: string | null | undefined) {
-  const s = userId ? store : noWallet;
+  const hasWallet = ownsWallet(userId);
+  const s = hasWallet ? store : noWallet;
   const raw = useSyncExternalStore(s.subscribe, s.get, s.getInitial);
   const state = useMemo(() => withoutWelcomeBonus(raw), [raw]);
-  return { ...state, hasWallet: !!userId };
+  return { ...state, hasWallet };
 }
 
 /** Current balance of the logged-in user (0 for guests). */
-export const walletBalance = (userId: string | null | undefined) => (userId ? current().balance : 0);
+export const walletBalance = (userId: string | null | undefined) => (ownsWallet(userId) ? current().balance : 0);
 
 function add(kind: WalletTxn["kind"], amount: number, description: string, extra: Pick<WalletTxn, "method" | "reference"> = {}) {
   const s = current();
@@ -85,7 +87,8 @@ function add(kind: WalletTxn["kind"], amount: number, description: string, extra
  * seen twice — e.g. two browser tabs polling — is only credited once).
  */
 export function topUp(userId: string | null | undefined, amount: number, payment: { method?: string; reference?: string } = {}) {
-  if (!userId || !Number.isFinite(amount) || round(amount) <= 0
+  // An async payment response may arrive after the active account changed.
+  if (!ownsWallet(userId) || !Number.isFinite(amount) || round(amount) <= 0
     || !Number.isSafeInteger(Math.round((current().balance + amount) * 100))) return false;
   if (payment.reference && current().txns.some((x) => x.reference === payment.reference)) return false;
   add("topup", amount, "Top up", payment);
@@ -94,7 +97,7 @@ export function topUp(userId: string | null | undefined, amount: number, payment
 
 /** Pays from the wallet. Returns false (and charges nothing) for guests or if the balance is too low. */
 export function payFromWallet(userId: string | null | undefined, amount: number, description: string) {
-  if (!userId || round(amount) <= 0 || !Number.isSafeInteger(Math.round(amount * 100)) || !canPayWithWallet(current().balance, amount)) return false;
+  if (!ownsWallet(userId) || round(amount) <= 0 || !Number.isSafeInteger(Math.round(amount * 100)) || !canPayWithWallet(current().balance, amount)) return false;
   add("payment", -amount, description);
   return true;
 }

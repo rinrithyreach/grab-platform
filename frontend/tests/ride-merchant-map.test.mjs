@@ -103,7 +103,7 @@ test("the ride map loads every merchant page, draws grouped markers safely, and 
   assert.ok(shared.popup.textContent.includes(rows[1].name));
   assert.ok(shared.popup.textContent.includes("merchant.day.Mon 08:00–17:00"));
   assert.ok(views.at(-1).some((point) => point[0] === 11.55 && point[1] === 104.92));
-  assert.ok(container.textContent.includes("Unmapped Rider"));
+  assert.equal(container.querySelector("details"), null);
   assert.ok(container.textContent.includes("ride.merchantAreaMissing"));
   assert.ok(container.textContent.includes("ride.mapDestinationHint"));
   assert.ok(container.querySelector('[role="region"][aria-label="Trip and merchant areas"]'));

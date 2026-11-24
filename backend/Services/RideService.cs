@@ -8,7 +8,7 @@ using Grab.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Grab.Api.Services;
-public class RideService(GrabDbContext db, IConfiguration config, PlatformSettingsService platform) : IRideService
+public class RideService(GrabDbContext db, IConfiguration config, PlatformSettingsService platform, AdminAccessService access) : IRideService
 {
     private static RideVehicleType MerchantVehicleType(Merchant merchant) =>
         Enum.TryParse<RideVehicleType>(merchant.Category, out var selected) && Enum.IsDefined(selected)
@@ -128,6 +128,7 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
     }
     public async Task<List<RideDto>> List(Guid userId, Role role, bool mine, int page, CancellationToken ct)
     {
+        if (role == Role.Admin) await access.Require(userId, "rides.view", ct);
         var q = db.Rides.AsNoTracking().Include(r => r.Merchant).AsQueryable();
         if (role == Role.Customer) q = q.Where(x => x.CustomerId == userId);
         if (role == Role.Driver)
@@ -145,6 +146,7 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
     }
     public async Task<RideDto> Get(Guid userId, Role role, Guid id, CancellationToken ct)
     {
+        if (role == Role.Admin) await access.Require(userId, "rides.view", ct);
         var ride = await db.Rides.AsNoTracking().Include(r => r.Merchant).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new ApiException(404, "Ride not found.");
         var driverOwns = role == Role.Driver && await db.Drivers.AnyAsync(x => x.Id == ride.DriverId && x.UserId == userId, ct);
         var merchantOwns = role == Role.Merchant && ride.Merchant?.UserId == userId && ride.Merchant.Service == MerchantServiceKind.GrabRide;
@@ -153,6 +155,7 @@ public class RideService(GrabDbContext db, IConfiguration config, PlatformSettin
     }
     public async Task<RideDto> Transition(Guid userId, Role role, Guid id, RideStatus next, CancellationToken ct)
     {
+        if (role == Role.Admin) await access.Require(userId, "rides.manage", ct);
         var ride = await db.Rides.Include(r => r.Merchant).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new ApiException(404, "Ride not found.");
         Driver? driver = role == Role.Driver ? await db.Drivers.SingleOrDefaultAsync(x => x.UserId == userId, ct) : null;
         if (role == Role.Customer)

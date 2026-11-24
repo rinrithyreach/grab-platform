@@ -89,7 +89,11 @@ export function createLocalStore<T extends object>(key: string, initial: T, vali
       // Reject corrupt top-level values rather than crashing every subscriber.
       for (const field of Object.keys(initial) as (keyof T)[]) {
         const a = initial[field], b = merged[field];
-        if (Array.isArray(a) ? !Array.isArray(b) : typeof a !== typeof b || (typeof b === "number" && !Number.isFinite(b))) return initial;
+        if (Array.isArray(a)) {
+          if (!Array.isArray(b)) return initial;
+        } else if (a !== null && typeof a === "object") {
+          if (!b || typeof b !== "object" || Array.isArray(b)) return initial;
+        } else if (typeof a !== typeof b || (typeof b === "number" && !Number.isFinite(b))) return initial;
       }
       return merged;
     } catch { return initial; }

@@ -74,7 +74,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(o => o.AddPolicy("frontend", p => p.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:3000"])
-    .WithHeaders("Content-Type", "Authorization", "X-Guest-Order-Token", "X-Guest-Ride-Token").WithMethods("GET", "POST", "PATCH", "DELETE")));
+    .WithHeaders("Content-Type", "Authorization", "X-Guest-Order-Token", "X-Guest-Ride-Token").WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")));
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;

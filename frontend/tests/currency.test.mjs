@@ -34,7 +34,7 @@ test("riel amounts use the backend's rate and round to the nearest 100 ៛", asy
 });
 
 test("food orders remember the payment currency, and wallet orders are always USD", () => withBrowser(async () => {
-  const { cart, wallet } = await loadLibGroup("cart", "partner-cart", "wallet", "local-store", "pricing", "catalog", "brand", "hours");
+  const { cart, wallet, "local-store": local } = await loadLibGroup("cart", "partner-cart", "wallet", "local-store", "pricing", "catalog", "brand", "hours");
   const { STORES } = await loadLib("catalog", "hours");
   const food = STORES.find((s) => s.kind === "food");
   const add = () => assert.equal(cart.addToCart(food.id, food.items[0].id, () => true), true);
@@ -43,6 +43,7 @@ test("food orders remember the payment currency, and wallet orders are always US
   assert.equal(cart.placeOrder("House 12, Street 1", "Cash", "", null, "KHR").order.currency, "KHR");
   add();
   assert.equal(cart.placeOrder("House 12, Street 1", "Card", "").order.currency, "USD", "USD unless the customer picks riel");
+  local.selectLocalAccount("user-1");
   add();
   wallet.topUp("user-1", 100);
   assert.equal(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1", "KHR").order.currency, "USD");

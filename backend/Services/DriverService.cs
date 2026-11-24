@@ -14,6 +14,7 @@ public class DriverService(GrabDbContext db) : IDriverService
     public async Task<DriverDto> Create(DriverRequest r, CancellationToken ct)
     {
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == r.UserId, ct) ?? throw new ApiException(404, "User not found.");
+        if (!user.IsActive) throw new ApiException(409, "Choose an active customer account.");
         if (user.Role != Role.Customer || await db.Rides.AnyAsync(x => x.CustomerId == user.Id, ct)
             || await db.MerchantOrders.AnyAsync(x => x.CustomerId == user.Id, ct)
             || await db.ParcelDeliveries.AnyAsync(x => x.CustomerId == user.Id, ct))

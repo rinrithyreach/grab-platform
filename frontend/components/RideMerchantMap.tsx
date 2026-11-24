@@ -6,7 +6,6 @@ import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import type { Place } from "@/lib/places";
 import { rideMerchantMapArea } from "@/lib/ride-merchant-areas";
-import { formatRideWorkSchedule } from "@/lib/ride-work-schedule";
 import RideMap from "./RideMap";
 
 export default function RideMerchantMap({ from, to, label, vehicleType, showMap = true, onAvailabilityChange, onDestinationChange }: {
@@ -69,12 +68,5 @@ export default function RideMerchantMap({ from, to, label, vehicleType, showMap 
     {phase === "error" && <div className="flex flex-wrap items-center justify-between gap-2"><p role="alert" className="text-xs text-muted">{t("ride.merchantAreasError")}</p><button type="button" className="btn-outline h-9 px-3 text-xs" onClick={() => { setPhase("loading"); setRetry((value) => value + 1); }}>{t("errorPage.retry")}</button></div>}
     {phase === "ready" && !visibleMerchants.length && <p className="text-xs text-muted">{t("ride.noMerchantAreas")}</p>}
     {visibleMerchants.length > areas.length && <p className="text-xs text-muted">{t("ride.merchantAreaMissing")}</p>}
-    {visibleMerchants.length > 0 && <details className="rounded-xl border border-border p-3 text-sm">
-      <summary className="cursor-pointer font-semibold">{t("ride.merchantsList", { n: visibleMerchants.length })}</summary>
-      <ul className="mt-3 max-h-64 space-y-3 overflow-y-auto">{visibleMerchants.map((merchant) => <li key={merchant.id} className="border-t border-border pt-3">
-        <p className="font-semibold">{merchant.name}</p><p className="mt-1 break-words text-xs text-muted">{merchant.address}</p>
-        <p className="mt-1 text-xs text-muted">{t("merchant.workSchedule")}: {merchant.openingHours ? formatRideWorkSchedule(merchant.openingHours, (day) => t(`merchant.day.${day}`)) : t("ride.merchantHoursUnset")}</p>
-      </li>)}</ul>
-    </details>}
   </section>;
 }

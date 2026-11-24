@@ -26,8 +26,12 @@ const paidText = (t: TopUp) => t.currency === "KHR" ? riel(t.paidAmount ?? usdTo
 export default function TopUpDialog({ amount, onClose }: { amount: number; onClose: () => void }) {
   const { t } = useT();
   const { api, user } = useAuth();
+  const [ownerId] = useState(user?.id);
   const [provider] = useState(() => getPaymentProvider(api));
   const ref = useRef<HTMLDialogElement>(null);
+  const active = useRef(false);
+  const expectedId = useRef<string | null>(null);
+  const settled = useRef(false);
   const [step, setStep] = useState<Step>("choose");
   const [topup, setTopup] = useState<TopUp | null>(null);
   const [qrImage, setQrImage] = useState("");
@@ -36,12 +40,23 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
   const [currency, setCurrency] = useState<Currency>("USD");
 
   // Open as a modal when mounted.
-  useEffect(() => { ref.current?.showModal(); }, []);
+  useEffect(() => {
+    active.current = true;
+    ref.current?.showModal();
+    return () => { active.current = false; };
+  }, []);
+
+  function canUpdate() {
+    return active.current && !!ownerId && api.getSession()?.user.id === ownerId;
+  }
 
   // Draw the QR code image from the KHQR text.
   useEffect(() => {
     if (!topup) return;
-    QRCode.toDataURL(topup.qr, { margin: 1, width: 240, errorCorrectionLevel: "M" }).then(setQrImage, () => setQrImage(""));
+    let cancelled = false;
+    QRCode.toDataURL(topup.qr, { margin: 1, width: 240, errorCorrectionLevel: "M" })
+      .then(image => { if (!cancelled) setQrImage(image); }, () => { if (!cancelled) setQrImage(""); });
+    return () => { cancelled = true; };
   }, [topup]);
 
   // While waiting: check the payment every 2 seconds and count down to expiry.
@@ -53,8 +68,12 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
     const tick = () => setSecondsLeft(Math.max(0, Math.round((Date.parse(expiresAt) - Date.now()) / 1000)));
     tick();
     const clock = setInterval(tick, 1000);
+    let busy = false;
     const poll = setInterval(() => {
-      provider.status(pendingId, ctrl.signal).then(handleUpdate, () => { /* try again next time */ });
+      if (busy) return;
+      busy = true;
+      provider.status(pendingId, ctrl.signal).then(handleUpdate, () => { /* try again next time */ })
+        .finally(() => { busy = false; });
     }, POLL_MS);
     return () => { ctrl.abort(); clearInterval(clock); clearInterval(poll); };
     // handleUpdate only uses stable values (user id, provider) — it doesn't need to restart polling.
@@ -62,11 +81,13 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
   }, [pendingId, expiresAt, provider]);
 
   function handleUpdate(latest: TopUp) {
+    if (!canUpdate() || settled.current || latest.id !== expectedId.current) return;
+    settled.current = latest.status !== "pending";
     setTopup(latest);
     if (latest.status === "paid") {
       // `reference` makes this safe to call more than once: the same top-up is credited only once.
       // The wallet is in US dollars; a riel payment credits its dollar amount.
-      topUp(user?.id, latest.amount, { method: latest.currency === "KHR" ? `Bakong KHQR · ${paidText(latest)}` : "Bakong KHQR", reference: latest.id });
+      topUp(ownerId, latest.amount, { method: latest.currency === "KHR" ? `Bakong KHQR · ${paidText(latest)}` : "Bakong KHQR", reference: latest.id });
       setStep("paid");
       toast(t("wallet.topUpDone", { amount: money(latest.amount) }));
       notify({ id: `wallet:${latest.id}`, kind: "wallet", title: t("notify.walletTitle"), body: t("wallet.topUpDone", { amount: money(latest.amount) }), href: "/wallet" });
@@ -76,14 +97,39 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
   }
 
   async function start() {
+    if (!canUpdate()) return;
+    expectedId.current = null;
+    settled.current = false;
+    setQrImage("");
     setStep("starting"); setError("");
-    try { setTopup(await provider.create(amount, currency)); setStep("qr"); }
-    catch (err) { setError(err instanceof Error ? err.message : t("error.generic")); setStep("error"); }
+    try {
+      const created = await provider.create(amount, currency);
+      if (!canUpdate()) return;
+      expectedId.current = created.id;
+      setTopup(created); setStep("qr");
+    }
+    catch (err) { if (canUpdate()) { setError(err instanceof Error ? err.message : t("error.generic")); setStep("error"); } }
   }
 
   async function cancel() {
-    if (topup && step === "qr") { try { await provider.cancel(topup.id); } catch { /* closing anyway */ } }
-    onClose();
+    if (topup && step === "qr") {
+      try {
+        const latest = await provider.cancel(topup.id);
+        if (latest.status === "paid") handleUpdate(latest);
+      } catch { /* closing anyway */ }
+    }
+    if (active.current) onClose();
+  }
+
+  async function simulatePayment() {
+    if (!topup || !provider.simulatePaid || !canUpdate()) return;
+    const requestedId = topup.id;
+    try { handleUpdate(await provider.simulatePaid(topup.id)); }
+    catch (err) {
+      if (canUpdate() && !settled.current && expectedId.current === requestedId) {
+        setError(err instanceof Error ? err.message : t("error.generic")); setStep("error");
+      }
+    }
   }
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
@@ -139,7 +185,7 @@ export default function TopUpDialog({ amount, onClose }: { amount: number; onClo
             {provider.simulatePaid && (
               // Demo provider only: completes the top-up without a real bank payment.
               <button
-                onClick={() => provider.simulatePaid!(topup.id).then(handleUpdate)}
+                onClick={simulatePayment}
                 className="btn-outline h-10 w-full text-sm"
               >✅ {t("topup.simulate")}</button>
             )}

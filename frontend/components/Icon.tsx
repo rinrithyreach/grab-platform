@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 
-export type IconName = "home" | "bag" | "heart" | "user" | "car" | "food" | "parcel" | "pin" | "search" | "arrow" | "clock" | "menu" | "close" | "wallet" | "star" | "chevron" | "settings" | "check" | "logout" | "camera" | "pencil" | "sun" | "moon" | "receipt" | "truck" | "store" | "bell" | "info" | "warning" | "alert";
+export type IconName = "home" | "bag" | "heart" | "user" | "car" | "food" | "parcel" | "pin" | "search" | "arrow" | "clock" | "menu" | "close" | "wallet" | "star" | "chevron" | "settings" | "check" | "logout" | "camera" | "pencil" | "sun" | "moon" | "receipt" | "truck" | "store" | "bell" | "info" | "warning" | "alert" | "trash";
 
 const paths: Record<IconName, ReactNode> = {
   home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></>,
@@ -33,6 +33,7 @@ const paths: Record<IconName, ReactNode> = {
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.5v.01" /></>,
   warning: <><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9.5v4M12 17v.01" /></>,
   alert: <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6m0-6-6 6" /></>,
+  trash: <><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6" /></>,
 };
 
 export default function Icon({ name, className = "", filled = false, style }: { name: IconName; className?: string; filled?: boolean; style?: CSSProperties }) {

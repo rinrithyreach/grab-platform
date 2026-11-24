@@ -19,7 +19,7 @@ test("food checkout charges the discounted wallet total once, persists history a
   globalThis.window = browser();
   try {
     // Cart and wallet loaded together so they share one wallet store, like in the browser.
-    const { cart, wallet } = await loadLibGroup(...shopLibs);
+    const { cart, wallet, "local-store": local } = await loadLibGroup(...shopLibs);
     const { STORES } = await loadLib("catalog", "hours");
     const food = STORES.find((s) => s.kind === "food");
     const another = STORES.find((s) => s.kind === "food" && s.id !== food.id);
@@ -29,19 +29,22 @@ test("food checkout charges the discounted wallet total once, persists history a
     // Guests can't pay with Wallet: nothing is charged and the cart is kept.
     assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Guest order"), { error: "loginRequired" });
     assert.equal(JSON.parse(window.localStorage.getItem("grab-shop-v1")).cart.lines.length, 1);
+    local.selectLocalAccount("user-1");
+    local.importDeviceData();
     // New wallets start at $0, so paying with Wallet fails until the user tops up.
     assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Too early", "user-1"), { error: "insufficient" });
     assert.equal(wallet.topUp("user-1", 20), true);
     const placed = cart.placeOrder("House 12, Street 1", "Wallet", "Test order", "user-1");
     assert.ok(placed.order);
     assert.equal(placed.order.storeId, food.id);
-    assert.equal(JSON.parse(window.localStorage.getItem("grab-wallet-v1")).balance, Math.round((20 - placed.order.total) * 100) / 100);
-    const walletAfter = window.localStorage.getItem("grab-wallet-v1");
+    assert.equal(local.getAccountCache().data["grab-wallet-v1"].balance, Math.round((20 - placed.order.total) * 100) / 100);
+    const walletAfter = JSON.stringify(local.getAccountCache().data["grab-wallet-v1"]);
     assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1"), { error: "empty" });
-    assert.equal(window.localStorage.getItem("grab-wallet-v1"), walletAfter);
-    const reloaded = await loadLib(...shopLibs);
-    assert.equal(reloaded.reorder(placed.order, () => true), "ok");
-    const state = JSON.parse(window.localStorage.getItem("grab-shop-v1"));
+    assert.equal(JSON.stringify(local.getAccountCache().data["grab-wallet-v1"]), walletAfter);
+    const reloaded = await loadLibGroup(...shopLibs);
+    reloaded["local-store"].selectLocalAccount("user-1");
+    assert.equal(reloaded.cart.reorder(placed.order, () => true), "ok");
+    const state = reloaded["local-store"].getAccountCache().data["grab-shop-v1"];
     assert.equal(state.orders.length, 1);
     assert.equal(state.cart.lines.length, 1);
   } finally { globalThis.window = previous; }
@@ -51,7 +54,8 @@ test("wallet rejects invalid amounts and cart rejects invalid quantities", async
   const previous = globalThis.window;
   globalThis.window = browser();
   try {
-    const wallet = await loadLib("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    const { wallet, "local-store": local } = await loadLibGroup("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    local.selectLocalAccount("user-1");
     for (const amount of [-5, 0, NaN, Infinity, 1e308, 0.001]) {
       assert.equal(wallet.topUp("user-1", amount), false);
       assert.equal(wallet.payFromWallet("user-1", amount, "Invalid"), false);
@@ -91,18 +95,42 @@ test("only logged-in users have a wallet, each account has its own, and old $20 
   } finally { globalThis.window = previous; }
 });
 
+test("wallet calls from a previous account cannot read or change the current wallet", async () => {
+  const previous = globalThis.window;
+  globalThis.window = browser();
+  try {
+    const { wallet, "local-store": local } = await loadLibGroup("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    local.selectLocalAccount("alice");
+    assert.equal(wallet.topUp("alice", 20), true);
+    local.selectLocalAccount("bob");
+    assert.equal(wallet.topUp("bob", 10), true);
+    assert.equal(wallet.walletBalance("alice"), 0);
+    assert.equal(wallet.topUp("alice", 5), false);
+    assert.equal(wallet.payFromWallet("alice", 5, "Stale checkout"), false);
+    assert.equal(wallet.walletBalance("bob"), 10);
+    local.selectLocalAccount(null);
+    assert.equal(wallet.topUp("bob", 5), false);
+    assert.equal(wallet.payFromWallet("bob", 1, "After logout"), false);
+    assert.equal(window.localStorage.getItem("grab-wallet-v1"), null);
+    local.selectLocalAccount("alice");
+    assert.equal(wallet.walletBalance("alice"), 20);
+  } finally { globalThis.window = previous; }
+});
+
 test("the old $20 welcome bonus is taken out, real top-ups are kept", async () => {
   const previous = globalThis.window;
   globalThis.window = browser();
   try {
-    window.localStorage.setItem("grab-wallet-v1", JSON.stringify({ balance: 25, txns: [
+    const savedWallet = { balance: 25, txns: [
       { id: "TX-1", kind: "topup", amount: 5, description: "Top up", createdAt: "2026-11-01T00:00:00.000Z" },
       { id: "welcome", kind: "topup", amount: 20, description: "Welcome bonus", createdAt: "2026-01-01T00:00:00.000Z" },
-    ] }));
-    const wallet = await loadLib("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    ] };
+    window.localStorage.setItem("grab-account:user-1", JSON.stringify({ version: 0, base: {}, data: { "grab-wallet-v1": savedWallet }, pending: false, revision: 0 }));
+    const { wallet, "local-store": local } = await loadLibGroup("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    local.selectLocalAccount("user-1");
     assert.equal(wallet.walletBalance("user-1"), 5);
     assert.equal(wallet.topUp("user-1", 1), true);
-    const saved = JSON.parse(window.localStorage.getItem("grab-wallet-v1"));
+    const saved = local.getAccountCache().data["grab-wallet-v1"];
     assert.equal(saved.balance, 6);
     assert.ok(!saved.txns.some((x) => x.id === "welcome"));
   } finally { globalThis.window = previous; }
@@ -118,10 +146,11 @@ test("malformed saved profile, review and wallet entries recover without breakin
     assert.deepEqual(JSON.parse(window.localStorage.getItem("grab-profile-v1")).addresses,
       [{ label: "home", text: "House 12, Street 271" }]);
 
-    window.localStorage.setItem("grab-wallet-v1", JSON.stringify({ balance: 20, txns: [null] }));
-    const wallet = await loadLib("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    window.localStorage.setItem("grab-account:user-1", JSON.stringify({ version: 0, base: {}, data: { "grab-wallet-v1": { balance: 20, txns: [null] } }, pending: false, revision: 0 }));
+    const { wallet, "local-store": local } = await loadLibGroup("wallet", "local-store", "pricing", "catalog", "brand", "hours");
+    local.selectLocalAccount("user-1");
     assert.equal(wallet.topUp("user-1", 1), true);
-    const saved = JSON.parse(window.localStorage.getItem("grab-wallet-v1"));
+    const saved = local.getAccountCache().data["grab-wallet-v1"];
     assert.equal(saved.balance, 1); // corrupt data is discarded, new wallets start at $0
     assert.ok(saved.txns.every((txn) => txn && typeof txn.description === "string"));
 
@@ -161,6 +190,11 @@ test("saved stores recover from corrupt shape and synchronize changes from anoth
     window.localStorage.setItem("example", '{"items":null}');
     const store = createLocalStore("example", { items: [] });
     assert.deepEqual(store.get(), { items: [] });
+    for (const value of [null, []]) {
+      window.localStorage.setItem("object-cache", JSON.stringify({ status: value }));
+      const objectStore = createLocalStore("object-cache", { status: {} });
+      assert.deepEqual(objectStore.get(), { status: {} });
+    }
     let notifications = 0;
     const unsubscribe = store.subscribe(() => notifications++);
     window.dispatchEvent(Object.assign(new Event("storage"), { key: "example", newValue: '{"items":["saved elsewhere"]}' }));

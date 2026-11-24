@@ -15,6 +15,7 @@ import Icon, { type IconName } from "./Icon";
 import MobileNav from "./MobileNav";
 import AccountMenu from "./AccountMenu";
 import NotificationBell from "./NotificationBell";
+import CartPreview from "./CartPreview";
 
 const LINKS: { href: string; key: MessageKey }[] = [
   { href: "/ride", key: "nav.ride" },
@@ -116,14 +117,7 @@ export default function Navbar() {
           <div className="ml-auto flex items-center gap-1">
             <SettingsMenu />
             <NotificationBell />
-            <Link href="/cart" aria-label={t("nav.cart")} aria-current={pathname === "/cart" ? "page" : undefined} className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-brand-soft">
-              <Icon name="bag" />
-              {count > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-bold text-black">
-                  {count}
-                </span>
-              )}
-            </Link>
+            <CartPreview active={pathname === "/cart"} />
             {/* Everything personal (history, favourites, wallet, merchant, log out) lives in one avatar menu. */}
             {user ? (
               <div className="ml-1 hidden sm:block">
@@ -246,9 +240,13 @@ export default function Navbar() {
             {user ? (
               <button onClick={() => { logout(); close(); }} className="btn-outline w-full">{t("nav.logout")}</button>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/login" className="btn-primary">{t("nav.login")}</Link>
-                <Link href="/register" className="btn-outline">{t("footer.signUp")}</Link>
+              <div className="flex flex-col gap-3">
+                <Link href="/login" className="btn-primary h-14 w-full gap-2 rounded-2xl text-base font-bold">
+                  <Icon name="user" />{t("nav.login")}
+                </Link>
+                <Link href="/register" className="btn-outline h-14 w-full gap-2 rounded-2xl text-base font-bold">
+                  <Icon name="arrow" />{t("footer.signUp")}
+                </Link>
               </div>
             )}
           </div>

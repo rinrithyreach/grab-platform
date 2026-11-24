@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
   },
   partialPrefetching: true,
   turbopack: {
+    // The frontend owns its dependencies; the repository also has an empty root lockfile.
+    root: __dirname,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
