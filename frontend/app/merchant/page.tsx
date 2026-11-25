@@ -8,6 +8,7 @@ import { toast } from "@/lib/toast";
 import { MERCHANT_SERVICES } from "@/lib/merchant";
 import { normalizePhoneNumber } from "@/lib/phone";
 import MerchantDashboard from "@/components/MerchantDashboard";
+import { DashboardSkeleton } from "@/components/Skeleton";
 
 export default function MerchantPage() {
   const { api, user, ready } = useAuth();
@@ -32,7 +33,7 @@ export default function MerchantPage() {
     finally { setBusy(false); }
   }
 
-  if (!ready) return <p role="status" className="mx-auto max-w-6xl p-8 text-muted">{t("merchant.loading")}</p>;
+  if (!ready) return <DashboardSkeleton />;
   if (user?.role === "Merchant") return <MerchantDashboard key={user.id} />;
 
   return <div className="mx-auto max-w-6xl px-4 py-10 sm:py-16">

@@ -11,6 +11,7 @@ import GlobalSearch from "@/components/GlobalSearch";
 import { useFavorites } from "@/lib/favorites";
 import Icon, { type IconName } from "@/components/Icon";
 import { useProfile } from "@/lib/profile";
+import { BestSellers, PromoPair, ShopByCategory, TodaysDeals, TrustStrip } from "@/components/HomeShop";
 
 const SERVICES: { href: string; icon: IconName; title: MessageKey; text: MessageKey }[] = [
   { href: "/food", icon: "food", title: "nav.food", text: "home.foodText" },
@@ -93,6 +94,10 @@ export default function Home() {
         </section>
       )}
 
+      {/* Storefront: categories and time-limited deals */}
+      <ShopByCategory />
+      <TodaysDeals />
+
       {/* Favourites (only when the user has hearted a store) */}
       {favourites.length > 0 && (
         <section className="mx-auto mt-12 max-w-6xl px-4">
@@ -109,14 +114,16 @@ export default function Home() {
       <section className="mx-auto mt-9 max-w-6xl px-4">
         <div className="flex items-end justify-between gap-4">
           <div><p className="eyebrow mb-1">{pick("Made for your cravings", "អាហារដែលអ្នកចូលចិត្ត")}</p><h2 className="text-2xl font-bold">{t("home.topRated")}</h2></div>
-          <Link href="/food" className="-my-2 flex shrink-0 items-center gap-1 py-2 text-sm font-semibold text-brand">{t("home.seeAll")}<Icon name="chevron" className="h-3 w-3" /></Link>
+          <Link href="/food" className="-my-2 flex shrink-0 items-center gap-1 py-2 text-sm font-semibold text-brand">{t("home.seeAll")}</Link>
         </div>
         {/* A compact two-column grid on phones, four columns on desktop. */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {FEATURED.map((s) => <StoreCard key={s.id} store={s} />)}
         </div>
       </section>
+      <BestSellers />
       <div className="mx-auto max-w-6xl px-4"><MerchantOffers variant="rail" /></div>
+      <PromoPair />
 
       {/* How it works */}
       <section className="how-it-works mx-auto mt-10 max-w-6xl px-4">
@@ -133,6 +140,7 @@ export default function Home() {
           ))}
         </ol>
       </section>
+      <TrustStrip />
     </div>
   );
 }

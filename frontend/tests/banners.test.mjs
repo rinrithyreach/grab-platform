@@ -8,6 +8,7 @@ import { createRoot } from "react-dom/client";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
 import { loadLib } from "./load-lib.mjs";
+import { skeletonStub } from "./skeleton-stub.mjs";
 
 const require = createRequire(import.meta.url);
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
@@ -38,6 +39,7 @@ test("uploaded banners replace built-in promotions, refresh on focus, and surviv
     "next/link": moduleUrl(`import { createElement } from "${react}"; export default ({ children, ...props }) => createElement("a", props, children);`),
     "next/image": moduleUrl(`import { createElement } from "${react}"; export default ({ fill, preload, ...props }) => createElement("img", props);`),
   };
+  imports["./Skeleton"] = skeletonStub;
   imports["./Icon"] = await compile("../components/Icon.tsx", imports);
   imports["./Carousel"] = await compile("../components/Carousel.tsx", imports);
   const BannerCarousel = (await import(await compile("../components/BannerCarousel.tsx", imports))).default;

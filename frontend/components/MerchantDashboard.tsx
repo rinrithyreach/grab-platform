@@ -14,6 +14,7 @@ import MerchantOfferCard from "./MerchantOfferCard";
 import RideWorkSchedule from "./RideWorkSchedule";
 import MerchantRideRequests from "./MerchantRideRequests";
 import MerchantOrders from "./MerchantOrders";
+import { DashboardSkeleton } from "./Skeleton";
 
 function WorkScheduleEditor({ profile, onSaved }: { profile: MerchantProfile; onSaved: (value: MerchantProfile) => void }) {
   const { api } = useAuth();
@@ -165,7 +166,8 @@ export default function MerchantDashboard() {
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [api, tab, editor, data?.profile.service]);
 
-  if (!data) return <div className="mx-auto max-w-6xl px-4 py-10">{error ? <div className="card space-y-4 p-6"><p role="alert">{error}</p><button className="btn-outline" onClick={() => { setError(""); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></div> : <p role="status">{t("merchant.loading")}</p>}</div>;
+  if (!data && !error) return <DashboardSkeleton />;
+  if (!data) return <div className="mx-auto max-w-6xl px-4 py-10"><div className="card space-y-4 p-6"><p role="alert">{error}</p><button className="btn-outline" onClick={() => { setError(""); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></div></div>;
 
   if (data.profile.service === "GrabRide") return <div className="mx-auto max-w-4xl px-4 py-8">
     <div className="flex flex-wrap items-end justify-between gap-4">

@@ -22,6 +22,7 @@ import { formatPaid, type Currency } from "@/lib/currency";
 import { CARD_FIELDS, EMPTY_CARD, validateCard } from "@/lib/card";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { rememberGuestOrder } from "@/lib/guest-orders";
+import { Bone, SkeletonGroup } from "./Skeleton";
 
 const PAYMENTS: { value: OrderPaymentMethod; icon: string; label: MessageKey }[] = [
   { value: "Cash", icon: "💵", label: "cart.cash" },
@@ -191,8 +192,8 @@ export default function PartnerCheckout() {
 
       <form onSubmit={checkout} className="card h-fit space-y-4 p-5 lg:sticky lg:top-24" noValidate>
         <h2 className="text-lg font-bold">{t("cart.checkout")}</h2>
-        {!ready ? <p role="status" className="text-sm text-muted">{t("common.loading")}</p>
-          : !user && storeState?.id !== merchantId ? <p role="status" className="text-sm text-muted">{t("common.loading")}</p>
+        {!ready ? <SkeletonGroup className="space-y-3"><Bone className="h-3 w-24 rounded-full" /><Bone className="h-12 w-full rounded-xl" /><Bone className="h-3 w-20 rounded-full" /><Bone className="h-12 w-full rounded-xl" /><Bone className="mt-2 h-12 w-full rounded-xl" /></SkeletonGroup>
+          : !user && storeState?.id !== merchantId ? <SkeletonGroup className="space-y-3"><Bone className="h-3 w-24 rounded-full" /><Bone className="h-12 w-full rounded-xl" /><Bone className="h-3 w-20 rounded-full" /><Bone className="h-12 w-full rounded-xl" /><Bone className="mt-2 h-12 w-full rounded-xl" /></SkeletonGroup>
           : !user && storeState?.failed ? <div role="alert" className="text-sm"><p>{pick("Unable to load this store.", "មិនអាចផ្ទុកហាងនេះបានទេ។")}</p><button type="button" className="mt-2 text-brand" onClick={() => merchantId && void syncWithStore(merchantId)}>{pick("Try again", "ព្យាយាមម្ដងទៀត")}</button></div>
           : !user && !guest ? <LoginRequired what="loginRequired.placeOrder" returnTo="/cart" />
           : !canCheckout ? <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{t("partner.merchantAccount")}</p>

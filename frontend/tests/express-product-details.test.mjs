@@ -7,6 +7,7 @@ import { act, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
+import { skeletonStub } from "./skeleton-stub.mjs";
 
 const require = createRequire(import.meta.url);
 const data = (source) => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
@@ -81,6 +82,7 @@ test("product details show the published listing and reject a missing listing", 
     export const PartnerAddButton = () => createElement("button", null, "Add to cart");
     export const PartnerCartBar = () => null;`);
   const Details = (await import(await component("../components/MerchantProductDetails.tsx", {
+    "./Skeleton": skeletonStub,
     "next/link": link, "@/lib/api": api, "@/lib/auth": api, "@/lib/visible-refresh": visibleRefresh,
     "@/lib/brand": data('export const money = value => `$${value}`;'), "@/lib/i18n": i18n,
     "./BackButton": data('export default () => null;'), "./PartnerCartControls": controls,

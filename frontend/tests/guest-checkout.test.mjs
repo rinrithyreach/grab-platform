@@ -7,6 +7,7 @@ import { act, createElement } from "react";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
 import { loadLibGroup, loadLib } from "./load-lib.mjs";
+import { skeletonStub } from "./skeleton-stub.mjs";
 
 const require = createRequire(import.meta.url);
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
@@ -46,6 +47,7 @@ async function setup(t, { service = "GrabExpress", user = null } = {}) {
     "@/lib/notifications": stub('export const notify=()=>true;'),
     "@/lib/currency": stub('export const formatPaid = (usd, currency = "USD") => currency === "KHR" ? Math.round(usd * 41) * 100 + "៛" : "$" + usd.toFixed(2);'),
     "./CurrencyPicker": stub('export default ()=>null;'),
+    "./Skeleton": skeletonStub,
     "@/lib/phone": stub('export const normalizePhoneNumber=v=>globalThis.__guestTest.libs.phone.normalizePhoneNumber(v);'),
     "@/lib/card": stub('export const {CARD_FIELDS,EMPTY_CARD,validateCard}=globalThis.__guestTest.libs.card;'),
     "@/lib/guest-orders": stub('export const rememberGuestOrder=(...args)=>globalThis.__guestTest.libs["guest-orders"].rememberGuestOrder(...args);'),

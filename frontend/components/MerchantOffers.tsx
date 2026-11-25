@@ -9,6 +9,7 @@ import { usePartnerCart } from "@/lib/partner-cart";
 import { useCategories } from "@/lib/categories";
 import { categoryLabel } from "@/lib/category-types";
 import MerchantOfferCard from "./MerchantOfferCard";
+import { OfferGridSkeleton, OfferRailSkeleton } from "./Skeleton";
 import { PartnerAddButton, PartnerCartBar } from "./PartnerCartControls";
 
 const TABS: { service?: MerchantServiceKind; label: MessageKey; href: string }[] = [
@@ -107,7 +108,7 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
   const scrollBy = (direction: 1 | -1) => track.current?.scrollBy({ left: direction * track.current.clientWidth * 0.9, behavior: "smooth" });
   const seeAll = TABS.find((x) => x.service === tab)?.href ?? "/express";
   const status = <>
-    {loading && !offers.length && <p role="status" className="mt-5 text-sm text-muted">{t("merchant.loading")}</p>}
+    {loading && !offers.length && !error && (rail ? <OfferRailSkeleton /> : <OfferGridSkeleton />)}
     {error && <div className="card mt-5 flex flex-wrap items-center justify-between gap-3 p-4"><p role="alert" className="text-sm text-muted">{t("merchant.unavailable")}</p><button className="btn-outline text-sm" disabled={loading} onClick={() => { if (offers.length && !rail) void loadMore(); else { setLoading(true); setRetry((n) => n + 1); } }}>{t("merchant.retry")}</button></div>}
     {!loading && !error && !offers.length && <p className="card mt-5 p-5 text-sm text-muted">{t("merchant.noOffers")}</p>}
   </>;
@@ -145,7 +146,7 @@ export default function MerchantOffers({ service, variant = "grid" }: { service?
       </div>}
     </div>}
     {offers.length > 0 && <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">{offers.map((offer) => <MerchantOfferCard key={offer.id} offer={offer}>{service === "GrabExpress" && <PartnerAddButton offer={offer} />}</MerchantOfferCard>)}</div>}
-    {loading && offers.length > 0 && <p role="status" className="mt-5 text-sm text-muted">{t("merchant.loading")}</p>}
+    {loading && offers.length > 0 && <OfferGridSkeleton count={3} className="mt-3 grid grid-cols-2 gap-3 sm:mt-4 sm:gap-4 lg:grid-cols-3" />}
     {status}
     {more && !error && <button className="btn-outline mt-5" disabled={loading} onClick={loadMore}>{t("merchant.loadMore")}</button>}
     {service === "GrabExpress" && cart.merchantId && <PartnerCartBar merchantId={cart.merchantId} />}

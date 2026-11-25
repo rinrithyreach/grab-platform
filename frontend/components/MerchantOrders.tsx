@@ -8,6 +8,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import { formatPaid } from "@/lib/currency";
 import { confirmDialog } from "@/lib/dialog";
+import { ListSkeleton } from "./Skeleton";
 
 /** The next step the store can take for each status (Reject/Cancel → Rejected is offered beside it). */
 const NEXT: Partial<Record<MerchantOrderStatus, { status: MerchantOrderStatus; label: MessageKey }>> = {
@@ -77,7 +78,7 @@ export default function MerchantOrders({ onPending }: { onPending?: (count: numb
     }
   }
 
-  if (!orders) return <div className="card mt-6 p-6">{error ? <p role="alert">{error}</p> : <p role="status" className="text-muted">{t("merchant.loading")}</p>}</div>;
+  if (!orders) return error ? <div className="card mt-6 p-6"><p role="alert">{error}</p></div> : <ListSkeleton count={2} />;
 
   return (
     <section className="mt-6" aria-labelledby="merchant-orders-title">

@@ -7,6 +7,7 @@ import { act, createElement as h } from "react";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
 import { loadLib } from "./load-lib.mjs";
+import { skeletonStub } from "./skeleton-stub.mjs";
 
 const require = createRequire(import.meta.url);
 const data = (source) => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
@@ -112,6 +113,7 @@ async function setup(t) {
     "@/lib/i18n": data("const t = (key, vars) => key + (vars ? ' ' + JSON.stringify(vars) : ''); export const useT = () => ({t});"),
     "@/lib/brand": data("export const money = value => '$' + value;"),
     "@/lib/toast": data("export const toast = () => {};"),
+    "./Skeleton": skeletonStub,
     "next/link": data(`import {createElement} from "${react}"; export default ({children,...props}) => createElement('a',props,children);`),
   };
   const mapModule = data(`import {createElement} from "${react}"; export default ({from,to,label,driver,trackingPhase}) => createElement('div', {

@@ -15,6 +15,10 @@ import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import Carousel from "./Carousel";
 import Icon from "./Icon";
+import { HeroSkeleton } from "./Skeleton";
+
+/** Longest wait for banners before showing the built-in slides, so a slow API never leaves only a placeholder. */
+const MAX_WAIT_MS = 2500;
 
 const PLACEHOLDER_COUNT = 2;
 const PLACEHOLDER_STYLES = ["from-brand to-brand-strong", "from-amber-100 to-amber-200"];
@@ -82,6 +86,8 @@ export default function BannerCarousel() {
   const { api } = useAuth();
   const { t } = useT();
   const [banners, setBanners] = useState<Banner[]>([]);
+  // A skeleton holds the space until the first answer, so the built-in slide never flashes before uploaded banners.
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -91,13 +97,16 @@ export default function BannerCarousel() {
       busy = true;
       void api.banners(ctrl.signal)
       .then((list) => setBanners(Array.isArray(list) ? list.filter((b) => b?.imageUrl) : []))
-      .catch(() => { /* backend unavailable: keep existing slides */ }).finally(() => { busy = false; });
+      .catch(() => { /* backend unavailable: keep existing slides */ }).finally(() => { busy = false; if (!ctrl.signal.aborted) setSettled(true); });
     };
     refresh();
+    const giveUp = setTimeout(() => setSettled(true), MAX_WAIT_MS);
     const timer = setInterval(() => { if (document.visibilityState !== "hidden") refresh(); }, 5000);
     window.addEventListener("focus", refresh);
-    return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
+    return () => { ctrl.abort(); clearTimeout(giveUp); clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [api]);
+
+  if (!settled) return <HeroSkeleton />;
 
   const slides = banners.length
     ? banners.map((banner) => <BannerSlide key={banner.id} banner={banner} />)

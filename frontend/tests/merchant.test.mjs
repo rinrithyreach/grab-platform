@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
 import { loadLib } from "./load-lib.mjs";
+import { skeletonStub } from "./skeleton-stub.mjs";
 
 const { EMPTY_MERCHANT_PROFILE, merchantRegistrationProfile } = await loadLib("merchant");
 const dataModule = (source) => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
@@ -150,6 +151,7 @@ test("GrabRide dashboard saves and restores checked days and times without listi
     "./MerchantRideRequests": dataModule('export default () => null;'),
     "./MerchantOrders": dataModule('export default () => null;'),
     "./MerchantOfferCard": dataModule('export default () => null;'),
+    "./Skeleton": skeletonStub,
     "next/link": dataModule(`import { createElement } from "${reactModule}"; export default ({ children, ...props }) => createElement("a", props, children);`),
   }))).default;
   const container = dom.window.document.getElementById("root");

@@ -12,6 +12,7 @@ import { formatRideWorkSchedule } from "@/lib/ride-work-schedule";
 import { toast } from "@/lib/toast";
 import MerchantOfferCard from "./MerchantOfferCard";
 import { PartnerAddButton, PartnerCartBar } from "./PartnerCartControls";
+import { StorefrontSkeleton } from "./Skeleton";
 
 export default function MerchantStorefront({ id }: { id: string }) {
   const { api } = useAuth();
@@ -39,7 +40,8 @@ export default function MerchantStorefront({ id }: { id: string }) {
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [api, id, retry, t]);
 
-  if (!data) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-10">{error ? <><p role="alert">{t(error === "missing" ? "merchant.notFound" : "merchant.unavailable")}</p><button className="btn-outline" onClick={() => { setError(null); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></> : <p role="status">{t("merchant.loading")}</p>}</div>;
+  if (!data && !error) return <StorefrontSkeleton />;
+  if (!data) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-10"><p role="alert">{t(error === "missing" ? "merchant.notFound" : "merchant.unavailable")}</p><button className="btn-outline" onClick={() => { setError(null); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></div>;
   const merchant = data.merchant;
   const service = MERCHANT_SERVICES.find((s) => s.id === merchant.service)!;
   return <div className="mx-auto max-w-6xl px-4 pb-28 pt-8">

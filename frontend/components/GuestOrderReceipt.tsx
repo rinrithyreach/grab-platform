@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { guestOrderToken } from "@/lib/guest-orders";
 import { useT } from "@/lib/i18n";
 import { PartnerOrderList } from "./PartnerOrders";
+import { Bone, SkeletonGroup } from "./Skeleton";
 
 export default function GuestOrderReceipt({ id }: { id: string }) {
   const { api } = useAuth();
@@ -46,7 +47,7 @@ export default function GuestOrderReceipt({ id }: { id: string }) {
       <h2 className="text-lg font-bold">{pick("GrabExpress guest order", "ការបញ្ជាទិញ GrabExpress ដោយមិនចូលគណនី")}</h2>
       <p className="mt-1 break-all text-sm text-muted">{pick("Order number", "លេខបញ្ជាទិញ")}: {id}</p>
       {current?.error && <p role="alert" className="mt-3 text-sm text-red-600">{current.error}</p>}
-      {!order && !current?.error && <p role="status" className="mt-3 text-sm text-muted">{pick("Loading your order…", "កំពុងផ្ទុកការបញ្ជាទិញ…")}</p>}
+      {!order && !current?.error && <SkeletonGroup className="mt-3 space-y-2" label={pick("Loading your order…", "កំពុងផ្ទុកការបញ្ជាទិញ…")}><Bone className="h-3.5 w-2/3 rounded-full" /><Bone className="mt-2 h-3 w-full rounded-full" /><Bone className="mt-2 h-3 w-4/5 rounded-full" /></SkeletonGroup>}
       {order && <>
         <p className="mt-3 text-sm">{order.customerName} · {order.customerPhone}</p>
         <p className="mt-2 text-xs text-muted">{pick("Keep this tab open to follow your order. Save your order number for enquiries with the store.", "សូមរក្សាផ្ទាំងនេះឱ្យបើកដើម្បីតាមដានការបញ្ជាទិញ។ រក្សាទុកលេខបញ្ជាទិញសម្រាប់សាកសួរហាង។")}</p>

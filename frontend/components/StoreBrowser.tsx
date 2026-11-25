@@ -9,12 +9,13 @@ import Select from "./Select";
 
 type Sort = "recommended" | "rating" | "fastest";
 
-export default function StoreBrowser({ kind }: { kind: StoreKind }) {
+/** `initialCategory`: a cuisine to pre-select, e.g. from the home page's "Shop by category" (/food?category=Pizza). */
+export default function StoreBrowser({ kind, initialCategory }: { kind: StoreKind; initialCategory?: string }) {
   const { t, pick } = useT();
   const stores = STORES.filter((s) => s.kind === kind);
   const categories = [...new Map(stores.map((s) => [s.cuisine, pick(s.cuisine, s.km?.cuisine)])).entries()];
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
+  const [category, setCategory] = useState(() => initialCategory && stores.some((s) => s.cuisine === initialCategory) ? initialCategory : "All");
   const [sort, setSort] = useState<Sort>("recommended");
 
   // Search the store name, its category (English + Khmer) and every item on its menu.

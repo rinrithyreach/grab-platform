@@ -255,6 +255,42 @@ button:not(:disabled), a { cursor: pointer; }
 .home-search { background: var(--surface); border-color: var(--border); box-shadow: 0 3px 16px #173b2204; }
 .store-card { box-shadow: 0 3px 16px #173b2203; }
 .store-card-photo img { transition: transform 500ms cubic-bezier(.2,.7,.2,1); }
+
+/* ---------- Skeleton loading (components/Skeleton.tsx) ---------- */
+/* A soft block with a light sweep moving across it; reduced-motion users get a still block.
+   In the components layer so utilities such as `absolute` or `rounded-full` on a bone still win. */
+@layer components {
+  .skeleton { position: relative; overflow: hidden; border-radius: 10px; background: color-mix(in srgb, var(--border) 75%, var(--background)); }
+  .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--surface) 70%, transparent) 50%, transparent 100%); animation: skeleton-sweep 1.4s ease-in-out infinite; }
+  [data-theme="dark"] .skeleton { background: color-mix(in srgb, var(--border) 85%, var(--surface)); }
+  [data-theme="dark"] .skeleton::after { background: linear-gradient(90deg, transparent 0%, #ffffff0d 50%, transparent 100%); }
+}
+.hero-skeleton { background: color-mix(in srgb, var(--border) 35%, var(--surface)); border: 1px solid var(--border); }
+@keyframes skeleton-sweep { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; display: none; } }
+
+/* ---------- Home storefront (components/HomeShop.tsx) ---------- */
+.shop-cat-icon { border: 1px solid var(--border); box-shadow: 0 3px 14px #173b2205; transition: transform 250ms cubic-bezier(.2,.7,.2,1), border-color 200ms, background-color 200ms; }
+.shop-cat:focus-visible .shop-cat-icon { border-color: var(--brand); }
+.deals-panel { background: linear-gradient(135deg, #fff1ea 0%, #fff8e6 55%, #eef8f0 100%); border: 1px solid #ffe1d3; }
+[data-theme="dark"] .deals-panel { background: linear-gradient(135deg, #2a1d17 0%, #262414 55%, #172a1e 100%); border-color: #3a2b22; }
+.deal-card { border: 1px solid var(--border); box-shadow: 0 3px 16px #173b2205; transition: transform 200ms, box-shadow 200ms, border-color 200ms; }
+.deal-ribbon { background: var(--ribbon-bg); color: var(--ribbon-fg); box-shadow: 0 4px 12px #00000020; letter-spacing: .02em; }
+.deal-tone-green { --ribbon-bg: #008b3e; --ribbon-fg: #fff; }
+.deal-tone-amber { --ribbon-bg: #ffc933; --ribbon-fg: #4a3300; }
+.deal-tone-rose { --ribbon-bg: #ff5a36; --ribbon-fg: #fff; }
+.deal-tone-blue { --ribbon-bg: #3d63c9; --ribbon-fg: #fff; }
+.product-card { box-shadow: 0 3px 16px #173b2203; transition: transform 200ms, box-shadow 200ms, border-color 200ms; }
+.product-card .product-emoji { background: radial-gradient(circle at 50% 45%, var(--surface) 0 34%, transparent 35%); }
+.promo-tile { isolation: isolate; transition: transform 200ms, box-shadow 200ms; }
+.promo-tile-blue { background: #e7eeff; color: #1f3473; }
+.promo-tile-green { background: #ddf4e3; color: #11452a; }
+[data-theme="dark"] .promo-tile-blue { background: #1b2540; color: #dbe5ff; }
+[data-theme="dark"] .promo-tile-green { background: #173623; color: #d6f5df; }
+.promo-tile-art { position: absolute; right: -18px; bottom: -26px; z-index: -1; display: grid; width: 170px; height: 170px; place-items: center; border-radius: 50%; background: #ffffff70; rotate: -12deg; transition: rotate 300ms cubic-bezier(.2,.7,.2,1); }
+[data-theme="dark"] .promo-tile-art { background: #ffffff10; }
+.promo-tile-art svg { width: 88px; height: 88px; stroke-width: 1.3; opacity: .85; }
+.trust-strip .card { border-radius: 24px; }
 .favorite-button { transition: transform 240ms cubic-bezier(.2,.7,.2,1), color 180ms; }
 .favorite-button[aria-pressed=true] { animation: heart-pop 300ms ease-out; }
 .favorite-button:active { transform: scale(.9); }
@@ -301,6 +337,11 @@ button:not(:disabled), a { cursor: pointer; }
   .service-tile:hover { border-color: #bedec8; box-shadow: 0 6px 22px #173b2208; }
   .service-tile:hover .service-icon { transform: translateY(-3px) rotate(-5deg); }
   .favorite-button:hover { transform: scale(1.08); }
+  .shop-cat:hover .shop-cat-icon { transform: translateY(-4px); border-color: #bedec8; background: var(--brand-soft); }
+  .shop-cat:hover > span:last-child > span:first-child { color: var(--brand); }
+  .deal-card:hover, .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px #173b220c; border-color: #bedec8; }
+  .promo-tile:hover { transform: translateY(-3px); box-shadow: 0 12px 28px #173b220c; }
+  .promo-tile:hover .promo-tile-art { rotate: 0deg; }
 }
 @media (max-width: 1279px) {
   body:has(.mobile-bottom-nav) { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
@@ -353,6 +394,16 @@ button:not(:disabled), a { cursor: pointer; }
   .app-footer { margin-top: 36px; }
   .app-footer > div:first-child { gap: 24px; padding-top: 26px; padding-bottom: 26px; }
   .app-footer p, .app-footer a, .app-footer li { font-size: 12px; }
+  .shop-cat-icon { width: 64px; height: 64px; border-radius: 22px; font-size: 30px; }
+  .shop-cat { width: 72px; }
+  .deals-panel { border-radius: 24px; margin-inline: -4px; }
+  .deal-countdown > span > span:first-child { height: 26px; min-width: 26px; border-radius: 8px; font-size: 12px; }
+  .product-card { border-radius: 19px; }
+  .product-card .product-emoji { font-size: 52px; }
+  .promo-tile { min-height: 148px; border-radius: 22px; }
+  .promo-tile-art { width: 130px; height: 130px; }
+  .promo-tile-art svg { width: 64px; height: 64px; }
+  .trust-strip .card { border-radius: 20px; }
   .how-it-works ol { gap: 10px; }
   .how-it-works li { padding: 16px; border-radius: 20px; }
   .how-it-works li > span:last-child > span:last-child { font-size: 12px; }
@@ -367,6 +418,9 @@ button:not(:disabled), a { cursor: pointer; }
   .store-card-photo { height: 112px; }
   .store-card > a > div:last-child { padding: 10px; }
   .store-card > a > div:last-child > p:last-child { gap: 5px; font-size: 10px; }
+  .product-card > a > span:last-child { padding: 10px; }
+  .product-card .product-add { right: 8px; bottom: 8px; }
+  .trust-strip li { padding: 10px; gap: 8px; }
   .menu-item-card > div:first-child { width: 48px; height: 48px; }
   .menu-item-card { gap: 8px; padding: 10px; }
   .menu-item-card button { min-width: 34px; min-height: 38px; }

@@ -7,6 +7,7 @@ import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import MerchantRideNavigation from "./MerchantRideNavigation";
+import { ListSkeleton } from "./Skeleton";
 
 export default function MerchantRideRequests() {
   const { api } = useAuth();
@@ -98,7 +99,7 @@ export default function MerchantRideRequests() {
       <p className="mt-1 text-sm text-muted">{t("merchant.rides.listening")}</p>
     </div>
     {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-    {!inbox && !error && <p role="status" className="text-sm text-muted">{t("merchant.loading")}</p>}
+    {!inbox && !error && <ListSkeleton count={2} className="grid gap-4" />}
     {inbox?.activeRide ? <div className="rounded-xl bg-brand-soft p-4">
       <div className="mb-4 flex flex-wrap justify-between gap-2"><h3 className="font-bold">{t("merchant.rides.active")}</h3><span className="text-sm font-semibold text-brand">{t(`rides.${inbox.activeRide.ride.status}`)}</span></div>
       {route(inbox.activeRide)}

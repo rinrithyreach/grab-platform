@@ -17,6 +17,7 @@ import { useT, type MessageKey } from "@/lib/i18n";
 import RideMap from "./RideMap";
 import { PartnerOrderList, usePartnerOrders } from "./PartnerOrders";
 import GuestOrderReceipt from "./GuestOrderReceipt";
+import { ListSkeleton } from "./Skeleton";
 
 // Demo delivery timeline (minutes after ordering).
 const PREPARING_UNTIL = 2;
@@ -168,7 +169,7 @@ export default function OrderHistory() {
   if (!orders.length) {
     if (partner.orders.length || partner.error) return storeOrders;
     // Just checked out: the new store order is still loading.
-    if (params.get("partner")) return <p role="status" className="mt-6 text-muted">{t("common.loading")}</p>;
+    if (params.get("partner")) return <ListSkeleton count={1} className="mt-6 grid gap-4" />;
     return (
       <div className="card mt-6 p-10 text-center">
         <p className="text-5xl" aria-hidden>🧾</p>

@@ -6,6 +6,7 @@ import test from "node:test";
 import { act, createElement } from "react";
 import { JSDOM } from "jsdom";
 import ts from "typescript";
+import { skeletonStub } from "./skeleton-stub.mjs";
 
 const require = createRequire(import.meta.url);
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
@@ -84,6 +85,7 @@ test("customer category filters request the full category before pagination and 
     "next/link": data(`import { createElement } from "${react}"; export default ({children,...props}) => createElement("a",props,children);`),
     "./MerchantOfferCard": data(`import { createElement } from "${react}"; export default ({offer}) => createElement("article",null,offer.title);`),
     "./PartnerCartControls": data('export const PartnerAddButton = () => null; export const PartnerCartBar = () => null;'),
+    "./Skeleton": skeletonStub,
   }))).default;
   await act(async () => root.render(createElement(Offers, { service: "GrabFood" })));
   await act(async () => button("Meals").click()); assert.equal(calls.at(-1).categoryId, "food"); assert.equal(calls.at(-1).page, 1);

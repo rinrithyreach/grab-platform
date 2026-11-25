@@ -15,6 +15,7 @@ import FoodProductDetails from "./FoodProductDetails";
 import WishlistButton from "./WishlistButton";
 import { useWishlist, watchForRestock } from "@/lib/wishlist";
 import { toast } from "@/lib/toast";
+import { ProductDetailSkeleton } from "./Skeleton";
 
 export default function MerchantProductDetails({ merchantId, listingId }: { merchantId: string; listingId: string }) {
   const { api } = useAuth();
@@ -40,7 +41,7 @@ export default function MerchantProductDetails({ merchantId, listingId }: { merc
     }).finally(() => { if (!signal.aborted) setLoading(false); })
   ), [api, merchantId, listingId, retry]);
 
-  if (loading) return <p role="status" className="mx-auto max-w-5xl px-4 py-10 text-muted">{t("merchant.loading")}</p>;
+  if (loading) return <ProductDetailSkeleton />;
   if (!offer) return <div className="mx-auto max-w-5xl space-y-5 px-4 py-10">
     <BackButton href={`/partners/${merchantId}`} />
     <p role="alert">{t(error === "missing" ? "partner.productUnavailable" : "merchant.unavailable")}</p>
