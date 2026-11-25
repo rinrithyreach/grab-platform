@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import { useEffect, useState } from "react";
 import type { AdminBanner } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -22,13 +23,11 @@ export default function AdminBannersPanel({ canManage, revision, onSaved }: { ca
   const [editing, setEditing] = useState<AdminBanner | "create" | null>(null);
   const [deleting, setDeleting] = useState<AdminBanner | null>(null);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.adminBanners(ctrl.signal)
-      .then(rows => { if (!ctrl.signal.aborted) { setBanners(rows); setError(""); } })
-      .catch(err => { if (!ctrl.signal.aborted) setError(message(err)); });
-    return () => ctrl.abort();
-  }, [api, revision, reload]);
+  useEffect(() => refreshWhileVisible(signal =>
+    api.adminBanners(signal)
+      .then(rows => { if (!signal.aborted) { setBanners(rows); setError(""); } })
+      .catch(err => { if (!signal.aborted) setError(message(err)); })
+  ), [api, revision, reload]);
 
   const done = (text: string) => { setEditing(null); setDeleting(null); setReload(v => v + 1); onSaved(text); };
   const nextPosition = banners?.length ? Math.min(999, Math.max(...banners.map(b => b.sortOrder)) + 1) : 0;

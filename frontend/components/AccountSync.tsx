@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { startAccountSync, type SyncState } from "@/lib/account-sync";
 import { setPublicStoreReviews } from "@/lib/reviews";
+import { availableDeviceData, importDeviceData } from "@/lib/local-store";
 
 export default function AccountSync() {
   const { user } = useAuth();
@@ -39,7 +40,13 @@ function SyncSession() {
     return () => { ctrl.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [api, user?.id]);
 
-  if (!ready || !user || state.phase === "synced") return null;
+  if (!ready || !user) return null;
+  if (state.phase === "synced") {
+    if (!Object.keys(availableDeviceData()).length) return null;
+    return <div className="border-b border-border bg-surface px-4 py-2 text-center text-xs">
+      <button className="font-semibold text-brand" onClick={importDeviceData}>{t("sync.import")}</button>
+    </div>;
+  }
   // Routine loading/saving floats in a corner (only if it takes a moment) so the page never shifts;
   // problems that need the person (offline, conflict) stay as a bar above the page.
   if (state.phase === "loading" || state.phase === "saving") return <div className="sync-pill" role="status" aria-live="polite"><span aria-hidden className="sync-pill-icon">↻</span>{t(`sync.${state.phase}`)}</div>;

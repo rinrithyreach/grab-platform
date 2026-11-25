@@ -4,7 +4,7 @@ Next.js customer demo for GrabRide, GrabFood and GrabExpress. Express replaces M
 
 GrabExpress Phase 1 adds a SQL-backed parcel-delivery API, but the current `/express` and `/deliveries` pages still use the labelled demo flow. The API will be connected in the next frontend phase; existing demo records remain readable.
 
-For another PC or phone, follow [shared setup](../SHARED_SETUP.md). Every device must use one central API/database. Cloning code and starting separate databases does not synchronize data. `npm run check:shared-api` checks the configured API and prints a Storage ID to compare between PCs.
+On a teammate’s clone, run `npm ci` and `npm run dev:team` in this directory. Team mode verifies the central database identity, then starts Next.js with that API. The central host uses the ordinary development or production commands below. See [shared setup](../SHARED_SETUP.md) for LAN and HTTPS access.
 
 ## Start locally
 

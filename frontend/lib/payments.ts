@@ -9,6 +9,7 @@
  * Switch with NEXT_PUBLIC_PAYMENT_PROVIDER=api once the backend endpoints exist.
  * No page needs to change — they only use the `PaymentProvider` functions below.
  */
+import { recordId } from "./record-id";
 import type { TopUp } from "./api";
 import { createLocalStore } from "./local-store";
 import { usdToKhr, type Currency } from "./currency";
@@ -72,7 +73,7 @@ export const demoProvider: PaymentProvider = {
     if (currency !== "USD" && currency !== "KHR") throw new Error("Choose USD or KHR.");
     const paidAmount = currency === "KHR" ? usdToKhr(amount) : amount;
     const now = Date.now();
-    const id = `TU-${crypto.randomUUID()}`;
+    const id = `TU-${recordId()}`;
     return save({
       id, amount, currency, paidAmount, method: "bakong_khqr",
       // Deliberately NOT a real KHQR payload, so a banking app can't try to pay it.

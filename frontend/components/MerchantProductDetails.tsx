@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, type MerchantOffer } from "@/lib/api";
@@ -25,21 +26,19 @@ export default function MerchantProductDetails({ merchantId, listingId }: { merc
   const [retry, setRetry] = useState(0);
   const watching = useWishlist().some((item) => item.listingId === listingId);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.merchantStorefront(merchantId, ctrl.signal).then((store) => {
-      if (ctrl.signal.aborted) return;
+  useEffect(() => refreshWhileVisible(signal =>
+    api.merchantStorefront(merchantId, signal).then((store) => {
+      if (signal.aborted) return;
       const product = store.listings.find((listing) => listing.id === listingId) ?? null;
       setOffer(product);
       setOthers(store.listings);
       setError(product ? null : "missing");
     }).catch((err) => {
-      if (ctrl.signal.aborted) return;
+      if (signal.aborted) return;
       setOffer(null);
       setError(err instanceof ApiError && err.status === 404 ? "missing" : "network");
-    }).finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
-    return () => ctrl.abort();
-  }, [api, merchantId, listingId, retry]);
+    }).finally(() => { if (!signal.aborted) setLoading(false); })
+  ), [api, merchantId, listingId, retry]);
 
   if (loading) return <p role="status" className="mx-auto max-w-5xl px-4 py-10 text-muted">{t("merchant.loading")}</p>;
   if (!offer) return <div className="mx-auto max-w-5xl space-y-5 px-4 py-10">

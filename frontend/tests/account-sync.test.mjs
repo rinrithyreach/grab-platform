@@ -13,6 +13,27 @@ const waitFor = async (condition) => {
 };
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
+test("partner carts round-trip through the existing shopping section without changing food history", async t => {
+  const { api } = await loadLibGroup("api");
+  let row = { version: 1, data: { "grab-shop-v1": { orders: [{ id: "existing" }] } } };
+  const mock = t.mock.method(globalThis, "fetch", async (_url, options) => {
+    if (options.method === "PATCH") row = JSON.parse(options.body);
+    return Response.json(row);
+  });
+  const client = api.createApiClient("/backend");
+  const initial = await client.accountData();
+  assert.deepEqual(initial, row);
+  const cart = { merchantId: "shop", merchantName: "Cafe", lines: [{ listingId: "coffee", qty: 1 }] };
+  for (const data of [{ ...initial.data, "grab-partner-cart-v1": cart }, { "grab-partner-cart-v1": cart }]) {
+    const snapshot = { version: 2, data };
+    assert.deepEqual(await client.saveAccountData(snapshot), snapshot);
+    assert.equal(row.data["grab-partner-cart-v1"], undefined);
+    assert.deepEqual(row.data["grab-shop-v1"].partnerCart, cart);
+    assert.deepEqual(await client.accountData(), snapshot);
+  }
+  assert.equal(mock.mock.callCount(), 5);
+});
+
 test("account caches isolate users and preserve guest data until explicit import", async () => {
   const previous = globalThis.window;
   const { target } = browser(); globalThis.window = target;
@@ -41,6 +62,8 @@ test("independent device edits merge; conflicting edits to the same section are 
   assert.deepEqual(sync.mergeAccountData(base, { ...base, favorites: { items: ["food"] } }, { ...base, profile: { address: "B" } }),
     { favorites: { items: ["food"] }, profile: { address: "B" } });
   assert.equal(sync.mergeAccountData(base, { ...base, profile: { address: "Local" } }, { ...base, profile: { address: "Remote" } }), null);
+  assert.equal(sync.mergeAccountData({}, { "grab-shop-v1": { cart: { lines: [{ itemId: "food" }] } } },
+    { "grab-partner-cart-v1": { lines: [{ listingId: "partner-food" }] } }), null);
   assert.deepEqual(sync.mergeAccountData(base, { ...base, profile: { address: "Same" } }, { ...base, profile: { address: "Same" } }),
     { ...base, profile: { address: "Same" } });
 });

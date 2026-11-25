@@ -2,7 +2,7 @@
 
 export type AccountValues = Record<string, object>;
 export interface AccountCache { version: number; base: AccountValues; data: AccountValues; pending: boolean; revision: number }
-export const ACCOUNT_KEYS = ["grab-shop-v1", "grab-express-demo-v1", "grab-wallet-v1", "grab-profile-v1", "grab-favorites-v1", "grab-wishlist-v1", "grab-reviews-v1", "grab-settings"];
+export const ACCOUNT_KEYS = ["grab-shop-v1", "grab-partner-cart-v1", "grab-express-demo-v1", "grab-wallet-v1", "grab-profile-v1", "grab-favorites-v1", "grab-wishlist-v1", "grab-reviews-v1", "grab-settings"];
 const accountKeys = new Set(ACCOUNT_KEYS);
 const stores = new Map<string, { reload: () => void; isInitial: (value: object) => boolean }>();
 const changeListeners = new Set<() => void>();
@@ -23,10 +23,15 @@ function readCache(raw: string | null): AccountCache {
 function persistCache() {
   if (account) try { window.localStorage.setItem(cacheKey(), JSON.stringify(cache)); } catch { /* memory remains usable */ }
 }
-function notifyStores() { stores.forEach((store, key) => { if (accountKeys.has(key)) store.reload(); }); }
+function notifyStores(previous?: AccountValues) {
+  stores.forEach((store, key) => {
+    if (accountKeys.has(key) && (!previous || JSON.stringify(previous[key]) !== JSON.stringify(cache.data[key]))) store.reload();
+  });
+}
 function onAccountStorage(event: StorageEvent) {
   if (!account || (event.key !== cacheKey() && event.key !== null)) return;
-  cache = readCache(event.newValue); notifyStores(); changeListeners.forEach((listener) => listener());
+  const previous = cache.data;
+  cache = readCache(event.newValue); notifyStores(previous); changeListeners.forEach((listener) => listener());
 }
 export function selectLocalAccount(owner: string | null) {
   if (account === owner) return;
@@ -39,8 +44,19 @@ export function selectLocalAccount(owner: string | null) {
 }
 export const activeLocalAccount = () => account;
 export const getAccountCache = () => cache;
-export function replaceAccountCache(next: AccountCache) { cache = next; persistCache(); notifyStores(); }
+export function replaceAccountCache(next: AccountCache) {
+  const previous = cache.data;
+  cache = next; persistCache(); notifyStores(previous);
+}
 export function subscribeAccountChanges(listener: () => void) { changeListeners.add(listener); return () => { changeListeners.delete(listener); }; }
+
+// Food and partner products share one checkout. Imports and cross-device merges
+// must preserve the same one-store rule enforced by the add-to-cart buttons.
+export function hasCompetingCarts(data: AccountValues) {
+  const shop = data["grab-shop-v1"] as { cart?: { lines?: unknown[] } } | undefined;
+  const partner = data["grab-partner-cart-v1"] as { lines?: unknown[] } | undefined;
+  return !!shop?.cart?.lines?.length && !!partner?.lines?.length;
+}
 
 export function availableDeviceData(): AccountValues {
   const data: AccountValues = {};
@@ -51,7 +67,8 @@ export function availableDeviceData(): AccountValues {
     if (key === "grab-wallet-v1") continue;
     try {
       const value: unknown = JSON.parse(window.localStorage.getItem(key) ?? "null");
-      if (object(value) && !stores.get(key)?.isInitial(value)) data[key] = value;
+      if (object(value) && !stores.get(key)?.isInitial(value)
+        && !hasCompetingCarts({ ...cache.data, ...data, [key]: value })) data[key] = value;
     } catch { /* skip corrupt legacy data */ }
   }
   return data;

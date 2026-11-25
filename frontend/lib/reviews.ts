@@ -5,6 +5,7 @@
  * (from "Rate your order" on My orders) sync through the account-data API;
  * other customers' public reviews are refreshed from /api/store-reviews.
  */
+import { recordId } from "./record-id";
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
 import { STORES } from "./catalog";
@@ -50,7 +51,7 @@ const useUserReviews = () => useSyncExternalStore(store.subscribe, store.get, st
 
 export function addReview(review: Omit<Review, "id" | "createdAt">) {
   store.update((s) => ({
-    reviews: [{ ...review, id: `r-${crypto.randomUUID()}`, createdAt: new Date().toISOString() }, ...s.reviews],
+    reviews: [{ ...review, id: `r-${recordId()}`, createdAt: new Date().toISOString() }, ...s.reviews],
   }));
 }
 

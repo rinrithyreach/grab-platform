@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useAdminT } from "@/lib/admin-i18n";
@@ -18,12 +19,10 @@ export default function AdminCategoriesPanel({ canManage, revision, onSaved }: {
   const [search, setSearch] = useState(""); const [error, setError] = useState("");
   const [reload, setReload] = useState(0); const [editing, setEditing] = useState<Editing | null>(null);
   const [deleting, setDeleting] = useState<ProductCategory | null>(null);
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.adminCategories(ctrl.signal).then(data => { if (!ctrl.signal.aborted) { setRows(data); setCategories(data); setError(""); } })
-      .catch(err => { if (!ctrl.signal.aborted) setError(message(err)); });
-    return () => ctrl.abort();
-  }, [api, revision, reload]);
+  useEffect(() => refreshWhileVisible(signal =>
+    api.adminCategories(signal).then(data => { if (!signal.aborted) { setRows(data); setCategories(data); setError(""); } })
+      .catch(err => { if (!signal.aborted) setError(message(err)); })
+  ), [api, revision, reload]);
   const done = (text: string) => { setEditing(null); setDeleting(null); setReload(n => n + 1); onSaved(a(text)); };
   const current = rows?.filter(c => c.service === service) ?? [];
   const term = search.trim().toLowerCase();

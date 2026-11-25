@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { adminCan, adminCovers, togglePermission, type AdminPermissionSection, type AdminProfile, type AdminRole, type AdminRoles } from "@/lib/admin-settings";
@@ -23,12 +24,10 @@ export default function AdminRolesPanel({ me, revision, onSaved }: { me: AdminPr
   const [editing, setEditing] = useState<AdminRole | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminRole | null>(null);
   const canManage = adminCan(me, "roles", "manage");
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.adminRoles(ctrl.signal).then(result => { if (!ctrl.signal.aborted) { setData(result); setError(""); } })
-      .catch(err => { if (!ctrl.signal.aborted) setError(errorText(err)); });
-    return () => ctrl.abort();
-  }, [api, revision, reload]);
+  useEffect(() => refreshWhileVisible(signal =>
+    api.adminRoles(signal).then(result => { if (!signal.aborted) { setData(result); setError(""); } })
+      .catch(err => { if (!signal.aborted) setError(errorText(err)); })
+  ), [api, revision, reload]);
   const saved = (message: string) => { setEditing(null); setDeleting(null); setReload(v => v + 1); onSaved(message); };
   if (!data) return error ? <div className="admin-error" role="alert">{error}<button className="admin-button" onClick={() => setReload(v => v + 1)}>Retry</button></div> : <div className="admin-loading" role="status"><span className="admin-spinner" />Loading roles…</div>;
   const total = data.catalog.reduce((n, s) => n + (s.manageDescription ? 2 : 1), 0);

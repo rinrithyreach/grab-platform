@@ -10,6 +10,7 @@
  *
  * Wallets start at $0; money only comes from top-ups (see lib/payments.ts).
  */
+import { recordId } from "./record-id";
 import { useMemo, useSyncExternalStore } from "react";
 import { activeLocalAccount, createLocalStore } from "./local-store";
 import { canPayWithWallet } from "./pricing";
@@ -40,7 +41,7 @@ const store = createLocalStore<WalletState>("grab-wallet-v1", { balance: STARTIN
 });
 
 const round = (n: number) => Math.round(n * 100) / 100;
-const txnId = () => `TX-${crypto.randomUUID()}`;
+const txnId = () => `TX-${recordId()}`;
 
 /**
  * Older versions gave every wallet a $20 "welcome" bonus. Remove it (and its $20)

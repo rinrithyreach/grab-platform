@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -211,13 +212,11 @@ function Resource({ section, me, revision, onSaved, onNotice }: { section: Admin
   const error = busy ? "" : result.error;
   const data = result.data;
   useEffect(() => { const timer = setTimeout(() => { setSearch(query.trim()); setPage(1); }, 250); return () => clearTimeout(timer); }, [query]);
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api.adminList(section, page, search, filter, ctrl.signal)
-      .then(rows => { if (!ctrl.signal.aborted) setResult({ key: requestKey, data: rows, error: "" }); })
-      .catch(err => { if (!ctrl.signal.aborted) setResult(prev => ({ key: requestKey, data: prev.data, error: message(err, a) })); });
-    return () => ctrl.abort();
-  }, [api, section, page, search, filter, requestKey, a]);
+  useEffect(() => refreshWhileVisible(signal =>
+    api.adminList(section, page, search, filter, signal)
+      .then(rows => { if (!signal.aborted) setResult({ key: requestKey, data: rows, error: "" }); })
+      .catch(err => { if (!signal.aborted) setResult(prev => ({ key: requestKey, data: prev.data, error: message(err, a) })); })
+  ), [api, section, page, search, filter, requestKey, a]);
   function exportPage() {
     if (!data) return;
     const url = URL.createObjectURL(new Blob(["﻿", adminCsv(section, data.items)], { type: "text/csv;charset=utf-8" }));

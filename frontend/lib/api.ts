@@ -13,6 +13,24 @@ export interface User { id: string; fullName: string; phoneNumber: string; role:
 export interface AuthResponse { accessToken: string; expiresAt: string; user: User }
 export interface RegisterRequest { phoneNumber: string; password: string }
 export interface AccountData { version: number; data: Record<string, object> }
+// SQL already persists shopping data in grab-shop-v1. Keep that wire format
+// compatible with running APIs and retain separate cart stores in the browser.
+function toAccountSnapshot(snapshot: AccountData): AccountData {
+  const { "grab-partner-cart-v1": partnerCart, ...data } = snapshot.data;
+  if (!partnerCart) return snapshot;
+  data["grab-shop-v1"] = { ...data["grab-shop-v1"], partnerCart };
+  return { version: snapshot.version, data };
+}
+function fromAccountSnapshot(snapshot: AccountData): AccountData {
+  const shop = snapshot.data["grab-shop-v1"];
+  if (!shop || !("partnerCart" in shop)) return snapshot;
+  const { partnerCart, ...food } = shop;
+  const data = { ...snapshot.data };
+  if (Object.keys(food).length) data["grab-shop-v1"] = food;
+  else delete data["grab-shop-v1"];
+  if (partnerCart && typeof partnerCart === "object" && !Array.isArray(partnerCart)) data["grab-partner-cart-v1"] = partnerCart;
+  return { version: snapshot.version, data };
+}
 export interface StoreReview { id: string; storeId: string; name: string; rating: number; comment: string; createdAt: string }
 export type MerchantServiceKind = "GrabRide" | "GrabFood" | "GrabExpress";
 export type RideVehicleType = "Motorcycle" | "Rickshaw" | "Classic";
@@ -244,8 +262,8 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     },
     adminDeleteBanner: (id: string, reason: string) => request<{ saved: boolean }>(`/api/admin/banners/${encodeURIComponent(id)}?${new URLSearchParams({ reason })}`, "DELETE"),
     register: (body: RegisterRequest) => authenticate("/api/auth/register", body),
-    accountData: (signal?: AbortSignal) => request<AccountData>("/api/account-data", "GET", undefined, signal),
-    saveAccountData: (body: AccountData, signal?: AbortSignal) => request<AccountData>("/api/account-data", "PATCH", body, signal),
+    accountData: async (signal?: AbortSignal) => fromAccountSnapshot(await request<AccountData>("/api/account-data", "GET", undefined, signal)),
+    saveAccountData: async (body: AccountData, signal?: AbortSignal) => fromAccountSnapshot(await request<AccountData>("/api/account-data", "PATCH", toAccountSnapshot(body), signal)),
     storeReviews: (signal?: AbortSignal) => request<StoreReview[]>("/api/store-reviews", "GET", undefined, signal),
     login: (phoneNumber: string, password: string) => authenticate("/api/auth/login", { phoneNumber, password }),
     merchantRegister: (body: RegisterRequest & { profile: MerchantProfileRequest | RideMerchantRegistrationProfile }) => authenticate("/api/merchants/register", body),

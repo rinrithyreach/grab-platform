@@ -1,5 +1,6 @@
 "use client";
 
+import { recordId } from "./record-id";
 import { useSyncExternalStore } from "react";
 import { createLocalStore } from "./local-store";
 import { canCancelDelivery, deliveryQuote, deliveryStatus, validateDelivery, type Delivery, type DeliveryRequest } from "./express-pricing";
@@ -28,7 +29,7 @@ export function bookDelivery(body: DeliveryRequest): { delivery: Delivery } | { 
     senderName: body.senderName.trim(), senderPhone: body.senderPhone.trim(), pickupAddress: body.pickupAddress.trim(),
     recipientName: body.recipientName.trim(), recipientPhone: body.recipientPhone.trim(), dropoffAddress: body.dropoffAddress.trim(),
     description: body.description.trim(), note: body.note.trim(),
-    id: `EXP-${crypto.randomUUID()}`, fare: quote.fare, distanceKm: quote.distanceKm, createdAt: new Date().toISOString(),
+    id: `EXP-${recordId()}`, fare: quote.fare, distanceKm: quote.distanceKm, createdAt: new Date().toISOString(),
   };
   store.update((s) => ({ deliveries: [delivery, ...s.deliveries] }));
   return { delivery };

@@ -2,7 +2,7 @@
 
 /**
  * Cart for products published by merchant partners (/partners/[id]).
- * Kept on this device; the order itself is saved by the API, which re-prices
+ * Signed-in carts sync through account data. The order API re-prices
  * every line from the database at checkout. Titles/prices here are only for display.
  *
  * Use lib/cart.ts `addPartnerItem` to add items: it keeps "one store per cart"

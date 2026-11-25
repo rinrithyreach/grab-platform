@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:team": "node scripts/check-shared-api.mjs --team --dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

@@ -33,6 +33,7 @@ test("admin can create a product coupon, pause it, delete it and inspect offers 
   };
   const rules = await component("../lib/promotion-rules.ts", {});
   const Panel = (await import(await component("../components/admin/AdminPromotionsPanel.tsx", {
+    "@/lib/visible-refresh": await component("../lib/visible-refresh.ts", {}),
     "@/lib/auth": data('export const useAuth = () => ({ api: globalThis.__promotionTestApi });'),
     "@/lib/admin-i18n": data('const a = (text, vars = {}) => text.replace(/\\{(\\w+)\\}/g, (_, key) => vars[key] ?? key); export const useAdminT = () => ({ a });'),
     "@/lib/catalog": data('export const STORES = [];'), "@/lib/brand": data('export const money = value => `$${value.toFixed(2)}`;'),

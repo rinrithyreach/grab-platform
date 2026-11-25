@@ -4,7 +4,15 @@ University group project (Group 6). We research the Grab super-app and build a s
 
 Services: **GrabRide, GrabFood and GrabExpress** (Express replaces Mart).
 
-**Using multiple PCs or phones?** Follow [shared API/database setup](SHARED_SETUP.md). All devices must point to the same API/database; cloning code alone does not copy or synchronize SQL data. Signed-in application data now persists through the API, with automatic refresh, offline retry and conflict protection.
+**Running a team clone?** With Node.js 24 installed, run the following from your clone:
+
+```powershell
+cd frontend
+npm ci
+npm run dev:team
+```
+
+Open the local website address printed by Next.js. Team mode connects to the project’s central SQL-backed API and checks its database identity before starting. Keep the central host online. For other networks, an alternative host address, or running the central PC itself, see [shared setup](SHARED_SETUP.md).
 
 - [Run the frontend](frontend/README.md)
 - [Super-admin dashboard and setup](ADMIN_DASHBOARD.md)

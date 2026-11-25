@@ -48,6 +48,7 @@ for (const destination of ["/merchant", "/store/test-store"]) {
       "@/lib/wallet": dataModule("export const useWallet = () => ({ balance: 5, hasWallet: true });"),
       "./SettingsMenu": dataModule("export default () => null;"),
       "./NotificationBell": dataModule("export default () => null;"),
+      "./CartPreview": dataModule("export default () => null;"),
       "./social-icon-paths": dataModule("export const SOCIAL_ICON_PATHS = {};"),
       "@/lib/platform": dataModule("export const usePlatformSettings = () => null;"),
     };

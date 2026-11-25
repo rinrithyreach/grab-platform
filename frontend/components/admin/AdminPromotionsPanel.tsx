@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useAdminT } from "@/lib/admin-i18n";
@@ -27,13 +28,11 @@ export default function AdminPromotionsPanel({ canManage, revision, onSaved }: {
   const [filter, setFilter] = useState("");
   const [editing, setEditing] = useState<Promotion | "create" | null>(null);
   const [deleting, setDeleting] = useState<Promotion | null>(null);
-  useEffect(() => {
-    const ctrl = new AbortController();
-    Promise.all([api.adminPromotions(ctrl.signal), api.adminPromotionTargets(ctrl.signal)])
-      .then(([rules, products]) => { if (!ctrl.signal.aborted) { setRows(rules); setTargets([...demoTargets, ...products]); setError(""); setPromotionRules(rules); } })
-      .catch(err => { if (!ctrl.signal.aborted) setError(message(err)); });
-    return () => ctrl.abort();
-  }, [api, revision, reload]);
+  useEffect(() => refreshWhileVisible(signal =>
+    Promise.all([api.adminPromotions(signal), api.adminPromotionTargets(signal)])
+      .then(([rules, products]) => { if (!signal.aborted) { setRows(rules); setTargets([...demoTargets, ...products]); setError(""); setPromotionRules(rules); } })
+      .catch(err => { if (!signal.aborted) setError(message(err)); })
+  ), [api, revision, reload]);
   const done = (text: string) => { setEditing(null); setDeleting(null); setReload(n => n + 1); onSaved(a(text)); };
   const visible = rows?.filter(p => (!filter || promotionStatus(p) === filter || (filter === "codes" ? !!p.code : filter === "automatic" && !p.code))
     && `${p.name} ${p.code ?? ""} ${targets.find(t => t.storeId === p.storeId)?.storeName ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()));

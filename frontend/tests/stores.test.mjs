@@ -165,7 +165,7 @@ test("a completed checkout preserves subsequent cart edits and rejects infinite 
   const previous = globalThis.window;
   globalThis.window = browser();
   try {
-    const { "partner-cart": cart } = await loadLibGroup("partner-cart", "local-store", "brand");
+    const { "partner-cart": cart, "local-store": local } = await loadLibGroup("partner-cart", "local-store", "brand");
     const offer = { id: "listing", title: "Lunch", price: 4.5, imageUrl: "", merchant: { id: "merchant", businessName: "Lunch shop" } };
     assert.equal(cart.putPartnerItem({ ...offer, price: Infinity }), false);
     cart.putPartnerItem(offer);
@@ -179,6 +179,18 @@ test("a completed checkout preserves subsequent cart edits and rejects infinite 
     cart.putPartnerItem({ ...offer, merchant: { id: "another", businessName: "Other shop" } });
     assert.equal(cart.refreshPartnerCart("merchant", "", []), 0);
     assert.equal(cart.partnerCart().merchantId, "another");
+    local.selectLocalAccount("buyer");
+    assert.equal(cart.partnerCart().lines.length, 0);
+    local.importDeviceData();
+    const checkout = cart.partnerCart();
+    const cache = local.getAccountCache();
+    assert.equal(checkout.merchantId, "another");
+    assert.deepEqual(cache.data["grab-partner-cart-v1"], checkout);
+    local.replaceAccountCache({ ...cache, base: structuredClone(cache.data), data: structuredClone(cache.data), pending: false });
+    cart.clearSubmittedPartnerCart(checkout);
+    assert.equal(cart.partnerCart().lines.length, 0, "A background sync must not invalidate unchanged checkout contents");
+    local.selectLocalAccount(null);
+    assert.equal(cart.partnerCart().merchantId, "another", "Guest basket survives sign-in");
   } finally { globalThis.window = previous; }
 });
 

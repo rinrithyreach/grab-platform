@@ -1,5 +1,6 @@
 "use client";
 
+import { refreshWhileVisible } from "@/lib/visible-refresh";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -52,13 +53,11 @@ export default function AdminTeamPanel({ me, revision, onSaved }: { me: AdminPro
   const [selected, setSelected] = useState<AdminTeamMember | null>(null);
   const [adding, setAdding] = useState(false);
   const canManage = adminCan(me, "team", "manage");
-  useEffect(() => {
-    const ctrl = new AbortController();
-    Promise.all([api.adminTeam(ctrl.signal), api.adminRoles(ctrl.signal)])
-      .then(([members, roleData]) => { if (!ctrl.signal.aborted) { setTeam(members); setRoles(roleData.roles); setError(""); } })
-      .catch(err => { if (!ctrl.signal.aborted) setError(errorText(err)); });
-    return () => ctrl.abort();
-  }, [api, revision, reload]);
+  useEffect(() => refreshWhileVisible(signal =>
+    Promise.all([api.adminTeam(signal), api.adminRoles(signal)])
+      .then(([members, roleData]) => { if (!signal.aborted) { setTeam(members); setRoles(roleData.roles); setError(""); } })
+      .catch(err => { if (!signal.aborted) setError(errorText(err)); })
+  ), [api, revision, reload]);
   const saved = (message: string) => { setSelected(null); setAdding(false); setReload(v => v + 1); onSaved(message); };
   if (!team) return error ? <div className="admin-error" role="alert">{error}<button className="admin-button" onClick={() => setReload(v => v + 1)}>Retry</button></div> : <div className="admin-loading" role="status"><span className="admin-spinner" />Loading administrators…</div>;
   const active = team.filter(m => m.isActive).length;

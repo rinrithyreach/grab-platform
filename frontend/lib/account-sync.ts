@@ -1,7 +1,7 @@
 "use client";
 
 import type { AccountData } from "./api";
-import { activeLocalAccount, backUpPendingData, getAccountCache, replaceAccountCache, subscribeAccountChanges, type AccountValues } from "./local-store";
+import { activeLocalAccount, backUpPendingData, getAccountCache, hasCompetingCarts, replaceAccountCache, subscribeAccountChanges, type AccountValues } from "./local-store";
 
 export type SyncPhase = "loading" | "saving" | "synced" | "offline" | "conflict";
 export interface SyncState { phase: SyncPhase; detail?: string; syncedAt?: number }
@@ -20,7 +20,7 @@ export function mergeAccountData(base: AccountValues, local: AccountValues, remo
     const value = localChanged ? local[key] : remote[key];
     if (value !== undefined) merged[key] = value;
   }
-  return merged;
+  return hasCompetingCarts(merged) ? null : merged;
 }
 
 export function startAccountSync(api: Transport, owner: string, onState: (state: SyncState) => void, intervalMs = 5000) {

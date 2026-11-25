@@ -16,17 +16,29 @@ On the server/PC that owns the shared data:
 
 Other devices on the same network can open `http://MAIN_PC_IP:3000`, using this PC's actual LAN IPv4 address. The central API is available through `http://MAIN_PC_IP:3000/backend`; port 5000 and SQL Server do not need to be exposed to client PCs. The host must remain running and its network/firewall must permit the website port. Use an HTTPS deployment for access from other networks and automatic browser location on phones. No public deployment, firewall changes or hosting account is created automatically by cloning.
 
-## Run a frontend clone on another PC
+## Start a teammate's clone
 
-The other PC needs Node.js 24; it does not need its own SQL database or JWT key.
+Install Node.js 24. From the repository root run:
 
 ```powershell
 cd frontend
 npm ci
-Copy-Item .env.shared.example .env.local
+npm run dev:team
 ```
 
-Edit `.env.local` to use the central API. LAN example (replace the example address):
+Keep this terminal open and open the local URL it prints. Team mode uses the API URL and Storage ID in [team-api.json](frontend/team-api.json). Every save goes through the clone's own `/backend` proxy. If the central database cannot be verified, startup stops before login. SQL credentials stay on the host.
+
+The initial LAN address is `http://192.168.110.118:3000`. Private LAN addresses work on the host network. From another network, use an HTTPS address that forwards to the same project. Supply the website's `/backend` URL, or the base URL of a separately hosted API:
+
+```powershell
+npm run dev:team -- https://YOUR_SHARED_SITE/backend
+```
+
+To make an address the default for all clones, verify it with `npm run check:shared-api -- --team https://YOUR_SHARED_SITE/backend` and update `apiUrl` in the team configuration. Wi-Fi addresses can change. If LAN access times out, check that both devices can reach each other and that the host firewall permits inbound website traffic on TCP 3000 from that subnet. An existing Node.js inbound block rule takes precedence over an allow rule. An HTTPS host reachable by both devices works on either network.
+
+### Production builds and manual configuration
+
+To configure a clone persistently, copy `.env.shared.example` to `.env.local` in `frontend` and set the verified API base before building:
 
 ```dotenv
 API_PROXY_URL=http://192.168.1.10:3000/backend
@@ -40,23 +52,23 @@ Run `npm run dev`, or run `npm run build` followed by `npm run start`. Set the A
 
 ## Verify that PCs really use the same database
 
-From each configured frontend clone:
+For team mode, run the check without starting Next.js:
 
 ```powershell
-npm run check:shared-api
+npm run check:shared-api -- --team
 ```
 
-The command checks database readiness, the merchant catalogue and private-data authorization. Compare the **Storage ID** printed on each PC. The IDs must match. Different IDs mean separate databases, even if both URLs return a healthy API. The ID is generated once per database by migration and contains no connection details or credentials.
+The command checks database readiness, the merchant catalogue and private-data authorization. It compares the **Storage ID** to the one recorded by the central host. For a manually configured `.env.local`, run `npm run check:shared-api` and compare its printed ID with the host. The ID is generated once per database by migration and contains no connection details or credentials.
 
 ## What syncs
 
 - Accounts, profile names, live rides, ride payments/reviews, merchant profiles, photos and listings use their existing API tables.
 - Signed-in carts, demo Food orders, Express deliveries/cancellations, demo wallet transactions, favourites, saved addresses, store reviews and language/theme now use the API's SQL-backed account snapshot. Their existing prices, delivery timelines and payment simulations remain demo behavior.
-- Public merchant lists, banners, storefronts and store reviews refresh every five seconds while the page is visible. Private account data also refreshes every five seconds and on focus/reconnection. Profile names refresh every fifteen seconds.
+- Public merchant lists, banners, storefronts, product details and store reviews refresh every five seconds while visible. Admin record lists, banners, categories, promotions, team members and roles refresh automatically too. Private account data refreshes every five seconds and on focus/reconnection. Profile names refresh every fifteen seconds, and active rides normally update every two seconds.
 - Public listings/reviews are shared with customers. Private orders, wallet and addresses sync only when signed into **the same account** on the other device; they are not exposed to everyone.
-- Guests keep device-local data. Sign in to sync. Existing browser records are preserved and can be imported explicitly with **Import device data into empty account sections**. Import does not overwrite existing account sections.
-- The status bar reports loading, saving, synced, offline and conflicting changes. Wait for **Account data synced** before closing the page if the latest change must already be available on another device. Pending changes are cached per account and retried after reconnection/login.
+- Signed-in partner carts follow the account. After sign-in, **Import device data into empty account sections** can bring over an older device cart. Guest draft carts, guest receipt links and browser notification history stay on that device. Submitted guest bookings and merchant orders are saved by the API.
+- Let the saving indicator clear before closing the tab if another device needs the latest change. An offline or conflict notice means a write is still pending. Pending changes are cached per account and retried after reconnection/login.
 - Independent section edits merge. Conflicting edits to the same section do not silently overwrite one another: **Load server copy** retains a local backup of pending changes before loading the current server version.
 - Offline ride simulation is disabled by default. An unavailable API does not silently create a different set of fake bookings. Explicit `NEXT_PUBLIC_ENABLE_DEMO_RIDES=true` remains available for a separate local demo.
 
-The local example points to localhost for single-PC development. A real shared host URL must be supplied before another PC can access the same data; this repository does not include a hosted server address.
+For a quick check, sign in to the same customer account on two devices, keep Favorites open on one, and favorite a store on the other. The open list should update within five seconds. To check across roles, publish a merchant product and look for it on a separate customer's storefront.

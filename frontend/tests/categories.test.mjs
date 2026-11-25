@@ -46,6 +46,7 @@ test("admin creates a subcategory in the selected service and read-only roles ca
     adminSaveCategory: async body => { saved = body; globalThis.__categoryTest.categories = [...globalThis.__categoryTest.categories, { ...body, id: "new" }]; return { id: "new" }; },
   };
   const Panel = (await import(await component("../components/admin/AdminCategoriesPanel.tsx", {
+    "@/lib/visible-refresh": await component("../lib/visible-refresh.ts", {}),
     "@/lib/auth": auth, "@/lib/admin-i18n": adminT, "@/lib/categories": categories,
     "./AdminIcon": data('export default () => null;'), "./useAdminDialog": data('export const useAdminDialog = onClose => ({ ref: { current: null }, close: onClose });'),
   }))).default;

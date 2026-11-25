@@ -7,6 +7,7 @@
  * (empty cart) and the first client render always match.
  * The price maths lives in lib/pricing.ts.
  */
+import { recordId } from "./record-id";
 import { useSyncExternalStore } from "react";
 import { getItem, getStore } from "./catalog";
 import { createLocalStore } from "./local-store";
@@ -161,7 +162,7 @@ export function placeOrder(address: string, payment: PaymentMethod, note: string
   if (payment === "Wallet" && !userId) return { error: "loginRequired" };
   if (payment === "Wallet" && !payFromWallet(userId, total, store.name)) return { error: "insufficient" };
   const order: Order = {
-    id: `ORD-${crypto.randomUUID()}`,
+    id: `ORD-${recordId()}`,
     storeId: store.id, storeName: store.name,
     lines: lines.map(({ itemId, name, price, qty, options, optionIds }) => ({ itemId, name, price, qty, options, optionIds })),
     subtotal, discount, promotionLabel,

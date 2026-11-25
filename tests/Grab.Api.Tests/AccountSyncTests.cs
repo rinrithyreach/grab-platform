@@ -46,7 +46,11 @@ public partial class ApiTests
         var initial = await Read<AccountDataDto>(await a.GetAsync("/api/account-data"));
         Assert.Equal(0, initial.Version);
         var data = new Dictionary<string, object> {
-            ["grab-shop-v1"] = new { cart = new { storeId = (string?)null, lines = Array.Empty<object>() }, orders = new[] { new { id = "order-one", address = "Private address 12", total = 4.5 } } },
+            ["grab-shop-v1"] = new {
+                cart = new { storeId = (string?)null, lines = Array.Empty<object>() },
+                orders = new[] { new { id = "order-one", address = "Private address 12", total = 4.5 } },
+                partnerCart = new { merchantId = "shop", merchantName = "Cafe", lines = new[] { new { listingId = "coffee", title = "Coffee", price = 2, imageUrl = "", qty = 1 } } }
+            },
             ["grab-express-demo-v1"] = new { deliveries = new[] { new { id = "delivery-one", senderPhone = "012345678" } } },
             ["grab-wallet-v1"] = new { balance = 15.5, txns = new[] { new { id = "payment-one", amount = -4.5 } } },
             ["grab-profile-v1"] = new { addresses = new[] { new { label = "home", text = "Private address 12" } } },
@@ -60,6 +64,7 @@ public partial class ApiTests
         var onSecondDevice = await Read<AccountDataDto>(await b.GetAsync("/api/account-data"));
         Assert.Equal(1, onSecondDevice.Version);
         Assert.Equal(8, onSecondDevice.Data.Count);
+        Assert.Equal("coffee", onSecondDevice.Data["grab-shop-v1"].GetProperty("partnerCart").GetProperty("lines")[0].GetProperty("listingId").GetString());
         Assert.Equal("Fried rice", onSecondDevice.Data["grab-wishlist-v1"].GetProperty("items")[0].GetProperty("title").GetString());
         Assert.Equal("Private address 12", onSecondDevice.Data["grab-profile-v1"].GetProperty("addresses")[0].GetProperty("text").GetString());
         Assert.Equal(0, (await Read<AccountDataDto>(await other.GetAsync("/api/account-data"))).Version);
