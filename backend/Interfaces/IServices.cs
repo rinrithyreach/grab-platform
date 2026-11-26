@@ -24,7 +24,7 @@ public interface IRideService
 }
 public interface IDriverService
 {
-    Task<List<DriverDto>> Available(CancellationToken ct);
+    Task<List<DriverDto>> Available(Guid viewerId, Role viewerRole, CancellationToken ct);
     Task<DriverDto> Create(DriverRequest request, CancellationToken ct);
 }
 public interface ICommerceService

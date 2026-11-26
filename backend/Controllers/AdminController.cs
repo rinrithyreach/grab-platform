@@ -21,8 +21,7 @@ public class AdminController(AdminService admin, AdminAccessService access) : Ap
     }
 
     [HttpGet("overview")]
-    public async Task<object> Overview(CancellationToken ct)
-    { await Require("overview", "view", ct); return await admin.Overview(ct); }
+    public Task<object> Overview(CancellationToken ct) => admin.Overview(UserId, ct);
 
     [HttpGet("{resource}")]
     public async Task<object> List(string resource, CancellationToken ct, int page = 1, string? search = null, string? filter = null)

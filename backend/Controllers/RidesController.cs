@@ -38,11 +38,11 @@ public class GuestRidesController(IRideService rides) : ControllerBase
     public async Task<ActionResult<GuestRideResponse>> Book(GuestRideRequest r, CancellationToken ct) =>
         StatusCode(201, await rides.BookGuest(r, ct));
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("{id:guid}"), EnableRateLimiting("delivery-quote")]
     public Task<RideDto> Get(Guid id, [FromHeader(Name = TokenHeader)] string? token, CancellationToken ct) =>
         rides.GuestRide(id, token, false, ct);
 
-    [HttpPost("{id:guid}/cancel")]
+    [HttpPost("{id:guid}/cancel"), EnableRateLimiting("delivery-booking")]
     public Task<RideDto> Cancel(Guid id, [FromHeader(Name = TokenHeader)] string? token, CancellationToken ct) =>
         rides.GuestRide(id, token, true, ct);
 }

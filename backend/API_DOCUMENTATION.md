@@ -53,7 +53,7 @@ Guest rides (migration `GuestRides`): `Ride.customerId` is `null`; the guest nam
 | POST | `/api/deliveries/{id}/stops/{stopId}/cod/collected` | Assigned courier; confirm COD collection before delivery | 200 ParcelDelivery |
 | POST | `/api/deliveries/{id}/stops/{stopId}/cod/paid-out` | Assigned courier; confirm sender payout after delivery | 200 ParcelDelivery |
 | PATCH/DELETE | `/api/deliveries/{id}/location` | Assigned courier during active job; share/stop sharing GPS | 200 ParcelDelivery |
-| GET | `/api/drivers/available` | Authenticated; up to 100, no private contact details | 200 Driver[] |
+| GET | `/api/drivers/available` | Signed-in accounts can see up to 100 available drivers. Only administrators with `drivers.view` receive license plates and precise coordinates. Other viewers receive null for those fields. | 200 Driver[] |
 | POST | `/api/drivers` | Admin only; dedicated Customer account with no ride history; sets Driver role | 201 Driver |
 | POST | `/api/payments` | Customer owner; completed ride; one payment per ride | 201 Payment |
 | GET | `/api/payments/mine?page=1` | Customer's own records only | 200 Payment[] |

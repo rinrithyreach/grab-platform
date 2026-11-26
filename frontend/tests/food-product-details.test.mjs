@@ -33,6 +33,7 @@ async function setup(t) {
   const { createRoot } = await import("react-dom/client"); const root = createRoot(document.getElementById("root"));
   t.after(async () => { await act(async () => root.unmount()); dom.window.close(); Object.assign(globalThis, previous); });
   const controls = await component("../components/PartnerCartControls.tsx", {
+    "next/navigation": data('export const useRouter = () => ({ push() {} });'),
     "next/link": link, "@/lib/brand": data('export const money = n => `$${n.toFixed(2)}`;'), "@/lib/i18n": i18n, "@/lib/merchant-content": merchantContent,
     "@/lib/cart": data('export const addPartnerItem = (...args) => globalThis.__foodTest.libs.cart.addPartnerItem(...args);'),
     "@/lib/partner-cart": data('export const MAX_PARTNER_QTY = 50; export const usePartnerCart = () => globalThis.__foodTest.libs["partner-cart"].usePartnerCart(); export const partnerTotals = cart => globalThis.__foodTest.libs["partner-cart"].partnerTotals(cart); export const setPartnerQty = (...args) => globalThis.__foodTest.libs["partner-cart"].setPartnerQty(...args);'),

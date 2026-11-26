@@ -24,6 +24,7 @@ test("guest orders use public endpoints and a private receipt header without pla
       ["http://localhost:5000/api/orders/guest/receipt", "GET"], ["http://localhost:5000/api/orders/guest/receipt/cancel", "POST"],
     ]);
     assert.ok(calls.every(x => x.headers.Authorization === undefined && !x.url.includes("secret")));
+    assert.ok(calls.every(x => x.redirect === "error" && x.referrerPolicy === "no-referrer"));
     assert.equal(calls[2].headers["X-Guest-Order-Token"], "secret");
     assert.equal(calls[3].headers["X-Guest-Order-Token"], "secret");
     assert.deepEqual(JSON.parse(calls[1].body), { order, contactName: "Sok Dara", contactPhone: "+85512345678" });
@@ -68,6 +69,7 @@ test("merchant sign-in survives refresh and uploads use multipart with bearer au
     assert.equal(calls[1].headers["Content-Type"], undefined);
     assert.ok(calls[1].body instanceof FormData);
     assert.equal(calls[1].body.get("file").name, "photo.png");
+    assert.ok(calls.every(x => x.redirect === "error" && x.referrerPolicy === "no-referrer"));
   } finally { globalThis.fetch = originalFetch; }
 });
 

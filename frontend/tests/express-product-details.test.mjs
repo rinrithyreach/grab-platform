@@ -14,7 +14,7 @@ const data = (source) => `data:text/javascript;base64,${Buffer.from(source).toSt
 const react = pathToFileURL(require.resolve("react")).href;
 const jsx = pathToFileURL(require.resolve("react/jsx-runtime")).href;
 const link = data(`import { createElement } from "${react}"; export default ({ children, ...props }) => createElement("a", props, children);`);
-const i18n = data('export const useT = () => ({ t: key => key });');
+const i18n = data('export const useT = () => ({ t: key => key, pick: english => english, lang: "en" });');
 const merchantContent = await component("../lib/merchant-content.ts", {});
 const visibleRefresh = await component("../lib/visible-refresh.ts", {});
 const offer = {
@@ -76,13 +76,26 @@ test("product details show the published listing and reject a missing listing", 
     finally { dom.window.close(); Object.assign(globalThis, previous); }
   });
   const api = data(`export class ApiError extends Error {};
-    const api = { merchantStorefront: async () => ({ merchant: ${JSON.stringify(offer.merchant)}, listings: globalThis.__liveListings ?? [${JSON.stringify(offer)}] }) };
+    const api = { merchantStorefront: async () => ({ merchant: ${JSON.stringify(offer.merchant)}, listings: globalThis.__liveListings ?? [${JSON.stringify(offer)}] }), merchantOffers: async () => [] };
     export const useAuth = () => ({ api });`);
   const controls = data(`import { createElement } from "${react}";
     export const PartnerAddButton = () => createElement("button", null, "Add to cart");
+    export const PartnerProductPurchase = () => createElement("button", null, "Add to cart");
+    export const PartnerStickyBuyBar = () => null;
     export const PartnerCartBar = () => null;`);
+  // The GrabExpress layout, with its data and cart dependencies replaced by stand-ins.
+  const express = await component("../components/ExpressProductDetails.tsx", {
+    "next/link": link, "@/lib/auth": api, "@/lib/i18n": i18n, "@/lib/merchant-content": merchantContent,
+    "@/lib/brand": data('export const money = value => `${value}`;'),
+    "@/lib/categories": data('export const useCategories = () => [];'),
+    "@/lib/category-types": data('export const categoryLabel = c => c.name;'),
+    "@/lib/promotions": data('export const usePromotionLabel = () => "";'),
+    "@/lib/ride-work-schedule": data('export const formatRideWorkSchedule = text => text;'),
+    "./Icon": data('export default () => null;'), "./MerchantOfferCard": data('export default () => null;'),
+    "./PartnerCartControls": controls,
+  });
   const Details = (await import(await component("../components/MerchantProductDetails.tsx", {
-    "./Skeleton": skeletonStub,
+    "./Skeleton": skeletonStub, "./ExpressProductDetails": express,
     "next/link": link, "@/lib/api": api, "@/lib/auth": api, "@/lib/visible-refresh": visibleRefresh,
     "@/lib/brand": data('export const money = value => `$${value}`;'), "@/lib/i18n": i18n,
     "./BackButton": data('export default () => null;'), "./PartnerCartControls": controls,
@@ -93,7 +106,7 @@ test("product details show the published listing and reject a missing listing", 
   assert.equal(container.querySelector("h1").textContent, "Desktop Monitor");
   assert.ok(container.textContent.includes(offer.description));
   assert.equal(container.querySelector("img").getAttribute("src"), offer.imageUrl);
-  assert.equal(container.querySelector("button").textContent, "Add to cart");
+  assert.ok([...container.querySelectorAll("button")].some((b) => b.textContent === "Add to cart"), "The product can be added to the cart");
   t.after(() => { delete globalThis.__liveListings; });
   globalThis.__liveListings = [{ ...offer, title: "Updated on another computer" }];
   await act(async () => window.dispatchEvent(new window.Event("focus")));

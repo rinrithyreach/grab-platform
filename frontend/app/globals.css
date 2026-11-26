@@ -73,7 +73,9 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
-.page-enter { animation: page-fade-in 0.35s ease-out both; }
+/* `backwards`, not `both`: a transform kept after the animation would make <main> the containing
+   block for position:fixed children, pinning cart and buy bars to the page's end instead of the screen. */
+.page-enter { animation: page-fade-in 0.35s ease-out backwards; }
 /* Real content replacing a same-shaped skeleton: fade only, no movement. */
 @keyframes content-fade-in { from { opacity: 0; } }
 .content-fade-in { animation: content-fade-in 0.25s ease-out; }
@@ -268,6 +270,40 @@ button:not(:disabled), a { cursor: pointer; }
 .hero-skeleton { background: color-mix(in srgb, var(--border) 35%, var(--surface)); border: 1px solid var(--border); }
 @keyframes skeleton-sweep { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; display: none; } }
+
+/* ---------- GrabExpress product page (components/ExpressProductDetails.tsx) ----------
+   Photo with hover zoom, a sticky buy box, and a buy bar pinned above the phone navigation. */
+.express-photo { box-shadow: 0 12px 32px #1837260b; }
+.express-photo img { transition: transform 200ms ease-out; }
+.express-buy-box { border-radius: 24px; box-shadow: 0 10px 30px #18372608; }
+.express-buy-box .food-purchase-label { margin-bottom: 10px; }
+.express-buy-box .food-checkout-note { display: none; }
+.express-buy-box { container-type: inline-size; }
+/* Narrow buy box (third column on wide screens): quantity on its own row, full-width Add to cart below. */
+@container (max-width: 360px) {
+  .express-buy-box .food-purchase-row { flex-wrap: wrap; }
+  .express-buy-box .food-quantity { width: 100%; justify-content: space-between; }
+  .express-buy-box .food-quantity button { width: 44px; }
+  .express-buy-box .food-add-button { flex-basis: 100%; }
+}
+.express-buy-now { display: flex; width: 100%; align-items: center; justify-content: center; margin-top: 10px; padding: 13px 16px; border-radius: 14px; background: var(--accent); color: #3a2c00; font-size: 13px; font-weight: 700; transition: filter 160ms, transform 160ms; }
+.express-buy-now:hover:enabled { filter: brightness(.96); transform: translateY(-1px); }
+.express-buy-now:disabled { opacity: .55; cursor: not-allowed; }
+[data-theme="dark"] .express-buy-now { color: #241b00; }
+.express-buy-bar { position: fixed; inset: auto 0 0; z-index: 30; padding: 10px max(16px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: 0 -8px 28px #173b220d; backdrop-filter: blur(16px); }
+@media (hover: hover) and (pointer: fine) {
+  .express-photo { cursor: zoom-in; }
+  .express-photo.is-zooming img { transform: scale(2); }
+  .express-zoom-hint { display: flex; transition: opacity 160ms; }
+  .express-photo.is-zooming .express-zoom-hint { opacity: 0; }
+}
+@media (max-width: 1279px) {
+  body:has(.mobile-bottom-nav) .express-buy-bar { bottom: calc(74px + env(safe-area-inset-bottom)); padding-bottom: 10px; }
+}
+@media (max-width: 639px) {
+  .express-photo { border-radius: 22px; }
+  .express-buy-box { border-radius: 20px; padding: 16px; }
+}
 
 /* ---------- Home storefront (components/HomeShop.tsx) ---------- */
 .shop-cat-icon { border: 1px solid var(--border); box-shadow: 0 3px 14px #173b2205; transition: transform 250ms cubic-bezier(.2,.7,.2,1), border-color 200ms, background-color 200ms; }

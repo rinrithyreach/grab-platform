@@ -13,7 +13,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Grab.Api.Services;
-public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOptions<JwtSettings> settings, PlatformSettingsService platform) : IAuthService
+public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, LoginPasswordVerifier passwords,
+    IOptions<JwtSettings> settings, PlatformSettingsService platform) : IAuthService
 {
     public async Task<AuthResponse> Register(RegisterRequest r, CancellationToken ct)
     {
@@ -31,25 +32,23 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
     {
         var phone = PhoneNumbers.Normalize(r.PhoneNumber)
             ?? throw new ApiException(400, "Enter a valid phone number, for example 012345678 or +85512345678.");
-        var user = await db.Users.Include(x => x.ProfilePhoto).SingleOrDefaultAsync(x => x.PhoneNumber == phone, ct);
-        // Run a hash verification even for unknown phone numbers to reduce timing differences.
-        var candidate = user ?? new User { PasswordHash = hasher.HashPassword(new User(), Guid.NewGuid().ToString()) };
-        var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, r.Password);
-        if (user is null || !user.IsActive || result == PasswordVerificationResult.Failed) throw new ApiException(401, "Invalid phone number or password.");
+        var user = await db.Users.SingleOrDefaultAsync(x => x.PhoneNumber == phone, ct);
+        var result = passwords.Verify(user, r.Password);
+        if (user is null || result == PasswordVerificationResult.Failed) throw new ApiException(401, "Invalid phone number or password.");
         if (result == PasswordVerificationResult.SuccessRehashNeeded)
         {
             user.PasswordHash = hasher.HashPassword(user, r.Password);
             await db.SaveChangesAsync(ct);
         }
+        await db.Entry(user).Reference(x => x.ProfilePhoto).LoadAsync(ct);
         return Token(user);
     }
     public async Task<AuthResponse> AdminLogin(AdminLoginRequest r, CancellationToken ct)
     {
         var email = r.Email.Trim().ToLowerInvariant();
-        var user = await db.Users.Include(x => x.ProfilePhoto).SingleOrDefaultAsync(x => x.Email == email && x.Role == Role.Admin, ct);
-        var candidate = user ?? new User { PasswordHash = hasher.HashPassword(new User(), Guid.NewGuid().ToString()) };
-        var result = hasher.VerifyHashedPassword(candidate, candidate.PasswordHash, r.Password);
-        if (user is null || !user.IsActive || result == PasswordVerificationResult.Failed)
+        var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email && x.Role == Role.Admin, ct);
+        var result = passwords.Verify(user, r.Password);
+        if (user is null || result == PasswordVerificationResult.Failed)
             throw new ApiException(401, "Invalid administrator email or password.");
         if (result == PasswordVerificationResult.SuccessRehashNeeded)
         {
@@ -57,6 +56,7 @@ public class AuthService(GrabDbContext db, IPasswordHasher<User> hasher, IOption
         }
         user.LastLoginAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
+        await db.Entry(user).Reference(x => x.ProfilePhoto).LoadAsync(ct);
         return Token(user);
     }
     public async Task<AuthResponse> RegisterMerchant(MerchantRegisterRequest r, CancellationToken ct)

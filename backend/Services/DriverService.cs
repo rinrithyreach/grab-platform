@@ -5,12 +5,18 @@ using Grab.Api.Middleware;
 using Grab.Api.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Grab.Api.Services;
-public class DriverService(GrabDbContext db) : IDriverService
+public class DriverService(GrabDbContext db, AdminAccessService access) : IDriverService
 {
-    public Task<List<DriverDto>> Available(CancellationToken ct) =>
-        (from d in db.Drivers.AsNoTracking() join u in db.Users on d.UserId equals u.Id where d.IsAvailable && u.IsActive
-         orderby d.Id select new DriverDto(d.Id, u.FullName, d.VehicleType, d.VehiclePlate, d.IsAvailable, d.CurrentLatitude, d.CurrentLongitude))
-        .Take(100).ToListAsync(ct);
+    public async Task<List<DriverDto>> Available(Guid viewerId, Role viewerRole, CancellationToken ct)
+    {
+        var showDetails = viewerRole == Role.Admin;
+        if (showDetails) await access.Require(viewerId, "drivers.view", ct);
+        return await (from d in db.Drivers.AsNoTracking() join u in db.Users on d.UserId equals u.Id
+            where d.IsAvailable && u.IsActive orderby d.Id
+            select new DriverDto(d.Id, u.FullName, d.VehicleType, showDetails ? d.VehiclePlate : null,
+                d.IsAvailable, showDetails ? d.CurrentLatitude : null, showDetails ? d.CurrentLongitude : null))
+            .Take(100).ToListAsync(ct);
+    }
     public async Task<DriverDto> Create(DriverRequest r, CancellationToken ct)
     {
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == r.UserId, ct) ?? throw new ApiException(404, "User not found.");

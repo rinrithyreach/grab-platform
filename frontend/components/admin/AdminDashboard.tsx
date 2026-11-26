@@ -10,6 +10,8 @@ import { BRAND } from "@/lib/brand";
 import { ADMIN_CONFIG, ADMIN_SECTIONS, adminActions, adminCsv, adminPermissionSection, adminValue, type AdminOverview, type AdminPage, type AdminRecord, type AdminResource, type AdminSection } from "@/lib/admin";
 import { useAdminT, type AdminTranslate } from "@/lib/admin-i18n";
 import AdminIcon from "./AdminIcon";
+import AdminEntry from "./AdminEntry";
+import BrandMark from "../BrandMark";
 import { closeDialogSmoothly, useAdminDialog } from "./useAdminDialog";
 import { LanguageSwitch, ThemeSwitch } from "./AdminPreferenceSwitches";
 import AdminSettingsPanel from "./AdminSettingsPanel";
@@ -105,12 +107,16 @@ export default function AdminDashboard() {
     return () => ctrl.abort();
   }, [api, ready, user?.id, user?.role, revision, a]);
   if (!ready) return <Loading />;
-  if (!user || user.role !== "Admin") return <div className="admin-access"><AdminIcon name="shield" size={44} /><h1>{a("Administrator access")}</h1><p>{user ? a("This account does not have administrator access.") : a("Sign in with your administrator account to manage the platform.")}</p>{user ? <button className="admin-button primary" onClick={logout}>{a("Sign out and switch account")}</button> : <Link className="admin-button primary" href="/admin/login">{a("Administrator sign in")}</Link>}<Link href="/">{a("Back to {brand}", { brand: BRAND.name })}</Link></div>;
+  if (!user || user.role !== "Admin") return <AdminEntry title={a("Administrator access")}
+    description={user ? a("This account does not have administrator access.") : a("Sign in with your administrator account to manage the platform.")}>
+    {user ? <button className="admin-button primary" onClick={logout}>{a("Sign out and switch account")}</button>
+      : <Link className="admin-button primary" href="/admin/login">{a("Administrator sign in")}</Link>}
+  </AdminEntry>;
   // My profile is always available; every other section needs its "view" permission.
   const allowed = (item: AdminSection) => item === "profile" || adminCan(currentProfile, adminPermissionSection(item), "view");
   const groups = navGroups.map(g => ({ ...g, items: g.items.filter(allowed) })).filter(g => g.items.length > 0);
   const nav = (close?: () => void) => <>
-    <div className="admin-brand"><span className="admin-logo">{BRAND.name[0]}</span><div><strong>{BRAND.name}</strong><small>{a("Admin console")}</small></div></div>
+    <div className="admin-brand"><BrandMark /><span className="admin-brand-label">{a("Admin console")}</span></div>
     <nav aria-label={a("Admin navigation")}>
       {groups.map(g => <div key={g.label}><p className="admin-nav-label">{a(g.label)}</p>{g.items.map(item => <Link key={item} href={item === "overview" ? "/admin" : `/admin?section=${item}`} className={`admin-nav-item ${section === item ? "selected" : ""}`} aria-current={section === item ? "page" : undefined} onClick={() => { close?.(); setNotice(""); }}><AdminIcon name={item} /><span>{a(labels[item])}</span></Link>)}</div>)}
     </nav>
@@ -121,7 +127,7 @@ export default function AdminDashboard() {
   const heading = pageCopy[section] ?? ADMIN_CONFIG[section as AdminResource];
   const content = !currentProfile ? profileError ? <div className="admin-error" role="alert">{profileError}<button className="admin-button" onClick={() => setRevision(v => v + 1)}>{a("Retry")}</button></div> : <Loading />
     : !allowed(section) ? <div className="admin-panel admin-empty"><span className="admin-empty-icon"><AdminIcon name="shield" size={28} /></span><h3>{a("Your role doesn’t include this section")}</h3><p>{a("{role} cannot view {section}. Ask a super administrator if you need access.", { role: currentProfile.roleName, section: a(labels[section]) })}</p><Link className="admin-button" href={firstAllowed === "overview" ? "/admin" : `/admin?section=${firstAllowed}`}>{a("Go to {section}", { section: a(labels[firstAllowed]) })}</Link></div>
-    : section === "overview" ? <Overview revision={revision} refreshSeconds={currentProfile.refreshSeconds} />
+    : section === "overview" ? <Overview revision={revision} refreshSeconds={currentProfile.refreshSeconds} canViewAudit={adminCan(currentProfile, "audit")} />
     : section === "settings" ? <AdminSettingsPanel key={user.id} revision={revision} canManage={adminCan(currentProfile, "settings", "manage")} onSaved={setNotice} />
     : section === "team" ? <AdminTeamPanel key={user.id} me={currentProfile} revision={revision} onSaved={setNotice} />
     : section === "roles" ? <AdminRolesPanel key={user.id} me={currentProfile} revision={revision} onSaved={setNotice} />
@@ -138,9 +144,16 @@ export default function AdminDashboard() {
     <div className="admin-workspace">
       <header className="admin-topbar"><div className="admin-breadcrumb"><button ref={menuRef} className="admin-icon-button admin-menu-toggle" onClick={() => setMenu(true)} aria-label={a("Open navigation")}><AdminIcon name="menu" /></button><span>{a("Workspace")}</span><span className="admin-slash">/</span><strong>{a(labels[section])}</strong></div><div className="admin-topbar-account"><div className="admin-topbar-prefs"><LanguageSwitch compact /><ThemeSwitch compact /></div><Link href="/admin?section=profile" className="admin-profile-shortcut" aria-label={a("Open my admin profile")}><span className="admin-avatar">{currentProfile?.avatarUrl ? <Image src={currentProfile.avatarUrl} alt="" width={37} height={37} unoptimized /> : user.fullName.slice(0, 1)}</span><span><strong>{user.fullName}</strong><small>{currentProfile?.jobTitle || currentProfile?.roleName || a("Administrator")}</small></span></Link>{adminCan(currentProfile, "settings") && <Link className="admin-icon-button" href="/admin?section=settings" title={a("Settings")} aria-label={a("Open admin settings")}><AdminIcon name="settings" /></Link>}<button className="admin-icon-button" onClick={logout} title={a("Sign out")} aria-label={a("Sign out")}><AdminIcon name="logout" /></button></div></header>
       <div className="admin-content">
-        <div className="admin-page-heading"><div><span className="admin-eyebrow">{a(section === "overview" ? "YOUR PLATFORM AT A GLANCE" : "PLATFORM MANAGEMENT")}</span><h1>{a(heading.title)}</h1><p>{a(heading.description)}</p></div>{section !== "settings" && section !== "profile" && <button className="admin-button" onClick={() => setRevision(v => v + 1)}><AdminIcon name="refresh" size={17} />{a("Refresh")}</button>}</div>
+        <div className="admin-page-heading">
+          <div><h1>{a(heading.title)}</h1><p>{a(heading.description)}</p></div>
+          <div className="admin-heading-actions">
+            {section === "overview" && adminCan(currentProfile, "listings", "manage") &&
+              <Link href="/admin?section=listings#admin-banners-title" className="admin-button primary"><AdminIcon name="plus" size={17} />{a("Manage homepage banners")}</Link>}
+            {section !== "settings" && section !== "profile" &&
+              <button className="admin-button" onClick={() => setRevision(v => v + 1)}><AdminIcon name="refresh" size={17} />{a("Refresh")}</button>}
+          </div>
+        </div>
         {notice && <div className="admin-success" role="status">{notice}<button className="admin-icon-button" aria-label={a("Dismiss notification")} onClick={() => setNotice("")}><AdminIcon name="close" size={16} /></button></div>}
-        {section === "overview" && adminCan(currentProfile, "listings", "manage") && <div className="admin-banner-shortcut"><div><strong>{a("Make the homepage yours")}</strong><p>{a("Upload a promotion, choose its position, and show it to customers.")}</p></div><Link href="/admin?section=listings#admin-banners-title" className="admin-button primary"><AdminIcon name="plus" size={17} />{a("Manage homepage banners")}</Link></div>}
         {content}
         <footer className="admin-footnote"><span>{a("{brand} administration", { brand: BRAND.name })}</span><span>{a("USD · Cambodia time (UTC+7)")}</span></footer>
       </div>
@@ -148,7 +161,7 @@ export default function AdminDashboard() {
   </div>;
 }
 
-function Overview({ revision, refreshSeconds }: { revision: number; refreshSeconds: number }) {
+function Overview({ revision, refreshSeconds, canViewAudit }: { revision: number; refreshSeconds: number; canViewAudit: boolean }) {
   const { api } = useAuth();
   const { a, locale } = useAdminT();
   const [data, setData] = useState<AdminOverview | null>(null);
@@ -186,7 +199,7 @@ function Overview({ revision, refreshSeconds }: { revision: number; refreshSecon
       </section>
       <section className="admin-panel"><div className="admin-panel-heading"><div><h2>{a("Operations queue")}</h2><p>{a("Bookings waiting for a response")}</p></div><AdminIcon name="orders" /></div><div className="admin-queue">{[{ name: a("Ride requests"), icon: "rides", count: data.pendingRides, active: data.activeRides, filter: "Pending" }, { name: a("Food orders"), icon: "orders", count: data.pendingOrders - (data.pendingExpressOrders ?? 0), active: data.activeOrders - (data.activeExpressOrders ?? 0), filter: "Pending" }, ...(data.pendingExpressOrders === undefined ? [] : [{ name: a("Express orders"), icon: "express", count: data.pendingExpressOrders, active: data.activeExpressOrders ?? 0, filter: "Pending" }]), { name: a("Parcel deliveries"), icon: "deliveries", count: data.pendingDeliveries, active: data.activeDeliveries, filter: "" }].map(item => <Link href={`/admin?section=${item.icon}&filter=${item.filter}`} key={item.icon}><span className="admin-queue-icon"><AdminIcon name={item.icon} /></span><div><strong>{item.name}</strong><small>{a("{n} active in total", { n: item.active })}</small></div><span className={`admin-queue-count ${item.count > 0 ? "pending" : ""}`}>{item.count}</span></Link>)}</div><div className="admin-queue-note"><AdminIcon name="shield" size={18} /><p>{a("All changes are protected by administrator permissions and recorded in your activity log.")}</p></div></section>
     </div>
-    <div className="admin-overview-bottom"><section className="admin-panel"><div className="admin-panel-heading"><div><h2>{a("Recent admin activity")}</h2><p>{a("The latest changes to your platform")}</p></div><Link href="/admin?section=audit" className="admin-text-link">{a("View all")}</Link></div>{data.recentAudit.length ? <div className="admin-audit-list">{data.recentAudit.map(row => <div key={row.id}><span className="admin-audit-icon"><AdminIcon name={text(row, "resource")} size={18} /></span><div><strong>{text(row, "action")}</strong><p>{text(row, "actorName")} · {text(row, "reason")}</p></div><time>{date(row.createdAt)}</time></div>)}</div> : <Empty title={a("A fresh start")} description={a("Your team's admin changes will appear here as you manage the platform.")} />}</section>
+    <div className="admin-overview-bottom">{canViewAudit && <section className="admin-panel"><div className="admin-panel-heading"><div><h2>{a("Recent admin activity")}</h2><p>{a("The latest changes to your platform")}</p></div><Link href="/admin?section=audit" className="admin-text-link">{a("View all")}</Link></div>{data.recentAudit.length ? <div className="admin-audit-list">{data.recentAudit.map(row => <div key={row.id}><span className="admin-audit-icon"><AdminIcon name={text(row, "resource")} size={18} /></span><div><strong>{text(row, "action")}</strong><p>{text(row, "actorName")} · {text(row, "reason")}</p></div><time>{date(row.createdAt)}</time></div>)}</div> : <Empty title={a("A fresh start")} description={a("Your team's admin changes will appear here as you manage the platform.")} />}</section>}
       <section className="admin-panel admin-financial"><div className="admin-panel-heading"><div><h2>{a("Transaction overview")}</h2><p>{a("All-time totals · Demo payments")}</p></div><AdminIcon name="payments" /></div><div><span>{a("Simulated ride payments")}</span><strong>{money.format(data.simulatedPayments)}</strong></div><div><span>{a("Delivered order value")}</span><strong>{money.format(data.completedOrderValue)}</strong></div><p className="admin-muted">{a("These totals describe demo activity. No real payments are processed.")}</p><Link href="/admin?section=payments" className="admin-text-link">{a("View transactions")}</Link></section></div>
     <p className="admin-updated">{a("Updated {date}", { date: date(data.updatedAt) })} · {refreshSeconds ? a("Refreshes every {n} seconds", { n: refreshSeconds }) : a("Manual refresh")}</p>
   </div>;

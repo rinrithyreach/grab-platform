@@ -125,8 +125,9 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
         }
     }
 
-    public async Task<object> Overview(CancellationToken ct)
+    public async Task<object> Overview(Guid actorId, CancellationToken ct)
     {
+        var viewer = await access.Require(actorId, "overview.view", ct);
         var today = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).Date;
         var start = new DateTimeOffset(today.AddDays(-6), TimeSpan.FromHours(7));
         var recentRides = await db.Rides.AsNoTracking().Where(x => x.CreatedAt >= start).Select(x => x.CreatedAt).ToListAsync(ct);
@@ -155,7 +156,10 @@ public class AdminService(GrabDbContext db, IRideService rides, OrderService ord
                 Orders = recentOrders.Count(d => d.ToOffset(TimeSpan.FromHours(7)).Date == date),
                 Deliveries = recentDeliveries.Count(d => d.ToOffset(TimeSpan.FromHours(7)).Date == date)
             }; }).ToList(),
-            RecentAudit = await db.AdminAudits.AsNoTracking().OrderByDescending(x => x.CreatedAt).Take(5).ToListAsync(ct),
+            RecentAudit = viewer.Has("audit.view")
+                ? await db.AdminAudits.AsNoTracking().OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Take(5)
+                    .Select(x => new { x.Id, x.Resource, x.ActorName, x.Action, x.Reason, x.CreatedAt }).ToListAsync(ct)
+                : [],
             UpdatedAt = DateTimeOffset.UtcNow
         };
     }

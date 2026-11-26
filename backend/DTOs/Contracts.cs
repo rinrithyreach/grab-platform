@@ -41,7 +41,7 @@ public record RideDto(Guid Id, Guid? CustomerId, Guid? DriverId, string PickupLo
     double PickupLatitude, double PickupLongitude, double DestinationLatitude, double DestinationLongitude,
     decimal Fare, string PricingMode, RideStatus Status, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt,
     Guid? MerchantId, string? MerchantName, RideDriverLocationDto? DriverLocation, RideVehicleType VehicleType);
-public record DriverDto(Guid Id, string FullName, string VehicleType, string VehiclePlate, bool IsAvailable,
+public record DriverDto(Guid Id, string FullName, string VehicleType, string? VehiclePlate, bool IsAvailable,
     double? CurrentLatitude, double? CurrentLongitude);
 public record PaymentDto(Guid Id, Guid RideId, decimal Amount, string PaymentMethod, string Status, DateTimeOffset CreatedAt);
 public record ReviewDto(Guid Id, Guid RideId, Guid DriverId, int Rating, string? Comment);

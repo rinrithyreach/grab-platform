@@ -10,11 +10,7 @@ namespace Grab.Api.Controllers;
 public class DriversController(IDriverService drivers, ICommerceService commerce, AdminAccessService access) : ApiControllerBase
 {
     [HttpGet("available")]
-    public async Task<List<DriverDto>> Available(CancellationToken ct)
-    {
-        if (UserRole == Role.Admin) await access.Require(UserId, "drivers.view", ct);
-        return await drivers.Available(ct);
-    }
+    public Task<List<DriverDto>> Available(CancellationToken ct) => drivers.Available(UserId, UserRole, ct);
     [HttpPost, Authorize(Roles = "Admin"), ProducesResponseType<DriverDto>(201)]
     public async Task<ActionResult<DriverDto>> Create(DriverRequest r, CancellationToken ct)
     {

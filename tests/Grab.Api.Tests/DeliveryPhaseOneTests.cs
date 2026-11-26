@@ -188,7 +188,8 @@ public partial class ApiTests
         await Register(customer, f.Password);
         for (var attempt = 0; attempt < 10; attempt++)
             Assert.Equal(HttpStatusCode.Created, (await customer.PostAsJsonAsync("/api/deliveries", Parcel(), Json)).StatusCode);
-        Assert.Equal(HttpStatusCode.TooManyRequests,
-            (await customer.PostAsJsonAsync("/api/deliveries", Parcel(), Json)).StatusCode);
+        var limited = await customer.PostAsJsonAsync("/api/deliveries", Parcel(), Json);
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+        Assert.InRange(limited.Headers.RetryAfter?.Delta?.TotalSeconds ?? -1, 1, 60);
     }
 }

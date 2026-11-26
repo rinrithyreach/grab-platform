@@ -1,18 +1,13 @@
 "use client";
 
 import { refreshWhileVisible } from "@/lib/visible-refresh";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, type MerchantOffer } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { money } from "@/lib/brand";
 import { useT } from "@/lib/i18n";
 import BackButton from "./BackButton";
-import { PartnerAddButton, PartnerCartBar } from "./PartnerCartControls";
-import PromotionBadge from "./PromotionBadge";
-import CategoryBadge from "./CategoryBadge";
 import FoodProductDetails from "./FoodProductDetails";
-import WishlistButton from "./WishlistButton";
+import ExpressProductDetails from "./ExpressProductDetails";
 import { useWishlist, watchForRestock } from "@/lib/wishlist";
 import { toast } from "@/lib/toast";
 import { ProductDetailSkeleton } from "./Skeleton";
@@ -54,27 +49,5 @@ export default function MerchantProductDetails({ merchantId, listingId }: { merc
 
   if (offer.merchant.service === "GrabFood") return <FoodProductDetails key={offer.id} offer={offer} others={others} />;
 
-  return <div className="mx-auto max-w-5xl px-4 pb-28 pt-8">
-    <BackButton href={`/partners/${merchantId}`} />
-    <div className="card mt-4 grid overflow-hidden lg:grid-cols-2">
-      <div className="aspect-square bg-brand-soft">
-        {/* Merchant images are served by the API. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={offer.imageUrl} alt={offer.title} className="h-full w-full object-contain" />
-      </div>
-      <div className="flex flex-col gap-5 p-6 sm:p-8">
-        <p className="text-sm font-semibold text-brand">{offer.merchant.service} · {offer.merchant.businessName}</p>
-        <div className="flex items-start justify-between gap-3"><h1 className="break-words text-3xl font-bold">{offer.title}</h1><WishlistButton offer={offer} className="shrink-0 border border-border" /></div>
-        <p className="text-2xl font-bold text-brand">{money(offer.price)}</p>
-        <PromotionBadge storeId={merchantId} productId={listingId} />
-        <CategoryBadge categoryId={offer.categoryId} />
-        <p className="whitespace-pre-line text-muted">{offer.description}</p>
-        <div className="mt-auto space-y-3 pt-4">
-          <PartnerAddButton offer={offer} />
-          <Link href={`/partners/${merchantId}`} className="btn-outline w-full">{t("merchant.offers")}</Link>
-        </div>
-      </div>
-    </div>
-    <PartnerCartBar merchantId={merchantId} />
-  </div>;
+  return <ExpressProductDetails key={offer.id} offer={offer} others={others} />;
 }

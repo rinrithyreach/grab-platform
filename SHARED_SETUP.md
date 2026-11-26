@@ -9,7 +9,7 @@ The frontend now sends requests to `/backend` on its own web origin. Its Next.js
 On the server/PC that owns the shared data:
 
 1. Configure the backend SQL connection and JWT key using [backend setup](backend/README.md). Keep SQL credentials and JWT keys on this server.
-2. Apply the committed migrations: `dotnet ef database update --project backend`.
+2. In a local development shell, set `$env:ASPNETCORE_ENVIRONMENT = 'Development'` and apply the committed migrations with `dotnet ef database update --project backend`. A deployed API uses its configured SQL connection and trusted certificate.
 3. Run `dotnet run --project backend --launch-profile http`. Its API remains at `http://localhost:5000` on this machine.
 4. In `frontend`, run `npm ci`, copy `.env.example` to `.env.local` if no local configuration exists, and keep `API_PROXY_URL=http://localhost:5000`. Leave `NEXT_PUBLIC_API_URL` unset.
 5. For a LAN demonstration, run `npm run build`, then `npm run start -- --hostname 0.0.0.0 --port 3000`.
@@ -41,12 +41,12 @@ To make an address the default for all clones, verify it with `npm run check:sha
 To configure a clone persistently, copy `.env.shared.example` to `.env.local` in `frontend` and set the verified API base before building:
 
 ```dotenv
-API_PROXY_URL=http://192.168.1.10:3000/backend
+API_PROXY_URL=https://YOUR_SHARED_SITE/backend
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_ENABLE_DEMO_RIDES=false
 ```
 
-For a hosted central project, use `API_PROXY_URL=https://YOUR_SHARED_SITE/backend`. If the API is hosted separately, use its actual HTTPS base URL instead. Every frontend clone must target the same central API. Leave `NEXT_PUBLIC_API_URL` unset so browsers use their frontend's proxy.
+Use the central site's HTTPS address, or the API's own HTTPS base URL if hosted separately. Production builds require HTTPS for remote API connections and accept HTTP on loopback for a co-located API. Development mode also accepts a private LAN address such as `http://192.168.1.10:3000/backend`. Leave `NEXT_PUBLIC_API_URL` unset so browsers use their frontend's proxy.
 
 Run `npm run dev`, or run `npm run build` followed by `npm run start`. Set the API URL **before building**; changing Next.js rewrite configuration requires restarting development or rebuilding production. Phones can simply browse the central website without cloning or installing anything.
 

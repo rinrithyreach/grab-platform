@@ -37,10 +37,14 @@ dotnet user-secrets set 'Jwt:SigningKey' ([Convert]::ToBase64String($keyBytes)) 
 dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=DESKTOP-DCDNJIN\MSSQLSERVER01;Database=GrabPlatformDB;Trusted_Connection=True;TrustServerCertificate=True' --project backend
 ```
 On another computer, change the `Server` value to the SQL Server instance shown in that computer's SSMS connection.
+
+Outside Development, set `ConnectionStrings__DefaultConnection` explicitly. Use a SQL host name covered by its certificate and a certificate chain trusted by the API host. For example, set `Encrypt=True;TrustServerCertificate=False` in the connection string. The API checks these settings at startup.
+
 `UserSecretsId` is already initialized in the csproj. Changing the signing key invalidates existing tokens. User Secrets are for local development; deployed environments should provide `Jwt__SigningKey` and `ConnectionStrings__DefaultConnection` through a secret store/environment. Production must use a trusted SQL certificate, HTTPS, an appropriate AllowedHosts value, and explicit frontend CORS origins.
 
 Apply the **committed** initial migration (creates the database if absent):
 ```powershell
+$env:ASPNETCORE_ENVIRONMENT = 'Development' # Local SQL settings and User Secrets
 dotnet ef database update --project backend
 ```
 Only after future model changes, create an additional migration:

@@ -10,6 +10,7 @@ using Grab.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -21,13 +22,24 @@ builder.WebHost.ConfigureKestrel(o =>
     o.Limits.MaxRequestBodySize = 2_200_000; // Includes the bounded multipart image upload.
 });
 builder.Services.AddOptions<JwtSettings>().BindConfiguration("Jwt")
-    .Validate(s => Encoding.UTF8.GetByteCount(s.SigningKey) >= 32, "Set Jwt:SigningKey using User Secrets or environment (32+ bytes).")
+    .Validate(s => !string.IsNullOrWhiteSpace(s.SigningKey) && Encoding.UTF8.GetByteCount(s.SigningKey) >= 32,
+        "Set Jwt:SigningKey using User Secrets or environment (32+ bytes).")
     .Validate(s => s.ExpiryMinutes is >= 5 and <= 120 && !string.IsNullOrWhiteSpace(s.Issuer) && !string.IsNullOrWhiteSpace(s.Audience), "Invalid JWT configuration.")
     .ValidateOnStart();
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new();
-builder.Services.AddDbContext<GrabDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection.")));
-builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+var connection = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connection))
+    throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection.");
+if (!builder.Environment.IsDevelopment())
+{
+    var sql = new SqlConnectionStringBuilder(connection);
+    if (sql.Encrypt == SqlConnectionEncryptOption.Optional ||
+        (sql.TrustServerCertificate && sql.Encrypt != SqlConnectionEncryptOption.Strict))
+        throw new InvalidOperationException("SQL outside Development requires encryption and server certificate validation.");
+}
+builder.Services.AddDbContext<GrabDbContext>(o => o.UseSqlServer(connection));
+builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddSingleton<LoginPasswordVerifier>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IAuthService>(sp => sp.GetRequiredService<AuthService>());
 builder.Services.AddScoped<PlatformSettingsService>();
@@ -78,6 +90,12 @@ builder.Services.AddCors(o => o.AddPolicy("frontend", p => p.WithOrigins(builder
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = 429;
+    o.OnRejected = (context, _) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var delay))
+            context.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(delay.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return ValueTask.CompletedTask;
+    };
     o.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("delivery-quote", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",

@@ -1,12 +1,28 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
+using System.Text.Json;
+using Grab.Api.Controllers;
+using Grab.Api.Data;
 using Grab.Api.DTOs;
 using Grab.Api.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Grab.Api.Tests;
 
 public partial class ApiTests
 {
+    [Theory]
+    [InlineData(nameof(GuestRidesController.Get), "delivery-quote")]
+    [InlineData(nameof(GuestRidesController.Cancel), "delivery-booking")]
+    public void Guest_ride_receipt_actions_use_their_expected_rate_limits(string action, string policy)
+    {
+        var endpoint = typeof(GuestRidesController).GetMethod(action)!;
+        Assert.Equal(policy, endpoint.GetCustomAttribute<EnableRateLimitingAttribute>()?.PolicyName);
+    }
+
     [Fact]
     public async Task Legacy_routes_enforce_administrator_permissions_for_reads_and_writes()
     {
@@ -20,6 +36,17 @@ public partial class ApiTests
         Assert.Equal(HttpStatusCode.Created, (await super.PostAsJsonAsync("/api/admin/team",
             new CreateAdminRequest("Restricted operator", "restricted@example.test", null, f.Password, "Security test", roleId), Json)).StatusCode);
         using var restricted = await AdminByEmail(f, "restricted@example.test", f.Password);
+        var overview = await restricted.GetFromJsonAsync<JsonElement>("/api/admin/overview");
+        Assert.Equal(0, overview.GetProperty("recentAudit").GetArrayLength());
+        var fullOverview = await super.GetFromJsonAsync<JsonElement>("/api/admin/overview");
+        var audit = fullOverview.GetProperty("recentAudit").EnumerateArray().ToArray();
+        Assert.NotEmpty(audit);
+        Assert.All(audit, row =>
+        {
+            Assert.True(row.TryGetProperty("action", out _));
+            Assert.False(row.TryGetProperty("actorId", out _));
+            Assert.False(row.TryGetProperty("targetId", out _));
+        });
 
         foreach (var path in new[] { "/api/rides", "/api/rides/mine", $"/api/rides/{ride.Id}",
             $"/api/deliveries/{delivery.Id}", "/api/drivers/available" })
@@ -35,6 +62,7 @@ public partial class ApiTests
         foreach (var path in new[] { "/api/rides", "/api/rides/mine", $"/api/rides/{ride.Id}",
             $"/api/deliveries/{delivery.Id}", "/api/drivers/available" })
             Assert.Equal(HttpStatusCode.OK, (await restricted.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await restricted.GetAsync("/api/admin/overview")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await restricted.PatchAsJsonAsync($"/api/rides/{ride.Id}/status",
             new StatusRequest(RideStatus.Cancelled), Json)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await restricted.PostAsJsonAsync("/api/drivers",
@@ -50,8 +78,23 @@ public partial class ApiTests
         var account = await Register(applicant, f.Password);
         Assert.Equal(HttpStatusCode.Created, (await restricted.PostAsJsonAsync("/api/drivers",
             new DriverRequest(account.User.Id, "Car", "ALLOWED"), Json)).StatusCode);
-        // Customer access does not require administrator permissions.
-        Assert.Equal(HttpStatusCode.OK, (await customer.GetAsync("/api/drivers/available")).StatusCode);
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<GrabDbContext>();
+            var driver = await db.Drivers.SingleAsync(x => x.UserId == account.User.Id);
+            driver.CurrentLatitude = 11.56;
+            driver.CurrentLongitude = 104.92;
+            await db.SaveChangesAsync();
+        }
+        var publicDriver = Assert.Single(await customer.GetFromJsonAsync<DriverDto[]>("/api/drivers/available") ?? []);
+        Assert.Equal("Car", publicDriver.VehicleType);
+        Assert.Null(publicDriver.VehiclePlate);
+        Assert.Null(publicDriver.CurrentLatitude);
+        Assert.Null(publicDriver.CurrentLongitude);
+        var adminDriver = Assert.Single(await restricted.GetFromJsonAsync<DriverDto[]>("/api/drivers/available") ?? []);
+        Assert.Equal("ALLOWED", adminDriver.VehiclePlate);
+        Assert.Equal(11.56, adminDriver.CurrentLatitude);
+        Assert.Equal(104.92, adminDriver.CurrentLongitude);
     }
 
     [Fact]

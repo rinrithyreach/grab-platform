@@ -98,7 +98,7 @@ export interface MerchantRideRequest { ride: Ride; customerName: string; custome
 export interface GuestRideContact { contactName: string; contactPhone: string }
 export interface MerchantRideInbox { requests: MerchantRideRequest[]; activeRide: MerchantRideRequest | null }
 export interface Driver {
-  id: string; fullName: string; vehicleType: string; vehiclePlate: string; isAvailable: boolean;
+  id: string; fullName: string; vehicleType: string; vehiclePlate: string | null; isAvailable: boolean;
   currentLatitude: number | null; currentLongitude: number | null;
 }
 export interface Payment { id: string; rideId: string; amount: number; paymentMethod: string; status: string; createdAt: string }
@@ -182,6 +182,7 @@ export function createApiClient(baseUrl = process.env.NEXT_PUBLIC_API_URL || "/b
     const multipart = typeof FormData !== "undefined" && body instanceof FormData;
     const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
       method, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, cache: "no-store", credentials: "omit",
+      redirect: "error", referrerPolicy: "no-referrer",
       headers: { ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }),
         ...extraHeaders,
         ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}) },
