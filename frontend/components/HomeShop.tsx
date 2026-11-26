@@ -7,7 +7,7 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { money } from "@/lib/brand";
 import { STORES, type MenuItem, type Store } from "@/lib/catalog";
 import { addToCart, lineKey, setQty, useShop } from "@/lib/cart";
@@ -54,16 +54,42 @@ function SectionHead({ id, eyebrow, title, href }: { id?: string; eyebrow?: stri
 
 /* ---------- Shop by category ---------- */
 
+/**
+ * Plays a staggered entrance (CSS `.shop-cat-list[data-reveal]`) when the list scrolls into view.
+ * A list already on screen when the page loads is left as it is, so nothing flickers.
+ */
+function useRevealOnScroll<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = el.getBoundingClientRect();
+    if (box.top < window.innerHeight && box.bottom > 0) return;
+    el.dataset.reveal = "pending";
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      el.dataset.reveal = "in";
+      observer.disconnect();
+    }, { rootMargin: "0px 0px -8% 0px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
 export function ShopByCategory() {
   const { pick } = useT();
+  const listRef = useRevealOnScroll<HTMLUListElement>();
+  const order = (i: number) => ({ "--i": i }) as CSSProperties;
   return (
     <section className="shop-categories mx-auto mt-9 max-w-6xl px-4" aria-labelledby="shop-cat-title">
       <SectionHead id="shop-cat-title" title={pick("Shop by category", "ទិញតាមប្រភេទ")} href="/food" />
-      <ul className="rail-scroll -mx-4 mt-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-8 lg:gap-4 lg:overflow-visible lg:px-0">
-        {CUISINES.map((c) => (
-          <li key={c.key} className="snap-start">
+      <ul ref={listRef} className="shop-cat-list rail-scroll -mx-4 mt-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 pt-1 lg:mx-0 lg:grid lg:grid-cols-8 lg:gap-4 lg:overflow-visible lg:px-0">
+        {CUISINES.map((c, i) => (
+          <li key={c.key} className="snap-start" style={order(i)}>
             <Link href={`/food?category=${encodeURIComponent(c.key)}`} className="shop-cat group flex w-[84px] flex-col items-center gap-2 text-center lg:w-auto">
-              <span className="shop-cat-icon grid h-[72px] w-[72px] place-items-center rounded-3xl bg-surface text-[34px] lg:h-20 lg:w-20" aria-hidden>{c.emoji}</span>
+              <span className="shop-cat-icon grid h-[72px] w-[72px] place-items-center rounded-3xl bg-surface text-[34px] lg:h-20 lg:w-20" aria-hidden><span className="inline-block">{c.emoji}</span></span>
               <span className="w-full">
                 <span className="block truncate text-xs font-semibold sm:text-sm">{pick(c.en, c.km)}</span>
                 <span className="block text-[10px] text-muted sm:text-xs">{pick(`${c.count} ${c.count === 1 ? "store" : "stores"}`, `${c.count} ហាង`)}</span>
@@ -71,13 +97,13 @@ export function ShopByCategory() {
             </Link>
           </li>
         ))}
-        <li className="snap-start">
+        <li className="snap-start" style={order(CUISINES.length)}>
           <Link href="/express" className="shop-cat group flex w-[84px] flex-col items-center gap-2 text-center lg:w-auto">
             <span className="shop-cat-icon grid h-[72px] w-[72px] place-items-center rounded-3xl bg-surface text-[#6079b4] lg:h-20 lg:w-20" aria-hidden><Icon name="store" className="h-8 w-8" /></span>
             <span className="w-full"><span className="block truncate text-xs font-semibold sm:text-sm">{pick("Shop", "ទំនិញ")}</span><span className="block text-[10px] text-muted sm:text-xs">{pick("Local merchants", "អាជីវករក្នុងស្រុក")}</span></span>
           </Link>
         </li>
-        <li className="snap-start">
+        <li className="snap-start" style={order(CUISINES.length + 1)}>
           <Link href="/express" className="shop-cat group flex w-[84px] flex-col items-center gap-2 text-center lg:w-auto">
             <span className="shop-cat-icon grid h-[72px] w-[72px] place-items-center rounded-3xl bg-surface text-[#b58221] lg:h-20 lg:w-20" aria-hidden><Icon name="parcel" className="h-8 w-8" /></span>
             <span className="w-full"><span className="block truncate text-xs font-semibold sm:text-sm">{pick("Parcels", "កញ្ចប់ឥវ៉ាន់")}</span><span className="block text-[10px] text-muted sm:text-xs">{pick("Same-day", "ក្នុងថ្ងៃតែមួយ")}</span></span>

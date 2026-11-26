@@ -220,7 +220,7 @@ export default function OrderHistory() {
             {isOpen(o.id, "track") && p.step === 1 && <DeliveryTracker order={o} rider={p.rider} />}
             {isOpen(o.id, "rate") && <RateOrder order={o} onDone={() => setPanel(null)} />}
 
-            <p className="mt-2 text-sm text-muted">📍 {o.address} · {t(PAYMENT_LABEL[o.payment] ?? "cart.cash")} · {o.currency ?? "USD"}</p>
+            <p className="mt-2 text-sm text-muted">📍 {o.address}{o.contactPhone && <> · 📞 <span dir="ltr">{o.contactPhone}</span></>} · {t(PAYMENT_LABEL[o.payment] ?? "cart.cash")} · {o.currency ?? "USD"}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {p.step === 1 && (
                 <button onClick={() => toggle(o.id, "track")} aria-expanded={isOpen(o.id, "track")} className="btn-primary h-9 text-sm">

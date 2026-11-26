@@ -11,6 +11,7 @@ import PromotionsSync from "@/components/PromotionsSync";
 import CategoriesSync from "@/components/CategoriesSync";
 import Footer from "@/components/Footer";
 import Toaster from "@/components/Toaster";
+import ScrollToTop from "@/components/ScrollToTop";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import NotificationWatcher from "@/components/NotificationWatcher";
 import SkipLink from "@/components/SkipLink";
@@ -89,6 +90,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <ViewTransition default="page">{children}</ViewTransition>
           </main>
           <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
+          <ScrollToTop />
           <Toaster />
           <ConfirmDialog />
           <NotificationWatcher />

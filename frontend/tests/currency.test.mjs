@@ -40,13 +40,13 @@ test("food orders remember the payment currency, and wallet orders are always US
   const add = () => assert.equal(cart.addToCart(food.id, food.items[0].id, () => true), true);
 
   add();
-  assert.equal(cart.placeOrder("House 12, Street 1", "Cash", "", null, "KHR").order.currency, "KHR");
+  assert.equal(cart.placeOrder("House 12, Street 1", "Cash", "", null, "KHR", "012 345 678").order.currency, "KHR");
   add();
-  assert.equal(cart.placeOrder("House 12, Street 1", "Card", "").order.currency, "USD", "USD unless the customer picks riel");
+  assert.equal(cart.placeOrder("House 12, Street 1", "Card", "", null, "USD", "012 345 678").order.currency, "USD", "USD unless the customer picks riel");
   local.selectLocalAccount("user-1");
   add();
   wallet.topUp("user-1", 100);
-  assert.equal(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1", "KHR").order.currency, "USD");
+  assert.equal(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1", "KHR", "012 345 678").order.currency, "USD");
 }));
 
 test("KHQR top-ups can be paid in riel while the wallet is credited in dollars", () => withBrowser(async () => {

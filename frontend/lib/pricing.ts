@@ -34,6 +34,8 @@ export interface Order {
   promotionLabel?: string;
   deliveryFee: number; tip?: number; total: number;
   address: string; payment: PaymentMethod; note: string; createdAt: string;
+  /** Normalized number the rider calls on delivery; missing on older saved orders. */
+  contactPhone?: string;
   /** What the customer pays in; missing on older saved orders (= USD). Wallet orders are always USD. */
   currency?: Currency;
 }

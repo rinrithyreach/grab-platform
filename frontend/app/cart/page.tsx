@@ -24,6 +24,7 @@ import CardPaymentFields from "@/components/CardPaymentFields";
 import CurrencyPicker from "@/components/CurrencyPicker";
 import { formatPaid, type Currency } from "@/lib/currency";
 import { CARD_FIELDS, EMPTY_CARD, validateCard } from "@/lib/card";
+import { normalizePhoneNumber } from "@/lib/phone";
 
 const PAYMENTS: { value: PaymentMethod; icon: string; label: MessageKey }[] = [
   { value: "Cash", icon: "💵", label: "cart.cash" },
@@ -66,6 +67,11 @@ export default function CartPage() {
   const [card, setCard] = useState(EMPTY_CARD);
   const [cardChecked, setCardChecked] = useState(false);
   const [addressError, setAddressError] = useState(false);
+  // Starts as the signed-in account's number until the customer types another one.
+  const [phoneInput, setPhoneInput] = useState<string | null>(null);
+  const contactPhone = phoneInput ?? user?.phoneNumber ?? "";
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const phoneInvalid = !normalizePhoneNumber(contactPhone);
   const [detectingAddress, setDetectingAddress] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
@@ -102,6 +108,11 @@ export default function CartPage() {
   function checkout(e: React.FormEvent) {
     e.preventDefault();
     if (storeClosed || detectingAddress) return;
+    if (phoneInvalid) {
+      setPhoneChecked(true);
+      document.getElementById("contact-phone")?.focus();
+      return;
+    }
     if (!isValidAddress(address)) {
       setAddressError(true);
       document.getElementById("address")?.focus();
@@ -112,8 +123,9 @@ export default function CartPage() {
       const first = CARD_FIELDS.find((f) => cardErrors[f]);
       if (first) { setCardChecked(true); document.getElementById(`card-${first}`)?.focus(); return; }
     }
-    const result = placeOrder(address.trim(), method, note.trim(), userId, currency);
+    const result = placeOrder(address.trim(), method, note.trim(), userId, currency, contactPhone);
     if ("error" in result) {
+      if (result.error === "phone") { setPhoneChecked(true); document.getElementById("contact-phone")?.focus(); }
       if (result.error === "insufficient") toast(t("wallet.insufficient", { balance: money(balance) }), "error");
       if (result.error === "loginRequired") toast(t("wallet.loginToUse"), "error");
       return;
@@ -184,6 +196,15 @@ export default function CartPage() {
 
       <form onSubmit={checkout} className="card h-fit space-y-4 p-5 lg:sticky lg:top-24" noValidate>
         <h2 className="text-lg font-bold">{t("cart.checkout")}</h2>
+        <div>
+          <label className="label" htmlFor="contact-phone">{pick("Contact phone number", "លេខទូរសព្ទទំនាក់ទំនង")} *</label>
+          <input
+            id="contact-phone" className="input" type="tel" inputMode="tel" autoComplete="tel" maxLength={30} required
+            value={contactPhone} onChange={(e) => setPhoneInput(e.target.value)} placeholder="012 345 678"
+            aria-invalid={phoneChecked && phoneInvalid} aria-describedby={phoneChecked && phoneInvalid ? "contact-phone-error" : undefined}
+          />
+          {phoneChecked && phoneInvalid && <p id="contact-phone-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{pick("Enter a valid phone number we can call for delivery.", "សូមបញ្ចូលលេខទូរសព្ទត្រឹមត្រូវសម្រាប់ទំនាក់ទំនងពេលដឹកជញ្ជូន។")}</p>}
+        </div>
         <DeliveryAddressField key={`${userId ?? "guest"}:${store.id}`} id="address" value={address} onChange={setAddress} invalid={addressError} onInvalidChange={setAddressError} onDetectingChange={setDetectingAddress} />
         <div>
           <span className="label">{t("cart.payment")}</span>

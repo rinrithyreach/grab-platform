@@ -27,19 +27,24 @@ test("food checkout charges the discounted wallet total once, persists history a
     assert.equal(cart.addToCart(another.id, another.items[0].id, () => false), false);
     assert.equal(cart.applyPromoCode("WELCOME10"), "ok");
     // Guests can't pay with Wallet: nothing is charged and the cart is kept.
-    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Guest order"), { error: "loginRequired" });
+    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Guest order", null, "USD", "012 345 678"), { error: "loginRequired" });
     assert.equal(JSON.parse(window.localStorage.getItem("grab-shop-v1")).cart.lines.length, 1);
     local.selectLocalAccount("user-1");
     local.importDeviceData();
     // New wallets start at $0, so paying with Wallet fails until the user tops up.
-    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Too early", "user-1"), { error: "insufficient" });
+    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Too early", "user-1", "USD", "012 345 678"), { error: "insufficient" });
     assert.equal(wallet.topUp("user-1", 20), true);
-    const placed = cart.placeOrder("House 12, Street 1", "Wallet", "Test order", "user-1");
+    // A contact phone is required, and a missing one is rejected before the wallet is charged.
+    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "No phone", "user-1", "USD", ""), { error: "phone" });
+    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "Bad phone", "user-1", "USD", "123"), { error: "phone" });
+    assert.equal(local.getAccountCache().data["grab-wallet-v1"].balance, 20);
+    const placed = cart.placeOrder("House 12, Street 1", "Wallet", "Test order", "user-1", "USD", "012 345 678");
     assert.ok(placed.order);
     assert.equal(placed.order.storeId, food.id);
+    assert.equal(placed.order.contactPhone, "+85512345678");
     assert.equal(local.getAccountCache().data["grab-wallet-v1"].balance, Math.round((20 - placed.order.total) * 100) / 100);
     const walletAfter = JSON.stringify(local.getAccountCache().data["grab-wallet-v1"]);
-    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1"), { error: "empty" });
+    assert.deepEqual(cart.placeOrder("House 12, Street 1", "Wallet", "", "user-1", "USD", "012 345 678"), { error: "empty" });
     assert.equal(JSON.stringify(local.getAccountCache().data["grab-wallet-v1"]), walletAfter);
     const reloaded = await loadLibGroup(...shopLibs);
     reloaded["local-store"].selectLocalAccount("user-1");

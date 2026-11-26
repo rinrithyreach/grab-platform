@@ -16,6 +16,7 @@ import ts from "typescript";
 async function compileLibs(names) {
   const dir = await mkdtemp(join(tmpdir(), "lib-test-"));
   const dependencies = names.includes("pricing") || names.includes("cart") ? ["promotion-rules"] : [];
+  if (names.includes("cart")) dependencies.push("phone");
   if (names.some(name => ["cart", "express", "payments", "reviews", "wallet"].includes(name))) dependencies.push("record-id");
   for (const name of new Set([...names, ...dependencies])) {
     const source = await readFile(new URL(`../lib/${name}.ts`, import.meta.url), "utf8").catch((err) => {

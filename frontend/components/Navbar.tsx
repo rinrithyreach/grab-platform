@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { cartDetails, useShop } from "@/lib/cart";
 import { STORES, type StoreKind } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { useHydratedPathname } from "@/lib/navigation";
+import { recordVisit, useHydratedPathname } from "@/lib/navigation";
 import { partnerTotals, usePartnerCart } from "@/lib/partner-cart";
 import { useWallet } from "@/lib/wallet";
 import SettingsMenu from "./SettingsMenu";
@@ -18,6 +18,7 @@ import NotificationBell from "./NotificationBell";
 import CartPreview from "./CartPreview";
 
 const LINKS: { href: string; key: MessageKey }[] = [
+  { href: "/", key: "nav.home" },
   { href: "/ride", key: "nav.ride" },
   { href: "/food", key: "nav.food" },
   { href: "/express", key: "nav.express" },
@@ -53,8 +54,11 @@ export default function Navbar() {
   const drawer = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   const close = () => setOpen(false);
+
+  // Remember the in-app page trail so "← Back" can return to the previous page.
+  useEffect(() => { recordVisit(pathname); }, [pathname]);
 
   // While the drawer is open: Escape closes it, the page behind can't scroll, and keyboard
   // focus moves into the drawer (then back to the ☰ button when it closes).
@@ -170,7 +174,6 @@ export default function Navbar() {
 
           <nav className="flex-1 overflow-y-auto">
             <ul>
-              <li><Link href="/" className={`${row} ${pathname === "/" ? "text-brand" : ""}`}>{t("nav.home")}</Link></li>
               {links.map((l) => {
                 const kind = EXPANDABLE[l.href];
                 if (!kind) {
