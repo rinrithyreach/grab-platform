@@ -1,6 +1,7 @@
 "use client";
 
 /** Home-page search across restaurants and dishes, in English or Khmer. */
+import Image from "next/image";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { money } from "@/lib/brand";
@@ -84,7 +85,7 @@ export default function GlobalSearch({ className = "mx-auto mt-10 max-w-3xl px-4
                   {items.map(({ store, item }) => (
                     <li key={`${store.id}-${item.id}`}>
                       <Link href={`/store/${store.id}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-brand-soft">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-soft text-xl" aria-hidden>{item.emoji}</span>
+                        <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-soft text-xl" aria-hidden>{item.photo ? <Image src={item.photo.src} alt="" fill sizes="40px" className="object-cover" /> : item.emoji}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{pick(item.name, item.km?.name)}</span>
                           <span className="block truncate text-sm text-muted">{store.name}</span>

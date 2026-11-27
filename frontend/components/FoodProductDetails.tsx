@@ -31,13 +31,15 @@ export default function FoodProductDetails({ offer, others }: { offer: MerchantO
             : <div className="food-detail-placeholder"><Icon name="food" /><span>GrabFood</span></div>}
           <span className="food-detail-service"><Icon name="food" />GrabFood</span>
           <Link href={storeUrl} className="food-detail-back" aria-label={pick("Back to restaurant", "ត្រឡប់ទៅហាងអាហារ")}><Icon name="arrow" /></Link>
+          {/* On the photo, opposite the back arrow (same as GrabExpress), so the top-right toasts never cover it. */}
+          <WishlistButton offer={offer} className="food-detail-heart" />
         </div>
         <Link href={storeUrl} className="food-restaurant-card"><span className="food-restaurant-avatar">{merchant.businessName.trim().slice(0, 1).toUpperCase()}</span><span className="food-restaurant-copy"><small>{pick("FROM THE RESTAURANT", "ពីហាងអាហារ")}</small><strong>{merchant.businessName}</strong>{merchant.city && <span><Icon name="pin" />{merchant.city}</span>}</span><span className="food-restaurant-arrow"><Icon name="arrow" /></span></Link>
       </div>
       <section className="food-detail-info" aria-labelledby="food-detail-title">
         <div className="food-detail-eyebrow"><span className="food-detail-dot" />{pick("A little something delicious", "អាហារឆ្ងាញ់សម្រាប់អ្នក")}</div>
         <CategoryBadge categoryId={offer.categoryId} />
-        <div className="flex items-start justify-between gap-3"><h1 id="food-detail-title">{title}</h1><WishlistButton offer={offer} className="mt-1 shrink-0 border border-border" /></div>
+        <h1 id="food-detail-title">{title}</h1>
         <div className="food-detail-price"><strong>{money(offer.price)}</strong><span>{pick("per item", "ក្នុងមួយមុខ")}</span></div>
         <div className="food-detail-promotions"><PromotionBadge storeId={merchant.id} productId={offer.id} /></div>
         <div className="food-dish-description"><h2>{pick("About this dish", "អំពីម្ហូបនេះ")}</h2><p>{description}</p></div>

@@ -196,7 +196,7 @@ function ProductCard({ store, item }: { store: Store; item: MenuItem }) {
   const name = pick(item.name, item.km?.name);
   const hasOptions = !!item.options?.length;
   const closed = now > 0 && !isOpenAt(store.hours, new Date(now));
-  const photo = store.items[0]?.id === item.id ? store.photo : undefined;
+  const photo = item.photo ?? (store.items[0]?.id === item.id ? store.photo : undefined);
   const plainKey = lineKey({ itemId: item.id });
   const inThisStore = cart.storeId === store.id;
   const qty = inThisStore ? (hasOptions ? cart.lines.filter((l) => l.itemId === item.id).reduce((n, l) => n + l.qty, 0) : cart.lines.find((l) => lineKey(l) === plainKey)?.qty ?? 0) : 0;

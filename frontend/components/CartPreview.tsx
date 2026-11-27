@@ -40,7 +40,7 @@ export default function CartPreview({ active }: { active: boolean }) {
     : food.lines.map((l) => {
         const item = food.store ? getItem(food.store.id, l.itemId) : undefined;
         const options = item ? chosenOptions(item, l.optionIds).map((o) => pick(o.choice.name, o.choice.km)) : [];
-        return { key: l.key, name: pick(l.name, item?.km?.name), detail: [money(l.price), ...options].join(" · "), qty: l.qty, total: l.price * l.qty, emoji: item?.emoji };
+        return { key: l.key, name: pick(l.name, item?.km?.name), detail: [money(l.price), ...options].join(" · "), qty: l.qty, total: l.price * l.qty, emoji: item?.emoji, imageUrl: item?.photo?.src };
       });
 
   const remove = (key: string) => (isPartner ? setPartnerQty(key, 0) : setQty(key, 0));

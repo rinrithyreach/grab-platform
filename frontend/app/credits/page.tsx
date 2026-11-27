@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { STORES } from "@/lib/catalog";
+import { STORES, type Photo } from "@/lib/catalog";
 import { T } from "@/lib/i18n";
 import BackButton from "@/components/BackButton";
 
@@ -7,14 +7,24 @@ export const metadata: Metadata = { title: "Credits" };
 
 const LICENSE_URLS: Record<string, string> = {
   "CC BY 2.0": "https://creativecommons.org/licenses/by/2.0/",
+  "CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/",
+  "CC BY-SA 2.0": "https://creativecommons.org/licenses/by-sa/2.0/",
   "CC BY-SA 3.0": "https://creativecommons.org/licenses/by-sa/3.0/",
   "CC BY-SA 4.0": "https://creativecommons.org/licenses/by-sa/4.0/",
   "CC0": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "Public domain": "https://creativecommons.org/publicdomain/mark/1.0/",
 };
+
+/** Every photo the site uses: store covers first, then each store's products. */
+const PHOTOS: { key: string; label: string; photo: Photo }[] = STORES.flatMap((s) => [
+  ...(s.photo ? [{ key: s.id, label: s.name, photo: s.photo }] : []),
+  ...s.items.flatMap((i) => (i.photo ? [{ key: `${s.id}/${i.id}`, label: `${s.name} · ${i.name}`, photo: i.photo }] : [])),
+]);
+
+const fileName = (source: string) => decodeURIComponent(source.split("File:")[1]).replaceAll("_", " ");
 
 /** Attribution for every photo and outside resource the site uses. */
 export default function CreditsPage() {
-  const photos = STORES.filter((s) => s.photo);
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <BackButton href="/" />
@@ -24,13 +34,13 @@ export default function CreditsPage() {
       <section className="card mt-6 p-5">
         <h2 className="text-lg font-bold"><T k="credits.photos" /></h2>
         <ul className="mt-3 divide-y divide-border text-sm">
-          {photos.map((s) => (
-            <li key={s.id} className="py-3">
-              <p className="font-semibold">{s.name}</p>
-              <p className="text-muted">
-                “<a href={s.photo!.source} target="_blank" rel="noopener noreferrer" className="text-brand underline">{s.photo!.source.includes("File:") ? decodeURIComponent(s.photo!.source.split("File:")[1]).replaceAll("_", " ") : <T k="credits.photo" />}</a>”
-                {" "}<T k="credits.by" /> {s.photo!.author},{" "}
-                <a href={LICENSE_URLS[s.photo!.license] ?? s.photo!.source} target="_blank" rel="noopener noreferrer" className="underline">{s.photo!.license}</a>
+          {PHOTOS.map(({ key, label, photo }) => (
+            <li key={key} className="py-3">
+              <p className="font-semibold">{label}</p>
+              <p className="break-words text-muted">
+                “<a href={photo.source} target="_blank" rel="noopener noreferrer" className="text-brand underline">{photo.source.includes("File:") ? fileName(photo.source) : <T k="credits.photo" />}</a>”
+                {" "}<T k="credits.by" /> {photo.author},{" "}
+                <a href={LICENSE_URLS[photo.license] ?? photo.source} target="_blank" rel="noopener noreferrer" className="underline">{photo.license}</a>
                 {" "}· <T k="credits.resized" />
               </p>
             </li>

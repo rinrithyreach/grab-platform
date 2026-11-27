@@ -76,6 +76,12 @@ test("toasts stack at most four, replace by key, pause while hovered and leave o
   assert.deepEqual(texts(), ["Toast 2", "Toast 3", "Toast 4", "Toast 5"], "the oldest leaves when a fifth arrives");
   toasts.dismissAllToasts();
 
+  const first = toasts.toast("Added to cart", "success", { duration: 40 });
+  assert.equal(toasts.toast("Added to cart", "success", { duration: 40 }), first, "the same message isn't shown twice");
+  toasts.toast("Added to cart", "error", { duration: 40 });
+  assert.deepEqual(texts(), ["Added to cart", "Added to cart"], "a different tone is a different message");
+  toasts.dismissAllToasts();
+
   const offline = toasts.toast("Offline", "warning", { key: "network", duration: 0 });
   toasts.toast("Saved");
   const online = toasts.toast("Online", "success", { key: "network", duration: 40 });

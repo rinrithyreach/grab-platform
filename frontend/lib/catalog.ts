@@ -22,6 +22,8 @@ export interface MenuItem {
   price: number;
   emoji: string;
   popular?: boolean;
+  /** Product photo; items without one show their emoji. */
+  photo?: Photo;
   /** Optional choices shown before adding to cart (size, spice, extras...). */
   options?: OptionGroup[];
   /** Khmer translation (optional — falls back to English). */
@@ -134,6 +136,7 @@ export const STORES: Store[] = [
   },
   {
     id: "daily-mart", kind: "mart", name: "Daily Mart", cuisine: "Groceries", emoji: "🛒",
+    photo: { src: "/images/stores/daily-mart.jpg", author: "Wolfmann", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:REMA_1000_dyreartikler_dyremat_-_supermarket_grocery_store_interior_aisle_shelves_pet_food_-_T%C3%B8nsberg_Norway_2017-11-03.jpg" },
     rating: 4.6, etaMinutes: 30, priceLevel: 1,
     km: { cuisine: "ទំនិញប្រចាំថ្ងៃ" },
     items: [
@@ -146,6 +149,7 @@ export const STORES: Store[] = [
   },
   {
     id: "home-plus", kind: "mart", name: "Home Plus", cuisine: "Household", emoji: "🧴",
+    photo: { src: "/images/stores/home-plus.jpg", author: "Shwangtianyuan", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:White_Cat_Dishwashing_liquid_on_the_shelf_in_the_supermarket_in_Suzhou.jpg" },
     rating: 4.2, etaMinutes: 40, priceLevel: 2, promo: "10% off over $20", deal: { type: "percentOff", percent: 10, minSubtotal: 20 },
     km: { cuisine: "របស់ប្រើប្រាស់ក្នុងផ្ទះ", promo: "បញ្ចុះ ១០% ពេលទិញលើស $20" },
     items: [
@@ -246,6 +250,44 @@ for (const store of STORES) {
     const options = ITEM_OPTIONS[`${store.id}/${item.id}`];
     if (options) item.options = options;
   }
+}
+
+// ---------- Product photos ----------
+// Free-to-use photos from Wikimedia Commons, resized to 960px wide. Every one is credited on /credits.
+const ITEM_PHOTOS: Record<string, Photo> = {
+  "golden-noodle/beef-noodle": { src: "/images/items/golden-noodle-beef-noodle.jpg", author: "NeoBatfreak", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Chinese_Beef_Noodle_Soup_-_%E4%B8%AD%E5%BC%8F%E7%89%9B%E8%82%89%E6%B9%AF%E9%BA%B5.jpg" },
+  "golden-noodle/fried-noodle": { src: "/images/items/golden-noodle-fried-noodle.jpg", author: "Brassluff", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Stir-fry_Noodles_made_At_Brandon_Park.jpg" },
+  "golden-noodle/dumplings": { src: "/images/items/golden-noodle-dumplings.jpg", author: "User:Quadell", license: "CC BY-SA 3.0", source: "https://commons.wikimedia.org/wiki/File:Making_potstickers_8.jpeg" },
+  "golden-noodle/iced-tea": { src: "/images/items/golden-noodle-iced-tea.jpg", author: "Renee Comet (Photographer)", license: "Public domain", source: "https://commons.wikimedia.org/wiki/File:Iced_tea.jpg" },
+  "burger-yard/classic": { src: "/images/items/burger-yard-classic.jpg", author: "Renee Comet (photographer)", license: "Public domain", source: "https://commons.wikimedia.org/wiki/File:Cheeseburger.jpg" },
+  "burger-yard/chicken": { src: "/images/items/burger-yard-chicken.jpg", author: "Kurt Kaiser", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Fried_chicken_burger_.jpg" },
+  "burger-yard/fries": { src: "/images/items/burger-yard-fries.jpg", author: "Ambed888", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Chili_cheese_fries_mexico.jpg" },
+  "burger-yard/shake": { src: "/images/items/burger-yard-shake.jpg", author: "jencu from bay area, usa", license: "CC BY 2.0", source: "https://commons.wikimedia.org/wiki/File:Vanilla_milkshake_at_Lunchbox_Laboratories.jpg" },
+  "rice-bowl/pork-rice": { src: "/images/items/rice-bowl-pork-rice.jpg", author: "Ralff Nestor Nacor", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Grilled_Pork_Liempo_with_Rice.jpg" },
+  "rice-bowl/fried-rice": { src: "/images/items/rice-bowl-fried-rice.jpg", author: "Ralff Nestor Nacor", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Shrimp_Fried_Rice_(Taiwan).jpg" },
+  "rice-bowl/curry": { src: "/images/items/rice-bowl-curry.jpg", author: "Infrogmation of New Orleans", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Friday_dinner_-_Curry_chicken_with_bell_peppers_and_rice_-_01.jpg" },
+  "rice-bowl/coconut": { src: "/images/items/rice-bowl-coconut.jpg", author: "Crisco 1492", license: "CC BY-SA 3.0", source: "https://commons.wikimedia.org/wiki/File:Coconut_Drink,_Pangandaran.JPG" },
+  "pizza-lab/margherita": { src: "/images/items/pizza-lab-margherita.jpg", author: "Fabryx98", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Pizza-napoletana.jpg" },
+  "pizza-lab/pepperoni": { src: "/images/items/pizza-lab-pepperoni.jpg", author: "BullDawg2021", license: "CC BY 4.0", source: "https://commons.wikimedia.org/wiki/File:Pepperoni_Pizza_from_Fellini%E2%80%99s_Pizza.jpg" },
+  "pizza-lab/garlic-bread": { src: "/images/items/pizza-lab-garlic-bread.jpg", author: "Infrogmation", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Garlic_bread_baguettes_1.jpg" },
+  "sweet-spot/bubble-tea": { src: "/images/items/sweet-spot-bubble-tea.jpg", author: "Vincent60030", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Regiustea_Cheese_Brown_Sugar.jpg" },
+  "sweet-spot/cupcake": { src: "/images/items/sweet-spot-cupcake.jpg", author: "Marc-Lautenbacher", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Cupcakes,_chocolate_and_strawberry_flavour.jpg" },
+  "sweet-spot/mango": { src: "/images/items/sweet-spot-mango.jpg", author: "Zheng Zhou", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Mango_sticky_rice_with_mango_pudding_and_mango_ice_cream.jpg" },
+  "green-bowl/salad": { src: "/images/items/green-bowl-salad.jpg", author: "Daderot", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Chicken_Caesar_salad_-_Auckland,_New_Zealand.jpg" },
+  "green-bowl/poke": { src: "/images/items/green-bowl-poke.jpg", author: "Mojmir Churavy", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Poke_Bowl_Losos_Zlaty_Klas_2025.jpg" },
+  "green-bowl/smoothie": { src: "/images/items/green-bowl-smoothie.jpg", author: "Laya Kudaravalli", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Mango_berry_smoothie_bowl_.jpg" },
+  "daily-mart/milk": { src: "/images/items/daily-mart-milk.jpg", author: "Mack Male from Edmonton, AB, Canada", license: "CC BY-SA 2.0", source: "https://commons.wikimedia.org/wiki/File:Pouring_Milk_(450382667).jpg" },
+  "daily-mart/eggs": { src: "/images/items/daily-mart-eggs.jpg", author: "Evan-Amos", license: "Public domain", source: "https://commons.wikimedia.org/wiki/File:6-Pack-Chicken-Eggs.jpg" },
+  "daily-mart/bread": { src: "/images/items/daily-mart-bread.jpg", author: "FranHogan", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Fresh_made_bread_05.jpg" },
+  "daily-mart/bananas": { src: "/images/items/daily-mart-bananas.jpg", author: "Wilfredor", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Bunch_of_bananas_on_sale.jpg" },
+  "daily-mart/water": { src: "/images/items/daily-mart-water.jpg", author: "Eminence190", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Packs_of_OAU_branded_bottled_water_on_sidewalk.jpg" },
+  "home-plus/tissue": { src: "/images/items/home-plus-tissue.jpg", author: "Captain MarcusL", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:A_tissue_box.jpg" },
+  "home-plus/detergent": { src: "/images/items/home-plus-detergent.jpg", author: "ajcespedes", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Laundry_detergent_pods.jpg" },
+  "home-plus/soap": { src: "/images/items/home-plus-soap.jpg", author: "congerdesign", license: "CC0", source: "https://commons.wikimedia.org/wiki/File:Pexels-pixabay-433624.jpg" },
+};
+
+for (const store of STORES) {
+  for (const item of store.items) item.photo = ITEM_PHOTOS[`${store.id}/${item.id}`];
 }
 
 // ---------- Opening hours ----------

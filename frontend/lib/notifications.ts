@@ -93,7 +93,9 @@ export function notify(input: NotifyInput): boolean {
   const current = read();
   if (current.some((n) => n.id === id)) { items = current; return false; }
   const entry: AppNotification = { kind: input.kind, title: input.title, body: input.body, href: input.href, id, createdAt: Date.now(), read: false };
-  save([entry, ...current].slice(0, MAX_ITEMS));
+  // An unread copy of the same message is replaced (moved to the top) rather than listed twice.
+  const rest = current.filter((n) => n.read || n.kind !== entry.kind || n.title !== entry.title || n.body !== entry.body || n.href !== entry.href);
+  save([entry, ...rest].slice(0, MAX_ITEMS));
   return true;
 }
 

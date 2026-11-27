@@ -11,6 +11,7 @@
  *   toast("Order #12 accepted", "success", { title: "Order update", action: { label: "View", href: "/orders" } });
  *
  * Hovering or focusing a toast pauses its timer so it can be read or clicked.
+ * A message identical to one already on screen (same text, tone and title) is ignored.
  */
 import { useSyncExternalStore } from "react";
 
@@ -45,6 +46,9 @@ function startTimer(id: number, ms: number) {
 }
 
 export function toast(text: string, tone: ToastTone = "success", options: ToastOptions = {}) {
+  // The same message is already on screen: don't stack a second copy.
+  const same = !options.key && toasts.find((t) => !t.key && t.text === text && t.tone === tone && t.title === options.title);
+  if (same) return same.id;
   const id = nextId++;
   const duration = options.duration ?? DURATION[tone];
   const replaced = options.key ? toasts.find((t) => t.key === options.key) : undefined;
