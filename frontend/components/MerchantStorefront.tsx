@@ -44,7 +44,7 @@ export default function MerchantStorefront({ id }: { id: string }) {
   if (!data) return <div className="mx-auto max-w-6xl space-y-5 px-4 py-10"><p role="alert">{t(error === "missing" ? "merchant.notFound" : "merchant.unavailable")}</p><button className="btn-outline" onClick={() => { setError(null); setRetry((n) => n + 1); }}>{t("merchant.retry")}</button></div>;
   const merchant = data.merchant;
   const service = MERCHANT_SERVICES.find((s) => s.id === merchant.service)!;
-  return <div className="mx-auto max-w-6xl px-4 pb-28 pt-8">
+  return <div className="mx-auto max-w-6xl px-4 pb-4 pt-8 lg:pb-28">
     <Link href={service.href} className="text-sm font-semibold text-brand">← {merchant.service}</Link>
     <section className="card mt-5 grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.5fr_1fr]">
       <div><p className="text-sm font-semibold text-brand">{service.emoji} {merchant.service} · {merchant.category === "Food" && merchant.service === "GrabFood" ? t("nav.food") : merchant.category}</p><h1 className="mt-3 break-words text-3xl font-bold">{merchant.businessName}</h1><p className="mt-4 whitespace-pre-line text-muted">{merchantBusinessDescription(merchant.businessName, merchant.description, merchant.service, lang)}</p></div>

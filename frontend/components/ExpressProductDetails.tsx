@@ -89,7 +89,7 @@ export default function ExpressProductDetails({ offer, others }: { offer: Mercha
   ];
 
   return (
-    <div className="express-detail mx-auto max-w-6xl px-4 pb-36 pt-5 sm:pt-7 lg:pb-16">
+    <div className="express-detail mx-auto max-w-6xl px-4 pb-4 pt-5 sm:pt-7 lg:pb-16">
       <nav className="express-breadcrumb flex min-w-0 items-center gap-2 text-xs text-muted" aria-label={pick("Breadcrumb", "ទីតាំងទំព័រ")}>
         <Link href="/" className="shrink-0 hover:text-brand">{pick("Home", "ទំព័រដើម")}</Link><Icon name="chevron" className="h-3 w-3" />
         <Link href="/express" className="shrink-0 hover:text-brand">GrabExpress</Link><Icon name="chevron" className="h-3 w-3" />

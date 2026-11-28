@@ -89,7 +89,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {/* Fades each new page in on navigation (browsers without View Transitions just swap instantly). */}
             <ViewTransition default="page">{children}</ViewTransition>
           </main>
-          <Suspense fallback={<div className="mt-16 h-40 border-t border-border bg-surface" aria-busy="true" />}><Footer /></Suspense>
+          <Suspense fallback={<div className="mt-3 h-32 border-t border-border bg-surface sm:mt-6 lg:mt-14" aria-busy="true" />}><Footer /></Suspense>
           <ScrollToTop />
           <Toaster />
           <ConfirmDialog />

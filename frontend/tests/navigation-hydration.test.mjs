@@ -107,13 +107,17 @@ for (const destination of ["/merchant", "/store/test-store"]) {
     assert.equal(desktopAccount.getAttribute("href"), "/merchant");
     assert.equal(desktopAccount.getAttribute("aria-current"), destination === "/merchant" ? "page" : null);
     assert.equal(container.querySelectorAll('a[href="/profile"]').length, 0);
-    assert.equal(container.querySelector("footer").classList.contains("pb-24"), destination.startsWith("/store/"));
+    const accountToggle = [...container.querySelectorAll("footer button")].find(button => button.textContent === "footer.account");
+    assert.equal(accountToggle.getAttribute("aria-expanded"), "false");
+    await act(async () => accountToggle.click());
+    assert.equal(accountToggle.getAttribute("aria-expanded"), "true");
+    const accountPanel = dom.window.document.getElementById(accountToggle.getAttribute("aria-controls"));
+    assert.ok(accountPanel.querySelector('a[href="/merchant"]'));
 
     router.setPath("/food");
     await act(async () => root.render(h(App)));
     assert.equal(container.querySelector('header a[href="/food"]').getAttribute("aria-current"), "page");
     assert.equal(container.querySelector('header [role="menu"] a[href="/merchant"]').getAttribute("aria-current"), null);
-    assert.equal(container.querySelector("footer").classList.contains("pb-24"), false);
     assert.equal(container.querySelector('.mobile-bottom-nav a[href="/food"]').getAttribute("aria-current"), "page", "Bottom navigation follows the hydrated route");
     assert.deepEqual(attributeWarnings, [], "Active links continue to update without warnings after navigation");
   });

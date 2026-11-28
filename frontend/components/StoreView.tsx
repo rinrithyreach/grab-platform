@@ -55,7 +55,7 @@ export default function StoreView({ store }: { store: Store }) {
   }
 
   return (
-    <div className="storefront mx-auto max-w-6xl px-4 py-6 pb-32">
+    <div className="storefront mx-auto max-w-6xl px-4 py-6 lg:pb-32">
       <div className="storefront-topbar">
         <BackButton href={isMart ? "/mart" : "/food"} />
         <nav className="storefront-breadcrumb" aria-label={pick("Breadcrumb", "ទីតាំងទំព័រ")}>
